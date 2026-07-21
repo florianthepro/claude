@@ -29,6 +29,7 @@ MODE="auto"                 # auto | real | demo
 MANAGE_DNS="1"              # add crack-wifi.local -> 127.0.0.1 to /etc/hosts
 ASSUME_YES="0"
 OPEN_BROWSER="1"
+SKIP_SETUP="0"             # if 1, never auto-install missing dependencies
 WORDLIST_DEFAULT="/usr/share/wordlists/rockyou.txt"
 HOSTS_FILE="/etc/hosts"
 HOSTS_MARKER="# added-by-crack.sh"
@@ -66,6 +67,7 @@ Options:
   --no-dns          Do NOT touch /etc/hosts; use http://${BIND_HOST}:PORT instead
                     of http://${HOSTNAME_LOCAL}:PORT.
   --no-browser      Do not try to auto-open a browser.
+  --skip-setup      Do NOT auto-install missing dependencies (setup.sh).
   -y, --yes         Skip the interactive authorization prompt (you still accept
                     the terms — use only in automation / labs you own).
   -h, --help        Show this help.
@@ -87,6 +89,7 @@ while [[ $# -gt 0 ]]; do
     --wordlist) WORDLIST_DEFAULT="${2:?}"; shift 2 ;;
     --no-dns) MANAGE_DNS="0"; shift ;;
     --no-browser) OPEN_BROWSER="0"; shift ;;
+    --skip-setup) SKIP_SETUP="1"; shift ;;
     -y|--yes) ASSUME_YES="1"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) err "Unknown option: $1"; usage; exit 1 ;;
@@ -137,6 +140,29 @@ EOF
 # ---------------------------------------------------------------------------
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Auto-install missing dependencies via setup.sh (on-board apt) so a single
+# command is all the user ever needs. Skipped in demo mode or with --skip-setup.
+maybe_setup() {
+  [[ "$MODE" == "demo" ]] && return 0
+  [[ "$SKIP_SETUP" == "1" ]] && return 0
+
+  local missing=()
+  for t in python3 iw airmon-ng airodump-ng aireplay-ng aircrack-ng; do
+    have "$t" || missing+=("$t")
+  done
+  have xdg-open || missing+=("xdg-open")   # so the browser can auto-open
+
+  [[ ${#missing[@]} -eq 0 ]] && return 0
+
+  warn "Missing dependencies: ${missing[*]}"
+  log  "Running setup.sh to install them automatically (on-board apt)..."
+  if bash "${HERE}/setup.sh"; then
+    ok "Setup finished."
+  else
+    warn "Setup could not install everything — continuing (may fall back to DEMO)."
+  fi
+}
+
 detect_mode() {
   if [[ "$MODE" == "demo" ]]; then
     ok "Running in ${C_BOLD}DEMO${C_RESET} mode (simulated networks)."
@@ -150,8 +176,8 @@ detect_mode() {
 
   if [[ "$MODE" == "real" ]]; then
     if [[ ${#missing[@]} -gt 0 ]]; then
-      err "Real mode requested but missing tools: ${missing[*]}"
-      err "Install with:  sudo apt update && sudo apt install -y aircrack-ng"
+      err "Real mode requested but still missing tools: ${missing[*]}"
+      err "Try:  sudo ./setup.sh   (or: sudo apt install -y aircrack-ng)"
       exit 1
     fi
     if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -173,8 +199,8 @@ detect_mode() {
     else
       warn "Not running as root -> falling back to ${C_BOLD}DEMO${C_RESET} mode."
     fi
-    log "Install the toolkit and run as root for real audits:"
-    log "  sudo apt update && sudo apt install -y aircrack-ng reaver"
+    log "For real audits, run as root (deps auto-install on first run):"
+    log "  sudo ./crack.sh"
   fi
 }
 
@@ -279,8 +305,16 @@ PYEOF
 open_browser() {
   [[ "$OPEN_BROWSER" == "1" ]] || return 0
   local url="http://${UI_HOST}:${PORT}"
-  if have xdg-open; then (xdg-open "$url" >/dev/null 2>&1 &) ; fi
-  if have sensible-browser; then (sensible-browser "$url" >/dev/null 2>&1 &) ; fi
+  local opener=""
+  for o in xdg-open sensible-browser x-www-browser firefox firefox-esr chromium google-chrome open; do
+    if have "$o"; then opener="$o"; break; fi
+  done
+  if [[ -n "$opener" ]]; then
+    log "Opening your browser (${opener})..."
+    ( "$opener" "$url" >/dev/null 2>&1 & )
+  else
+    warn "Couldn't find a browser to open automatically — click the link below."
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -289,6 +323,7 @@ open_browser() {
 banner
 authorize
 step "Detecting environment"
+maybe_setup
 detect_mode
 setup_dns
 start_server

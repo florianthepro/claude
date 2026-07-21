@@ -1,14 +1,12 @@
 # crack-wifi — educational Wi-Fi security auditing
 
 A friendly launcher that takes you from a **fresh Kali Linux install** all the
-way to **"you are on the network"**, driven from a simple local web interface at
-**http://crack-wifi.local**.
+way to **"you are on the network"** — with a single command and a simple local
+web interface at **http://crack-wifi.local**.
 
-You scan for nearby networks, see an at-a-glance estimate of how hard each one is
-to crack, click one, and watch — live — every step the tool takes (monitor mode →
-handshake capture → deauth → crack). When it finishes you see the recovered key
-(and login, for captive portals). Advanced mode lets you pick the attack method,
-wordlist, or a bruteforce keyspace.
+You run one command. It installs anything that's missing, starts a local page,
+and opens your browser. You click a network, watch — live — every step the tool
+takes, and when it finishes you see the recovered key.
 
 It is a thin, teaching-focused wrapper around the standard **aircrack-ng** suite
 that already ships with Kali.
@@ -19,28 +17,53 @@ that already ships with Kali.
 
 **Only audit Wi-Fi networks you own or have explicit written permission to
 test.** Cracking or connecting to networks you do not control is illegal in most
-countries and can carry serious penalties. This project exists for **learning**
-and **authorized penetration testing** only. You alone are responsible for how
-you use it.
+countries. This project exists for **learning** and **authorized penetration
+testing** only. You alone are responsible for how you use it.
 
 The launcher makes you type `I AGREE` before it starts (skip with `--yes` only in
 labs you own).
 
 ---
 
-## Quick start (works anywhere — no Wi-Fi card needed)
+## 🚀 The whole thing in one command
 
-The tool ships with a **demo mode** that simulates realistic networks and the full
-attack workflow, so you can learn the process and explore the UI on any machine:
+On Kali:
 
 ```bash
-cd wifi/crack
+git clone https://github.com/florianthepro/claude.git
+cd claude/wifi
+sudo ./crack.sh
+```
+
+That's it. `crack.sh` will:
+
+1. show the legal notice and ask you to type `I AGREE`,
+2. **auto-install anything missing** (`aircrack-ng`, `reaver`, `crunch`, … via
+   `apt` — the on-board package manager) by calling `setup.sh` for you,
+3. map `crack-wifi.local → 127.0.0.1` (temporarily, in `/etc/hosts`),
+4. start the local web server and **open your browser** at
+   **http://crack-wifi.local:8777**.
+
+Then, in the page:
+
+> **click a network → wait → read the password.**
+
+Press **Ctrl+C** in the terminal when you're done — it cleans everything up
+(removes the hosts entry, stops the server, returns the card to normal).
+
+### Try it anywhere first (demo mode — no Wi-Fi card, no root)
+
+The tool ships with a **demo mode** that simulates realistic networks and the
+full attack workflow, so you can learn the process and explore the UI on any
+machine:
+
+```bash
+cd claude/wifi
 ./crack.sh --demo --no-dns
 # then open the URL it prints, e.g. http://127.0.0.1:8777
 ```
 
-`--no-dns` avoids touching `/etc/hosts` (no root needed). For the real
-`crack-wifi.local` hostname, run with `sudo` and drop `--no-dns`.
+`--no-dns` avoids touching `/etc/hosts` (no root needed).
 
 ---
 
@@ -53,42 +76,25 @@ cd wifi/crack
   (Atheros AR9271, Realtek RTL8812AU, MT7612U, …) is the usual choice.
 - Physical proximity to the network **you are authorized to test**.
 
-### 1. First boot & update
+### 1. First boot
+Just boot Kali and open a terminal. You don't need to hand-install anything —
+`crack.sh` installs its dependencies on first run. (If you like, you can update
+the system first: `sudo apt update && sudo apt full-upgrade -y`.)
+
+### 2. Get the tool
 ```bash
-sudo apt update && sudo apt full-upgrade -y
+git clone https://github.com/florianthepro/claude.git
+cd claude/wifi
 ```
 
-### 2. Install the toolkit
-Kali ships most of this, but to be sure:
+### 3. Plug in your Wi-Fi adapter and launch
 ```bash
-sudo apt install -y aircrack-ng reaver crunch python3
-# optional GPU cracking:
-sudo apt install -y hashcat
+sudo ./crack.sh
 ```
+On the first run it installs `aircrack-ng` and friends automatically, then opens
+the interface in your browser.
 
-### 3. Get the tool
-```bash
-git clone <this-repo>
-cd <repo>/wifi/crack
-chmod +x crack.sh
-```
-
-### 4. Plug in your Wi-Fi adapter and confirm it's seen
-```bash
-iw dev            # should list your interface, e.g. wlan0
-```
-
-### 5. Launch
-```bash
-sudo ./crack.sh          # auto-detects tools + root -> REAL mode
-```
-The launcher will:
-1. Show the legal notice and ask you to type `I AGREE`.
-2. Detect your environment (real vs demo).
-3. Temporarily add `crack-wifi.local → 127.0.0.1` to `/etc/hosts`.
-4. Start the local web server and open your browser.
-
-### 6. In the web interface
+### 4. In the web interface
 1. Click **Scan networks**. The card is put into monitor mode and
    `airodump-ng` collects nearby APs.
 2. Networks appear **sorted easiest-first**, each with a **difficulty badge**.
@@ -102,18 +108,17 @@ The launcher will:
 6. On success the **Recovered** panel shows the network name, **password**, the
    method used, and any captive-portal **login**.
 
-### 7. Connect
+### 5. Connect
 Use the recovered key with NetworkManager / `nmcli`, or your desktop's Wi-Fi
 menu:
 ```bash
 nmcli dev wifi connect "SSID" password "recovered-key"
 ```
 
-### 8. Clean up
-Press **Ctrl+C** in the terminal. The launcher automatically:
-- removes the `crack-wifi.local` entry from `/etc/hosts`,
-- stops the web server,
-- returns any monitor interfaces to managed mode.
+### 6. Clean up
+Press **Ctrl+C** in the terminal. The launcher automatically removes the
+`crack-wifi.local` entry, stops the web server, and returns any monitor
+interfaces to managed mode.
 
 ---
 
@@ -158,17 +163,25 @@ sudo ./crack.sh [options]
   --wordlist <f>    Default dictionary (default /usr/share/wordlists/rockyou.txt).
   --no-dns          Don't touch /etc/hosts; use http://127.0.0.1:PORT.
   --no-browser      Don't auto-open a browser.
+  --skip-setup      Don't auto-install missing dependencies.
   -y, --yes         Skip the interactive authorization prompt (labs you own only).
   -h, --help        Help.
 ```
+
+`setup.sh` can also be run on its own to (re-)install dependencies:
+```bash
+sudo ./setup.sh
+```
+It's idempotent — it only installs what's actually missing.
 
 ---
 
 ## How it's built
 
 ```
-wifi/crack/
-├── crack.sh              # launcher: env detect, DNS, server, cleanup trap
+wifi/
+├── crack.sh              # single command: setup → server → open browser → cleanup
+├── setup.sh              # installs missing deps via apt (on-board, idempotent)
 ├── server/server.py      # stdlib HTTP server + JSON API (no dependencies)
 ├── lib/
 │   ├── engine.py         # DemoEngine + RealEngine (aircrack-ng suite)
@@ -189,11 +202,13 @@ wifi/crack/
 ## Troubleshooting
 
 - **"falling back to DEMO mode"** — either you're not root or `aircrack-ng` isn't
-  installed. Run `sudo apt install -y aircrack-ng` and re-run with `sudo`.
+  installed. Run `sudo ./crack.sh` (it installs deps and needs root for real mode).
 - **Scan finds nothing (real mode)** — your adapter may not support monitor mode.
   Check with `sudo airmon-ng start wlan0` then `iw dev`. Use a supported USB dongle.
 - **`crack-wifi.local` doesn't resolve** — you used `--no-dns`, or `/etc/hosts`
   isn't writable. Use the printed `http://127.0.0.1:PORT` URL instead.
+- **Browser didn't open** — just click the `http://crack-wifi.local:8777` link the
+  launcher prints in the terminal.
 - **Handshake never captured** — no clients on the AP, or signal too weak. Get
   closer, or wait for a device to connect.
 ```
