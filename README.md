@@ -130,8 +130,25 @@ Neue Apps lassen sich über die zentrale `app_registry()` ergänzen – jede bek
 .
 ├── index.php     ← die komplette Anwendung (Single File)
 ├── .gitignore    ← schließt Laufzeitdaten (/data, *.sqlite) aus
+├── wifi/crack/   ← eigenständiges WLAN-Audit-Lerntool (siehe unten)
 └── README.md
 ```
+
+---
+
+## 📡 Weitere Tools: `wifi/crack/`
+
+Ein **eigenständiges, lehrorientiertes WLAN-Audit-Tool** (unabhängig von Nexus). Es führt Schritt für Schritt vom frischen Kali-Linux bis „im Netzwerk" – gesteuert über ein schlichtes lokales Web-Interface unter **http://crack-wifi.local**: Netzwerke scannen, Crackbarkeit (0–100) einschätzen, ein Netz anklicken und live zusehen, wie das gefundene Passwort ermittelt wird. Dünner Wrapper um die Standard-Kali-Tools (aircrack-ng-Suite).
+
+**Schnellstart** (Demo-Modus, läuft überall – keine Hardware/root nötig):
+
+```bash
+cd wifi/crack
+./crack.sh --demo --no-dns
+# dann die ausgegebene URL öffnen, z. B. http://127.0.0.1:8777
+```
+
+> ⚠️ **Nur für autorisierte Nutzung** – teste ausschließlich Netzwerke, die dir gehören oder für die du eine schriftliche Erlaubnis hast. Details, Kali-Schritt-für-Schritt-Anleitung und alle Optionen: [`wifi/crack/README.md`](wifi/crack/README.md).
 
 ---
 
