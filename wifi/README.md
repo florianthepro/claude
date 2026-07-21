@@ -104,13 +104,15 @@ the interface in your browser.
 4. (Optional) open **Advanced options** to choose the method, a custom
    wordlist, or a bruteforce charset/length.
 5. Click **Start audit** and watch the live console:
-   `monitor → capture → deauth → handshake → crack`.
+   `monitor → capture → deauth → handshake → crack → connect`.
 6. On success the **Recovered** panel shows the network name, **password**, the
-   method used, and any captive-portal **login**.
+   method used, any captive-portal **login**, and a **connection status**.
 
-### 5. Connect
-Use the recovered key with NetworkManager / `nmcli`, or your desktop's Wi-Fi
-menu:
+### 5. You're on the network
+With **Auto-connect** enabled (default), the tool leaves monitor mode, restarts
+NetworkManager and joins the network for you via `nmcli` — the status shows
+**✓ Connected**. If you turned auto-connect off, the panel shows the exact
+command to run yourself:
 ```bash
 nmcli dev wifi connect "SSID" password "recovered-key"
 ```
@@ -126,11 +128,14 @@ interfaces to managed mode.
 
 | Encryption | What the tool does | Notes |
 |-----------|--------------------|-------|
-| **Open** | Simply associates. | Nothing to crack; captive-portal creds shown if any. |
-| **WEP** | Captures IVs, runs `aircrack-ng` PTW. | Broken by design — minutes. |
-| **WPS on** | `reaver` Pixie-Dust / PIN. | Often bypasses the WPA passphrase entirely. |
+| **Open** | Associates directly via `nmcli`. | Nothing to crack; captive-portal creds shown if any. |
+| **WEP** | Captures IVs (with ARP-replay injection), runs `aircrack-ng`. | Broken by design — minutes. |
+| **WPS on** | `reaver` Pixie-Dust / PIN. WPS APs are detected during the scan with `wash`. | Often bypasses the WPA passphrase entirely. |
 | **WPA/WPA2-PSK** | Captures the 4-way handshake (forced via deauth), then dictionary or bruteforce with `aircrack-ng`. | Strength depends entirely on the passphrase. |
 | **WPA3-SAE** | Attempts capture, then reports no practical offline attack. | SAE resists offline cracking. |
+
+After a key is recovered (any method) the tool can **join the network for you**
+automatically — see *Auto-connect* below.
 
 ### Advanced options
 - **Method** — force dictionary, bruteforce, or WPS instead of *Auto*.
@@ -138,6 +143,9 @@ interfaces to managed mode.
 - **Bruteforce** — pick a charset (digits / lowercase / alphanumeric) and length;
   the tool pipes `crunch` into `aircrack-ng`. *Warning: the keyspace grows
   exponentially — long passphrases are impractical to bruteforce.*
+- **Auto-connect** — when the key is found, leave monitor mode, restart
+  NetworkManager and connect with `nmcli` so you're actually on the network
+  (on by default; turn it off to just get the key).
 
 ### How the difficulty score works
 `lib/difficulty.py` combines:

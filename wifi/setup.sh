@@ -32,14 +32,16 @@ declare -A PKG=(
   [airmon-ng]="aircrack-ng"
   [iw]="iw"
   [reaver]="reaver"          # WPS Pixie-Dust (optional but recommended)
+  [wash]="reaver"            # WPS scanner (ships with the reaver package)
   [crunch]="crunch"          # bruteforce keyspace generator (optional)
   [python3]="python3"        # runs the web server
   [xdg-open]="xdg-utils"     # so we can auto-open your browser
+  [nmcli]="network-manager"  # so we can actually join the network for you
 )
 
 # Order matters only for readability of the summary.
 REQUIRED=(python3 iw airmon-ng airodump-ng aireplay-ng aircrack-ng xdg-open)
-OPTIONAL=(reaver crunch)
+OPTIONAL=(reaver wash crunch nmcli)
 
 need_sudo() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then

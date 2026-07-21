@@ -126,6 +126,7 @@
   function collectOptions() {
     const method = $("opt-method").value;
     const opts = { method };
+    opts.connect = $("opt-connect").checked;
     const wl = $("opt-wordlist").value.trim();
     if (wl) opts.wordlist = wl;
     if (method === "handshake+bruteforce") {
@@ -200,6 +201,25 @@
     } else {
       $("r-user-row").classList.add("hidden");
     }
+
+    // Connection status.
+    const st = $("r-status");
+    const cmd = $("r-connect-cmd");
+    if (result.connected) {
+      st.textContent = "✓ Connected — you are on the network";
+      st.className = "result-val ok";
+      cmd.classList.add("hidden");
+    } else if (result.connect_cmd) {
+      st.textContent = "Not connected — run the command below";
+      st.className = "result-val warn";
+      cmd.textContent = "$ " + result.connect_cmd;
+      cmd.classList.remove("hidden");
+    } else {
+      st.textContent = "—";
+      st.className = "result-val";
+      cmd.classList.add("hidden");
+    }
+
     $("r-note").textContent = result.note || "";
   }
 

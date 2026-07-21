@@ -103,6 +103,10 @@
               Bruteforce length
               <input id="opt-length" type="number" min="4" max="16" value="8" />
             </label>
+            <label class="checkbox-label">
+              <input id="opt-connect" type="checkbox" checked />
+              Auto-connect to the network when the key is found
+            </label>
           </div>
         </details>
 
@@ -132,7 +136,12 @@
               <span class="result-key">Method</span>
               <span id="r-method" class="result-val"></span>
             </div>
+            <div class="result-item">
+              <span class="result-key">Status</span>
+              <span id="r-status" class="result-val"></span>
+            </div>
           </div>
+          <div id="r-connect-cmd" class="result-note mono hidden"></div>
           <div id="r-note" class="result-note muted"></div>
         </div>
 
