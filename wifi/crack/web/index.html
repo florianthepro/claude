@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>crack-wifi.local</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◈</span>
+      <span class="title">crack-wifi<span class="dim">.local</span></span>
+    </div>
+    <div class="topbar-right">
+      <span id="mode-badge" class="badge badge-demo">demo</span>
+      <button id="scan-btn" class="btn btn-primary">Scan networks</button>
+    </div>
+  </header>
+
+  <div class="legal-strip">
+    Authorized use only — audit networks you own or have written permission to test.
+  </div>
+
+  <main class="layout">
+    <!-- Left: network list -->
+    <section class="panel networks-panel">
+      <div class="panel-head">
+        <h2>Networks</h2>
+        <span id="net-count" class="muted"></span>
+      </div>
+      <div id="scan-hint" class="empty-state">
+        <p>No scan yet.</p>
+        <p class="muted">Click <strong>Scan networks</strong> to look for nearby Wi-Fi.</p>
+      </div>
+      <ul id="network-list" class="network-list"></ul>
+    </section>
+
+    <!-- Right: detail / attack console -->
+    <section class="panel detail-panel">
+      <div id="detail-empty" class="empty-state">
+        <p>Select a network</p>
+        <p class="muted">Pick a network on the left to see how hard it is to crack and to start an audit.</p>
+      </div>
+
+      <div id="detail" class="detail hidden">
+        <div class="detail-head">
+          <div>
+            <h2 id="d-ssid">SSID</h2>
+            <div class="meta-row">
+              <span id="d-bssid" class="mono muted"></span>
+              <span id="d-enc" class="chip"></span>
+              <span id="d-ch" class="chip"></span>
+              <span id="d-signal" class="chip"></span>
+            </div>
+          </div>
+          <div class="difficulty">
+            <div class="gauge">
+              <svg viewBox="0 0 120 120" class="gauge-svg">
+                <circle class="gauge-bg" cx="60" cy="60" r="52"></circle>
+                <circle id="gauge-arc" class="gauge-arc" cx="60" cy="60" r="52"></circle>
+              </svg>
+              <div class="gauge-label">
+                <span id="d-score" class="gauge-score">0</span>
+                <span class="gauge-max">/100</span>
+              </div>
+            </div>
+            <div class="difficulty-text">
+              <span id="d-label" class="diff-label">—</span>
+              <span id="d-eta" class="muted"></span>
+            </div>
+          </div>
+        </div>
+
+        <ul id="d-reasons" class="reasons"></ul>
+
+        <!-- Advanced options -->
+        <details class="advanced">
+          <summary>Advanced options</summary>
+          <div class="adv-grid">
+            <label>
+              Method
+              <select id="opt-method">
+                <option value="auto">Auto (recommended)</option>
+                <option value="handshake+dictionary">Handshake + dictionary</option>
+                <option value="handshake+bruteforce">Handshake + bruteforce</option>
+                <option value="wps-pixie">WPS Pixie-Dust</option>
+              </select>
+            </label>
+            <label>
+              Wordlist
+              <input id="opt-wordlist" type="text" placeholder="/usr/share/wordlists/rockyou.txt" />
+            </label>
+            <label>
+              Bruteforce charset
+              <select id="opt-charset">
+                <option value="digits">Digits (0-9)</option>
+                <option value="lower">Lowercase (a-z)</option>
+                <option value="alnum">Alphanumeric</option>
+              </select>
+            </label>
+            <label>
+              Bruteforce length
+              <input id="opt-length" type="number" min="4" max="16" value="8" />
+            </label>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button id="attack-btn" class="btn btn-danger">Start audit</button>
+          <button id="stop-btn" class="btn btn-ghost hidden">Stop</button>
+          <span id="status-pill" class="pill hidden"></span>
+        </div>
+
+        <!-- Result -->
+        <div id="result" class="result hidden">
+          <div class="result-head">Recovered</div>
+          <div class="result-grid">
+            <div class="result-item">
+              <span class="result-key">Network</span>
+              <span id="r-ssid" class="result-val mono"></span>
+            </div>
+            <div class="result-item">
+              <span class="result-key">Password</span>
+              <span id="r-key" class="result-val mono strong"></span>
+            </div>
+            <div id="r-user-row" class="result-item hidden">
+              <span class="result-key">Login</span>
+              <span id="r-user" class="result-val mono"></span>
+            </div>
+            <div class="result-item">
+              <span class="result-key">Method</span>
+              <span id="r-method" class="result-val"></span>
+            </div>
+          </div>
+          <div id="r-note" class="result-note muted"></div>
+        </div>
+
+        <!-- Live console -->
+        <div class="console-wrap">
+          <div class="console-head">
+            <span>Activity</span>
+            <span id="phase-tag" class="phase-tag"></span>
+          </div>
+          <div id="console" class="console"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
