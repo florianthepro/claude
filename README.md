@@ -1,140 +1,200 @@
 <div align="center">
 
-# 🧩 Nexus Launcher
+# Nexus
 
-**Ein ausgereifter Single-File-Launcher — von der Startseite über Kalender bis Mail, alles auf einer Seite.**
+**Schlanker, selbst-gehosteter App-Launcher mit integrierten Apps — Mail, Kalender, Notizen, Aufgaben, Dateien und mehr.**
 
-Eine einzige `index.php`, die nur **Apache + PHP** braucht und beim ersten Aufruf alles Weitere selbst anlegt.
+Nur **Apache + PHP**. Kein Composer, keine externen Dienste, keine ausgehenden Requests. Gebaut für den Betrieb in abgeschotteten, sicherheitskritischen Umgebungen.
 
-![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4?logo=php&logoColor=white)
-![Apache](https://img.shields.io/badge/Server-Apache-d22128?logo=apache&logoColor=white)
-![SQLite](https://img.shields.io/badge/DB-SQLite-003b57?logo=sqlite&logoColor=white)
-![Single File](https://img.shields.io/badge/Setup-1%20Datei-6366f1)
-![License](https://img.shields.io/badge/License-MIT-10b981)
+![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%207.4-777bb4)
+![Apache](https://img.shields.io/badge/Server-Apache-d22128)
+![SQLite](https://img.shields.io/badge/DB-SQLite-003b57)
+![Ohne Composer](https://img.shields.io/badge/Dependencies-0-4a9d6f)
+![License](https://img.shields.io/badge/License-MIT-4d7ea8)
 
 </div>
 
 ---
 
-## ✨ Überblick
+## Inhalt
 
-Nexus ist ein persönliches Dashboard mit integrierten Apps, die **wirklich auf der Seite laufen** – kein iframe, kein neuer Tab. Du lädst eine einzige Datei auf deinen Server, rufst sie auf, legst ein Konto an – fertig. Die App erstellt Ordnerstruktur, Datenbank, Sicherheits-Regeln und Verschlüsselungs-Schlüssel vollautomatisch.
-
-> **Philosophie:** Bei Diensten wie Mail brauchst du nur deine Kontodaten einzugeben – der komplette Rest passiert direkt auf der Seite.
-
----
-
-## 🚀 Features
-
-| App | Beschreibung |
-|-----|--------------|
-| 🏠 **Startseite** | Dashboard mit App-Kacheln, Schnellzugriff-Links und der heutigen Agenda |
-| 📝 **Notizen** | Anpinnen, Farben, Bearbeiten – gespeichert in SQLite |
-| 📅 **Kalender** | Monatsraster mit Terminen, Uhrzeiten und Farben |
-| ✉️ **Mail** | Postfach per **IMAP** lesen, per eingebautem **SMTP-Client** senden (SSL/STARTTLS) – nur Zugangsdaten nötig |
-| 📁 **Dateien** | Persönlicher, sandboxed Speicher mit Drag-&-Drop-Upload und Ordnern |
-| 🔖 **Lesezeichen** | Links, die als Kacheln auf der Startseite erscheinen |
-| ⚙️ **Einstellungen** | Profil, Theme, Akzentfarbe, Passwort, Mail-Konten, Systeminfo |
-
-**Außerdem:**
-- 🎨 **Einheitliches Design** über alle Apps – Sidebar-Navigation, Dark- & Light-Theme, wählbare Akzentfarbe, responsive für Mobil
-- 🔐 **Benutzerverwaltung** mit Passwort-Hashing, CSRF-Schutz und Session-Handling; der erste registrierte Nutzer wird automatisch Admin
-- 🗄️ **Selbst-Bootstrap** – Datenbank, Ordner, `.htaccess` und Secret-Key werden beim ersten Start erzeugt
+- [Überblick](#überblick)
+- [Architektur](#architektur)
+- [Installation](#installation)
+- [Nutzer-Lebenszyklus & Quota](#nutzer-lebenszyklus--quota)
+- [Mail](#mail)
+- [Sicherheit](#sicherheit)
+- [Neue App hinzufügen](#neue-app-hinzufügen)
+- [Archiv](#archiv)
 
 ---
 
-## 📦 Voraussetzungen
+## Überblick
 
-- **Apache** (für die `.htaccess`-basierte Sperre von `/data`)
-- **PHP ≥ 7.4** mit den Erweiterungen:
-  - `pdo_sqlite` *(erforderlich)*
-  - `openssl` *(empfohlen – für die verschlüsselte Speicherung von Mail-Passwörtern)*
-  - `imap` *(optional – nur zum **Lesen** von Postfächern; SMTP-Versand läuft auch ohne)*
-- Schreibrechte im Verzeichnis, in dem `index.php` liegt (zum Anlegen von `/data`)
+Nexus ist ein persönliches/kleines-Team-Dashboard mit Apps, die **direkt auf der Seite laufen** (kein iframe, kein neues Tab). Neue Nutzer registrieren sich selbst, werden aber erst nach **Freischaltung durch einen Administrator** vollwertig aktiv. Der Speicher jedes Nutzers ist per **Quota** begrenzt.
+
+| App | Zweck | Ab Status |
+|-----|-------|-----------|
+| **Startseite** | Übersicht, Kacheln, Schnellzugriffe, heutige Termine | jeder |
+| **Mail** | Interne Nachrichten/Tickets **+** externe IMAP/SMTP-Konten | jeder¹ |
+| **Notizen** | Anpinnen, Farben | freigeschaltet |
+| **Aufgaben** | To-dos mit Fälligkeit & Priorität | freigeschaltet |
+| **Kalender** | Monatsansicht, Termine | freigeschaltet |
+| **Kontakte** | Adressbuch | freigeschaltet |
+| **Dateien** | Sandbox-Speicher (Quota-begrenzt) | freigeschaltet |
+| **Lesezeichen** | Links als Startseiten-Kacheln | freigeschaltet |
+| **Verwaltung** | Freischaltung, Quota, Sperren, Admins | nur Admin |
+| **Einstellungen** | Profil, Theme, Passwort, Mailkonten | jeder |
+
+¹ Vor der Freischaltung ist Mail auf den Administrator beschränkt (siehe unten).
 
 ---
 
-## ⚡ Installation
+## Architektur
 
-```bash
-# 1. Datei ins Webroot (oder ein Unterverzeichnis) deines Apache-Servers legen
-cp index.php /var/www/html/
-
-# 2. Im Browser aufrufen
-#    https://deine-domain.tld/index.php
-```
-
-Beim **ersten Aufruf** legt Nexus automatisch an:
+Bewusst modular und **ohne Framework/Composer** – ein kleiner PSR-4-Autoloader genügt.
 
 ```
-/data/                     ← per .htaccess komplett gesperrt
-├── .htaccess              ← "Require all denied" (Apache 2.4 + 2.2-Fallback)
-├── index.php              ← 403-Guard als Sicherheitsnetz
-├── sys/                   ← System-Verzeichnis
-│   ├── app.sqlite         ← Datenbank (Nutzer, Notizen, Termine …)
-│   ├── secret.key         ← Schlüssel für AES-256-GCM-Verschlüsselung
-│   └── sessions/          ← Session-Speicher
-├── notes/                 ← je App ein eigener Datenordner
-├── calendar/
-├── mail/
-├── bookmarks/
-└── files/<user-id>/       ← persönlicher, abgeschotteter Datei-Speicher
+.
+├── public/                  ← Webroot (Docroot hierauf zeigen)
+│   ├── index.php            ← Front Controller (Bootstrap + Kernel)
+│   ├── .htaccess            ← Verzeichnis-/Header-Härtung
+│   └── assets/              ← app.css, app.js (statisch, cachefähig)
+├── src/
+│   ├── autoload.php         ← PSR-4 Autoloader (Namespace „Nexus\")
+│   ├── bootstrap.php        ← Pfade, data/-Anlage & -Härtung, Migrationen
+│   ├── helpers.php          ← globale Helfer (h, url, param, …)
+│   ├── registry.php         ← zentrale App-Registry
+│   ├── Core/                ← Database, Migrations, Security, Kernel,
+│   │                          Router/View, Icons, AuthView
+│   ├── Services/            ← Auth, Quota, Tickets, InternalMail,
+│   │                          Mailer, Imap, Smtp
+│   └── Apps/                ← Home, Mail, Notes, Tasks, Calendar,
+│                              Contacts, Files, Bookmarks, Admin, Settings
+├── data/                    ← Laufzeit (gitignored, s. u.) – NICHT im Webroot
+│   └── sys/                 ← SQLite-DB, secret.key, sessions
+├── old/                     ← archivierte Single-File-Version
+└── .htaccess                ← Fallback, falls Docroot = Repo-Root
 ```
 
-Danach erstellst du im Browser das erste Konto (= Admin) und kannst sofort loslegen.
+**Sicherheitsrelevant:** `data/` liegt **außerhalb** von `public/` und ist damit per Web gar nicht erreichbar – zusätzlich zur automatisch erzeugten `.htaccess`-Sperre (Defense in Depth).
+
+Datenfluss: `public/index.php` → `nx_bootstrap()` → `Core\Kernel::handle()` (Session, Auth-Gating, Routing) → App-Klasse `render()`/`handle()` → `Core\View` rendert das einheitliche Layout.
+
+---
+
+## Installation
+
+**Voraussetzungen:** Apache, PHP ≥ 7.4 mit `pdo_sqlite`. Empfohlen: `openssl` (verschlüsselte Mail-Passwörter), `zlib` (Mail-Kompression). Optional: `imap` (externe Postfächer lesen).
+
+```apache
+<VirtualHost *:80>
+    ServerName nexus.example.com
+    DocumentRoot /var/www/nexus/public
+    <Directory /var/www/nexus/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+
+1. Repo nach `/var/www/nexus` klonen.
+2. Docroot auf `/var/www/nexus/public` zeigen lassen (Vhost oben). *Alternativ* Repo-Root als Docroot – die mitgelieferte Root-`.htaccess` leitet dann nach `public/` und sperrt `src/`, `data/`, `old/`.
+3. Schreibrechte für das Anlegen von `data/` sicherstellen (`chown www-data`).
+4. Im Browser öffnen → **das erste angelegte Konto wird automatisch Administrator** (aktiv, 1 GB).
+
+Beim ersten Aufruf legt Nexus `data/`, die SQLite-DB, den Secret-Key und alle App-Ordner selbst an.
 
 ### Lokal testen
 
 ```bash
-php -S 127.0.0.1:8000 index.php
-# Hinweis: Der PHP-Dev-Server wertet .htaccess NICHT aus – die /data-Sperre
-# greift nur unter echtem Apache. Die index.php-Guards schützen aber auch hier.
+php -S 127.0.0.1:8000 -t public public/index.php
 ```
 
 ---
 
-## 🔒 Sicherheit
-
-- **`/data` ist komplett gesperrt** – automatisch generierte `.htaccess` (`Require all denied`, Apache-2.2-Fallback, `Options -Indexes`) plus zusätzliche `index.php`-403-Guards als Sicherheitsnetz.
-- **Passwörter** werden mit `password_hash()` (bcrypt) gespeichert.
-- **Mail-Zugangsdaten** werden mit **AES-256-GCM** verschlüsselt (Schlüssel in der gesperrten `/data/sys`).
-- **CSRF-Schutz** auf allen zustandsändernden Aktionen.
-- **Datei-Sandbox** pro Nutzer – Path-Traversal (`../`) wird abgewiesen.
-- **Mail-Rendering** in einem `sandbox`-iframe mit vorherigem HTML-Sanitizing.
-
-> ⚠️ Die `/data`-Sperre setzt **Apache** voraus. Unter nginx muss der Zugriff auf `/data` stattdessen in der Server-Konfiguration unterbunden werden (die `index.php`-Guards fangen Direktaufrufe aber trotzdem ab).
-
----
-
-## 🏗️ Architektur
-
-Alles steckt in **einer** Datei, klar in Abschnitte gegliedert:
-
-| Abschnitt | Inhalt |
-|-----------|--------|
-| **Bootstrap** | Legt Ordner, `.htaccess`, Secret-Key und Datenbank an |
-| **DB-Layer** | SQLite via PDO mit Migrationen |
-| **Sicherheit** | CSRF, Escaping, AES-Verschlüsselung |
-| **Auth** | Registrierung, Login, Sessions |
-| **Apps** | Home, Notizen, Kalender, Mail, Dateien, Lesezeichen, Einstellungen |
-| **Assets** | CSS & JS werden cachefähig über `?asset=` ausgeliefert |
-| **Router** | Front-Controller mit `?app=` / `?action=` |
-
-Neue Apps lassen sich über die zentrale `app_registry()` ergänzen – jede bekommt automatisch einen eigenen Datenordner unter `/data/`.
-
----
-
-## 📁 Projektstruktur
+## Nutzer-Lebenszyklus & Quota
 
 ```
-.
-├── index.php     ← die komplette Anwendung (Single File)
-├── .gitignore    ← schließt Laufzeitdaten (/data, *.sqlite) aus
-└── README.md
+Registrierung (E-Mail Pflicht)
+        │
+        ▼
+   ┌─────────┐   Admin: Freischalten    ┌────────┐
+   │ pending │ ───────────────────────▶ │ active │
+   │ 0,5 GB  │                          │  1 GB  │
+   └─────────┘   Admin: Ablehnen/Sperren └────────┘
+        │                                    │
+        └──────────────┐      ┌──────────────┘
+                       ▼      ▼
+                   ┌───────────┐
+                   │ suspended │  (Login gesperrt)
+                   └───────────┘
 ```
+
+- **Registrierung** erfordert eine **E-Mail-Adresse**. Es entsteht sofort ein **Freischalt-Ticket** mit fester ID (`TCK-JJJJ-XXXXXX`).
+- **Benachrichtigung des Admins:** Der erste (dienstälteste) Admin erhält bei jeder Registrierung automatisch eine **interne Ticket-Nachricht** (Betreff = Ticket-ID). Ist in den Einstellungen eine **Ticket-E-Mail** hinterlegt *und* ein Mailkonto verbunden, wird zusätzlich eine echte E-Mail versendet (best effort).
+- **Vor der Freischaltung** (`pending`, 0,5 GB): Der Nutzer kann sich einloggen und **Mail nutzen, aber ausschließlich an den Administrator** schreiben – der Betreff ist fest an das Ticket gebunden. Andere Apps sind gesperrt.
+- **Nach der Freischaltung** (`active`, 1 GB): voller Funktionsumfang.
+- **Admin-Rechte** (App „Verwaltung"): Konten **freischalten/ablehnen**, **Quota +/−** setzen, **sperren/entsperren**, **weitere Admins ernennen** (oder degradieren). Der letzte verbleibende Admin kann nicht degradiert werden; das eigene Konto kann man nicht sperren.
+- **Quota** = interner Mail-Posteingang + Dateien. Uploads über dem Limit werden abgewiesen; die belegte Menge ist in der Sidebar und in der Verwaltung sichtbar.
+
+Die Standardwerte (0,5 GB / 1 GB) sind in `src/bootstrap.php` als `NX_QUOTA_PENDING` / `NX_QUOTA_ACTIVE` definiert.
 
 ---
 
-## 📝 Lizenz
+## Mail
 
-Veröffentlicht unter der [MIT-Lizenz](LICENSE) – frei nutzbar, anpassbar und weiterverbreitbar.
+Nexus trennt zwei Welten, beide auf **wenig Speicher und wenig Bandbreite** ausgelegt:
+
+**Intern** (Nachrichten/Tickets zwischen Nutzern)
+- Bodies werden **komprimiert** (`gzdeflate`) in SQLite abgelegt → minimaler Speicher.
+- Keine externen Ressourcen → **null Bandbreite**, kein Tracking.
+- Zählt gegen die Quota des Empfängers.
+
+**Extern** (eigene IMAP/SMTP-Konten – „nur Zugangsdaten, Rest läuft auf der Seite")
+- Listen laden **nur die Overview** (Betreff/Absender/Datum), keine Bodies.
+- Der Nachrichtentext wird **erst beim Öffnen** und mit **`FT_PEEK`** geladen, **`text/plain` bevorzugt** (kleiner als HTML); **Anhänge werden nicht vorab geladen** → deutlich weniger Bandbreite.
+- HTML-Mails werden in einem **`sandbox`-iframe mit eigener CSP** dargestellt: keine Skripte, **keine Remote-Requests** (Tracking-Pixel laden nicht).
+- Passwörter werden **AES-256-GCM-verschlüsselt** in der gesperrten `data/sys` gespeichert. TLS-Zertifikatsprüfung ist pro Konto aktivierbar.
+- Versand über einen eingebauten, abhängigkeitsfreien **SMTP-Client** (SSL/STARTTLS).
+
+---
+
+## Sicherheit
+
+- `data/` **außerhalb** des Webroots + `.htaccess`-Sperre + 403-Guards.
+- **Strikte Sicherheits-Header** auf jeder Antwort: CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`.
+- **CSRF-Schutz** auf allen zustandsändernden Aktionen (POST-Token + Token bei GET-Aktionen).
+- Passwörter mit `password_hash()` (bcrypt), min. 8 Zeichen.
+- **Login-Drossel**: Sperre nach zu vielen Fehlversuchen pro IP.
+- **Datei-Sandbox** pro Nutzer, Path-Traversal (`../`) wird abgewiesen.
+- **Keine ausgehenden Requests** im Normalbetrieb (keine Font-CDNs o. ä.).
+- Rollen-/Status-basierte Zugriffskontrolle je App.
+
+---
+
+## Neue App hinzufügen
+
+1. Klasse unter `src/Apps/Meine.php` mit `Nexus\Apps\Meine`:
+   ```php
+   namespace Nexus\Apps;
+   use Nexus\Core\View;
+   final class Meine {
+       public static function render(array $u): void { View::topbar('Meine App'); /* … */ }
+       public static function handle(array $u, string $action): void { /* optional */ }
+   }
+   ```
+2. Eintrag in `src/registry.php` ergänzen (Name, Icon, Farbe, `min`-Status, `class`).
+3. Fertig – Navigation, Kachel, Routing und je-App-Datenordner unter `data/` entstehen automatisch.
+
+---
+
+## Archiv
+
+Die ursprüngliche, komplett eigenständige **Single-File-Version** liegt unter [`old/`](old/) als Referenz.
+
+---
+
+## Lizenz
+
+[MIT](LICENSE).

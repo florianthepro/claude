@@ -1,0 +1,12 @@
+# Fallback, falls der Docroot versehentlich auf das Repo-Wurzelverzeichnis
+# statt auf public/ zeigt: Anfragen nach public/ leiten und Code/Daten sperren.
+
+# Quellcode, Laufzeitdaten und Archiv niemals ausliefern
+RedirectMatch 403 ^/(src|data|old)(/|$)
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^$ public/ [L]
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

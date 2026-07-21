@@ -1,0 +1,15 @@
+# Nexus – public/ ist das Webroot.
+DirectoryIndex index.php
+Options -Indexes
+
+# Punkt-Dateien und sensible Endungen sperren
+<FilesMatch "(^\.|\.(sqlite|sqlite-wal|sqlite-shm|key|md)$)">
+    Require all denied
+</FilesMatch>
+
+# Sicherheits-Header auch für statische Assets (PHP-Seiten setzen sie selbst)
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "no-referrer"
+</IfModule>

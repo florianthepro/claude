@@ -1,0 +1,10 @@
+# Laufzeitdaten – niemals einchecken
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.key
+
+# Dev / OS
+.DS_Store
+Thumbs.db
