@@ -34,7 +34,7 @@ OPEN_BROWSER="1"
 SKIP_SETUP="0"             # if 1, never auto-install missing dependencies
 WORDLIST_DEFAULT="/usr/share/wordlists/rockyou.txt"
 HOSTS_FILE="/etc/hosts"
-HOSTS_MARKER="# added-by-crack.sh"
+HOSTS_MARKER="# added-by-single-script.sh"
 SERVER_PID=""
 BUNDLE=""                  # temp dir the embedded assets are unpacked into
 
@@ -156,12 +156,12 @@ extract_bundle() {
   cat > "${BUNDLE}/setup.sh" <<'CRACK_EOF_SETUP'
 #!/usr/bin/env bash
 #
-# setup.sh — install everything crack.sh needs, using on-board means (apt).
+# setup.sh — install everything single-script.sh needs, using on-board apt.
 #
 # On Kali / Debian / Ubuntu this installs any missing dependency automatically.
 # It is idempotent: run it as often as you like, it only installs what's absent.
-# crack.sh calls this for you when it notices something is missing, so you
-# normally never run it by hand.
+# single-script.sh calls this for you when it notices something is missing, so
+# you normally never run it by hand.
 #
 set -euo pipefail
 
@@ -279,7 +279,7 @@ main() {
     err "Still missing after install: ${still[*]}"
     return 1
   fi
-  ok "Setup complete — you're ready to run ./crack.sh"
+  ok "Setup complete — you're ready to run ./single-script.sh"
 }
 
 main "$@"
@@ -684,7 +684,7 @@ class DemoEngine(BaseEngine):
             if wl is None:
                 return self._finish(job, "stopped" if job.stopped() else "failed")
             job.emit("crack", f"Dictionary attack against handshake (aircrack-ng -w {os.path.basename(wl)}).", pct=0)
-            for i, pct in enumerate((5, 18, 37, 59, 78, 95, 100)):
+            for pct in (5, 18, 37, 59, 78, 95, 100):
                 if not self._sleep(job, 0.7): return self._finish(job, "stopped")
                 tested = pct * 1423
                 job.emit("crack", f"Tested {tested:,} keys... {pct}%", pct=pct)
