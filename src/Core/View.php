@@ -20,7 +20,7 @@ final class View
         echo '<!doctype html><html lang="de" data-theme="' . h($theme) . '"><head>';
         echo '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
         echo '<title>' . h($meta['name']) . ' · ' . NX_NAME . '</title>';
-        echo '<link rel="stylesheet" href="assets/app.css?v=' . NX_VERSION . '">';
+        echo '<link rel="stylesheet" href="?asset=css&v=' . NX_VERSION . '">';
         echo '<style>:root{--accent:' . h($accent) . '}</style>';
         echo '<link rel="icon" href="data:image/svg+xml,' . rawurlencode(Icons::logoFavicon($accent)) . '">';
         echo '</head><body>';
@@ -96,7 +96,7 @@ final class View
 
     public static function foot(): void
     {
-        echo '</main></div><script src="assets/app.js?v=' . NX_VERSION . '"></script></body></html>';
+        echo '</main></div><script src="?asset=js&v=' . NX_VERSION . '"></script></body></html>';
     }
 
     public static function swatch(string $field, string $current, array $colors = []): string

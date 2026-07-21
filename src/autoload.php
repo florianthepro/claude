@@ -1,24 +1,28 @@
 <?php
 /**
- * Minimaler PSR-4-Autoloader für den Namespace `Nexus\`.
- * Kein Composer nötig – Nexus braucht weiterhin nur Apache + PHP.
+ * Minimaler Autoloader für den Namespace `Nexus\` – kein Composer nötig.
  *
  *   Nexus\Core\Database  ->  src/Core/Database.php
- *   Nexus\Apps\Notes     ->  src/Apps/Notes.php
+ *   Nexus\Services\Auth  ->  src/Services/Auth.php
+ *   Nexus\Apps\Notes     ->  apps/notes/Notes.php   (Ordner = Klein-App-ID)
  */
 declare(strict_types=1);
 
 spl_autoload_register(static function (string $class): void {
-    $prefix = 'Nexus\\';
-    if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
+    if (strncmp($class, 'Nexus\\', 6) !== 0) {
         return;
     }
-    $rel  = str_replace('\\', '/', substr($class, strlen($prefix)));
-    $file = __DIR__ . '/' . $rel . '.php';
+    $rest = substr($class, 6);
+
+    if (strncmp($rest, 'Apps\\', 5) === 0) {
+        $name = substr($rest, 5);                    // z. B. "Notes"
+        $file = dirname(__DIR__) . '/apps/' . strtolower($name) . '/' . $name . '.php';
+    } else {
+        $file = __DIR__ . '/' . str_replace('\\', '/', $rest) . '.php';
+    }
     if (is_file($file)) {
         require $file;
     }
 });
 
-// Globale Helferfunktionen (kein Namespace) + App-Registry.
 require __DIR__ . '/helpers.php';

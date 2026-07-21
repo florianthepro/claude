@@ -1,12 +1,20 @@
-# Fallback, falls der Docroot versehentlich auf das Repo-Wurzelverzeichnis
-# statt auf public/ zeigt: Anfragen nach public/ leiten und Code/Daten sperren.
+# Nexus – der Docroot darf auf dieses Verzeichnis zeigen.
+# Einstieg ist ausschließlich setup.php; Code, Daten und Archiv sind gesperrt.
 
-# Quellcode, Laufzeitdaten und Archiv niemals ausliefern
-RedirectMatch 403 ^/(src|data|old)(/|$)
+DirectoryIndex setup.php
+Options -Indexes
 
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteRule ^$ public/ [L]
-    RewriteCond %{REQUEST_URI} !^/public/
-    RewriteRule ^(.*)$ public/$1 [L]
+# Engine, Apps, Laufzeitdaten und Archiv niemals ausliefern
+RedirectMatch 403 ^/(src|apps|data|old)(/|$)
+
+# Sensible Endungen und Punkt-Dateien sperren
+<FilesMatch "(^\.|\.(sqlite|sqlite-wal|sqlite-shm|key|md)$)">
+    Require all denied
+</FilesMatch>
+
+# Sicherheits-Header auch für die per setup.php gelieferten Assets
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "no-referrer"
 </IfModule>

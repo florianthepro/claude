@@ -15,7 +15,7 @@ final class AuthView
         echo '<!doctype html><html lang="de" data-theme="dark"><head><meta charset="utf-8">';
         echo '<meta name="viewport" content="width=device-width,initial-scale=1">';
         echo '<title>' . ($mode === 'register' ? 'Registrieren' : 'Anmelden') . ' · ' . NX_NAME . '</title>';
-        echo '<link rel="stylesheet" href="assets/app.css?v=' . NX_VERSION . '">';
+        echo '<link rel="stylesheet" href="?asset=css&v=' . NX_VERSION . '">';
         echo '<script>const t=localStorage.getItem("nx_theme");if(t)document.documentElement.setAttribute("data-theme",t);</script>';
         echo '</head><body><div class="auth-wrap"><div class="auth-card">';
         echo '<div class="logo">' . Icons::logoMark(26) . '</div>';
@@ -48,7 +48,7 @@ final class AuthView
         echo '<div class="auth-switch">' . ($mode === 'register'
             ? 'Bereits registriert? <a href="?view=login">Anmelden</a>'
             : 'Noch kein Konto? <a href="?view=register">Registrieren</a>') . '</div>';
-        echo '</div></div><script src="assets/app.js?v=' . NX_VERSION . '"></script></body></html>';
+        echo '</div></div><script src="?asset=js&v=' . NX_VERSION . '"></script></body></html>';
     }
 
     public static function locked(): void
@@ -56,7 +56,7 @@ final class AuthView
         Security::headers();
         echo '<!doctype html><html lang="de" data-theme="dark"><head><meta charset="utf-8">';
         echo '<meta name="viewport" content="width=device-width,initial-scale=1">';
-        echo '<title>Gesperrt · ' . NX_NAME . '</title><link rel="stylesheet" href="assets/app.css?v=' . NX_VERSION . '">';
+        echo '<title>Gesperrt · ' . NX_NAME . '</title><link rel="stylesheet" href="?asset=css&v=' . NX_VERSION . '">';
         echo '</head><body><div class="auth-wrap"><div class="auth-card" style="text-align:center">';
         echo '<div class="logo" style="color:var(--err)">' . Icons::icon('ban', 26) . '</div>';
         echo '<h1>Konto gesperrt</h1>';

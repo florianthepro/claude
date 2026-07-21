@@ -56,30 +56,32 @@ Bewusst modular und **ohne Framework/Composer** – ein kleiner PSR-4-Autoloader
 
 ```
 .
-├── public/                  ← Webroot (Docroot hierauf zeigen)
-│   ├── index.php            ← Front Controller (Bootstrap + Kernel)
-│   ├── .htaccess            ← Verzeichnis-/Header-Härtung
-│   └── assets/              ← app.css, app.js (statisch, cachefähig)
-├── src/
-│   ├── autoload.php         ← PSR-4 Autoloader (Namespace „Nexus\")
-│   ├── bootstrap.php        ← Pfade, data/-Anlage & -Härtung, Migrationen
+├── setup.php                ← EINZIGER Web-Einstieg: Setup + Front Controller
+│                              + Asset-Auslieferung (?asset=css|js)
+├── README.md
+├── .htaccess                ← sperrt src/ apps/ data/ old/, Einstieg = setup.php
+├── apps/                    ← eine App = ein Ordner „mit Inhalt"
+│   ├── notes/
+│   │   ├── manifest.php     ← Metadaten (Name, Icon, Rechte, Reihenfolge)
+│   │   └── Notes.php        ← Klasse Nexus\Apps\Notes
+│   ├── mail/ · tasks/ · calendar/ · contacts/ · files/ · bookmarks/
+│   ├── home/ · admin/ · settings/
+│   └── …                    ← neuer Ordner hier = neue App (Auto-Discovery)
+├── src/                     ← die „Seite" (Engine)
+│   ├── autoload.php         ← Autoloader (Namespace „Nexus\")
+│   ├── bootstrap.php        ← Pfade, data/-Anlage & -Härtung, Migrationen, Setup-Check
 │   ├── helpers.php          ← globale Helfer (h, url, param, …)
-│   ├── registry.php         ← zentrale App-Registry
-│   ├── Core/                ← Database, Migrations, Security, Kernel,
-│   │                          Router/View, Icons, AuthView
-│   ├── Services/            ← Auth, Quota, Tickets, InternalMail,
-│   │                          Mailer, Imap, Smtp
-│   └── Apps/                ← Home, Mail, Notes, Tasks, Calendar,
-│                              Contacts, Files, Bookmarks, Admin, Settings
-├── data/                    ← Laufzeit (gitignored, s. u.) – NICHT im Webroot
-│   └── sys/                 ← SQLite-DB, secret.key, sessions
-├── old/                     ← archivierte Single-File-Version
-└── .htaccess                ← Fallback, falls Docroot = Repo-Root
+│   ├── registry.php         ← App-Auto-Discovery (scannt apps/*/manifest.php)
+│   ├── assets/              ← app.css, app.js (via setup.php ausgeliefert)
+│   ├── Core/                ← Database, Migrations, Security, Kernel, View, Icons, AuthView
+│   └── Services/            ← Auth, Quota, Tickets, InternalMail, Mailer, Imap, Smtp
+├── data/                    ← Laufzeit (gitignored): SQLite, secret.key, sessions, Uploads
+└── old/                     ← archivierte Single-File-Version
 ```
 
-**Sicherheitsrelevant:** `data/` liegt **außerhalb** von `public/` und ist damit per Web gar nicht erreichbar – zusätzlich zur automatisch erzeugten `.htaccess`-Sperre (Defense in Depth).
+Nur **`setup.php`** ist per Web erreichbar; `src/`, `apps/`, `data/` und `old/` sperrt die `.htaccess`. Assets liefert `setup.php` über `?asset=css|js` aus – so bleibt das Wurzelverzeichnis schlank.
 
-Datenfluss: `public/index.php` → `nx_bootstrap()` → `Core\Kernel::handle()` (Session, Auth-Gating, Routing) → App-Klasse `render()`/`handle()` → `Core\View` rendert das einheitliche Layout.
+Datenfluss: `setup.php` → `nx_bootstrap()` → `Core\Kernel::handle()` (Session, Auth-Gating, Routing) → App-Klasse `render()`/`handle()` → `Core\View` rendert das einheitliche Layout.
 
 ---
 
@@ -90,25 +92,25 @@ Datenfluss: `public/index.php` → `nx_bootstrap()` → `Core\Kernel::handle()` 
 ```apache
 <VirtualHost *:80>
     ServerName nexus.example.com
-    DocumentRoot /var/www/nexus/public
-    <Directory /var/www/nexus/public>
+    DocumentRoot /var/www/nexus
+    <Directory /var/www/nexus>
         AllowOverride All
         Require all granted
     </Directory>
 </VirtualHost>
 ```
 
-1. Repo nach `/var/www/nexus` klonen.
-2. Docroot auf `/var/www/nexus/public` zeigen lassen (Vhost oben). *Alternativ* Repo-Root als Docroot – die mitgelieferte Root-`.htaccess` leitet dann nach `public/` und sperrt `src/`, `data/`, `old/`.
+1. Repo nach `/var/www/nexus` klonen (oder nur den Inhalt hochladen).
+2. Docroot auf das Repo-Verzeichnis zeigen lassen (Vhost oben). Der Einstieg ist `setup.php`; die `.htaccess` setzt sie als `DirectoryIndex` und sperrt `src/`, `apps/`, `data/`, `old/`.
 3. Schreibrechte für das Anlegen von `data/` sicherstellen (`chown www-data`).
-4. Im Browser öffnen → **das erste angelegte Konto wird automatisch Administrator** (aktiv, 1 GB).
+4. `setup.php` (bzw. die Domain) im Browser öffnen → prüft die Voraussetzungen; **das erste angelegte Konto wird automatisch Administrator** (aktiv, 1 GB).
 
-Beim ersten Aufruf legt Nexus `data/`, die SQLite-DB, den Secret-Key und alle App-Ordner selbst an.
+Beim ersten Aufruf legt Nexus `data/`, die SQLite-DB, den Secret-Key und alle App-Ordner selbst an – kein weiterer Setup-Schritt nötig.
 
 ### Lokal testen
 
 ```bash
-php -S 127.0.0.1:8000 -t public public/index.php
+php -S 127.0.0.1:8000 setup.php
 ```
 
 ---
@@ -162,7 +164,7 @@ Nexus trennt zwei Welten, beide auf **wenig Speicher und wenig Bandbreite** ausg
 
 ## Sicherheit
 
-- `data/` **außerhalb** des Webroots + `.htaccess`-Sperre + 403-Guards.
+- `data/`, `src/`, `apps/`, `old/` per `.htaccess` gesperrt (`403`) + zusätzliche 403-Guards in `data/`; nur `setup.php` ist erreichbar.
 - **Strikte Sicherheits-Header** auf jeder Antwort: CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`.
 - **CSRF-Schutz** auf allen zustandsändernden Aktionen (POST-Token + Token bei GET-Aktionen).
 - Passwörter mit `password_hash()` (bcrypt), min. 8 Zeichen.
@@ -175,8 +177,27 @@ Nexus trennt zwei Welten, beide auf **wenig Speicher und wenig Bandbreite** ausg
 
 ## Neue App hinzufügen
 
-1. Klasse unter `src/Apps/Meine.php` mit `Nexus\Apps\Meine`:
+Eine App = **ein Ordner** unter `apps/` mit zwei Dateien. Kein zentraler Eintrag –
+`apps/*/manifest.php` wird automatisch erkannt.
+
+1. `apps/meine/manifest.php`:
    ```php
+   <?php
+   return [
+       'id'    => 'meine',
+       'class' => 'Nexus\\Apps\\Meine',
+       'name'  => 'Meine App',
+       'desc'  => 'Kurzbeschreibung',
+       'icon'  => 'grid',      // siehe src/Core/Icons.php
+       'color' => '#4d7ea8',
+       'tile'  => true,
+       'min'   => 'active',    // pending | active | admin
+       'order' => 55,
+   ];
+   ```
+2. `apps/meine/Meine.php`:
+   ```php
+   <?php
    namespace Nexus\Apps;
    use Nexus\Core\View;
    final class Meine {
@@ -184,8 +205,7 @@ Nexus trennt zwei Welten, beide auf **wenig Speicher und wenig Bandbreite** ausg
        public static function handle(array $u, string $action): void { /* optional */ }
    }
    ```
-2. Eintrag in `src/registry.php` ergänzen (Name, Icon, Farbe, `min`-Status, `class`).
-3. Fertig – Navigation, Kachel, Routing und je-App-Datenordner unter `data/` entstehen automatisch.
+3. Fertig – Navigation, Kachel, Routing und der je-App-Datenordner unter `data/` entstehen automatisch.
 
 ---
 
