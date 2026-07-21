@@ -431,6 +431,32 @@ function icon(string $name, int $size = 20): string {
          . $body . '</svg>';
 }
 
+/**
+ * Nexus-Logo: ein zentraler Knoten mit drei Verbindungen (Hub/Netzknoten).
+ * Nüchtern, geometrisch, monochrom – funktioniert in jeder Größe.
+ */
+function logo_glyph(string $color): string {
+    return '<path d="M12 12L12 4.6M12 12L5.4 17.6M12 12L18.6 17.6" stroke="'.$color.'" '
+         . 'stroke-width="1.7" stroke-linecap="round"/>'
+         . '<circle cx="12"   cy="4.6"  r="1.9" fill="'.$color.'"/>'
+         . '<circle cx="5.4"  cy="17.6" r="1.9" fill="'.$color.'"/>'
+         . '<circle cx="18.6" cy="17.6" r="1.9" fill="'.$color.'"/>'
+         . '<circle cx="12"   cy="12"   r="2.6" fill="'.$color.'"/>';
+}
+
+/** Inline-Glyph in aktueller Textfarbe (erbt z. B. den Akzent im Logo-Kästchen). */
+function logo_mark(int $size = 20): string {
+    return '<svg class="ic" width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="none">'
+         . logo_glyph('currentColor') . '</svg>';
+}
+
+/** Vollständiges App-Icon (Akzent-Kachel + weißer Glyph) für das Favicon. */
+function logo_favicon(string $accent): string {
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+         . '<rect width="24" height="24" rx="5" fill="'.$accent.'"/>'
+         . '<g transform="translate(3.6 3.6) scale(0.7)">' . logo_glyph('#ffffff') . '</g></svg>';
+}
+
 /* ================================================================== *
  *  7. ASSETS (CSS / JS über ?asset= ausgeliefert -> cachefähig)
  * ================================================================== */
@@ -714,7 +740,7 @@ function layout_head(array $user, string $activeApp): void {
     echo '<title>'.h($meta['name']).' · '.APP_NAME.'</title>';
     echo '<link rel="stylesheet" href="?asset=css&v='.APP_VERSION.'">';
     echo '<style>:root{--accent:'.h($accent).'}</style>';
-    echo '<link rel="icon" href="data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="'.$accent.'"/><text x="12" y="17" font-size="14" fill="white" text-anchor="middle" font-family="Arial" font-weight="bold">N</text></svg>').'">';
+    echo '<link rel="icon" href="data:image/svg+xml,'.rawurlencode(logo_favicon($accent)).'">';
     echo '</head><body>';
 
     echo '<div class="backdrop" onclick="toggleMenu()"></div>';
@@ -722,7 +748,7 @@ function layout_head(array $user, string $activeApp): void {
 
     // -- Sidebar -----------------------------------------------------
     echo '<aside class="sidebar">';
-    echo '<div class="brand"><div class="logo">'.icon('grid',22).'</div>'.APP_NAME.'</div>';
+    echo '<div class="brand"><div class="logo">'.logo_mark(20).'</div>'.APP_NAME.'</div>';
     echo '<nav class="nav">';
     foreach ($reg as $id => $a) {
         $active = $id === $activeApp ? ' active' : '';
@@ -772,7 +798,7 @@ function view_auth(string $mode, ?string $err = null): void {
     echo '<link rel="stylesheet" href="?asset=css">';
     echo '<script>const t=localStorage.getItem("nx_theme");if(t)document.documentElement.setAttribute("data-theme",t);</script>';
     echo '</head><body><div class="auth-wrap"><div class="auth-card">';
-    echo '<div class="logo">'.icon('grid',28).'</div>';
+    echo '<div class="logo">'.logo_mark(26).'</div>';
 
     $first = user_count() === 0;
     if ($mode === 'register') {
