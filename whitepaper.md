@@ -66,8 +66,9 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
 1. **Schlicht & offiziell wirkend:** monochromes Schwarz/Weiß mit
    Grauabstufungen, ruhige Flächen, klare Linien, klare Typografie
    (System-Schriften, keine Webfonts), keine Verläufe, keine Deko-Effekte,
-   keine „KI-Regenbogen“-Ästhetik. Farbe wird nicht als Schmuck eingesetzt;
-   ein gedecktes Rot bleibt destruktiven Aktionen (Löschen) vorbehalten.
+   keine „KI-Regenbogen“-Ästhetik. Einzige Farblinie ist eine schmale
+   Leiste in Schwarz-Rot-Gold unter dem Seitenkopf; ein gedecktes Rot
+   bleibt destruktiven Aktionen (Löschen) vorbehalten.
 2. **Keine KI-Hinweistexte** auf der Seite. Die Seite spricht als Produkt, nüchtern
    und in Sie-Form.
 3. **Hell/Dunkel automatisch:** Das Design folgt der Systemeinstellung
@@ -166,11 +167,17 @@ Berechtigungsumfang „pseudonymer Zugang“ sowie ein zertifizierter eID-Server
 
 ### 5.3 Prototyp (dieses Repository)
 
-Der Prototyp kapselt die Identitätsprüfung hinter einer schmalen Schnittstelle
-(`EidProvider`). Im Auslieferungszustand ist der **Mock-Modus** aktiv: Eine
-Test-Kennung simuliert die Karte, deutlich als Simulation beschriftet. Der Wechsel
-auf einen echten eID-Server ist ein Implementierungsdetail dieser einen Schnittstelle
-— die restliche Anwendung (Pseudonym-Hash, Sitzungen, Regeln) bleibt unverändert.
+Der Prototyp bildet das Verfahren originalgetreu nach: Eine simulierte
+Testkarte im Browser übernimmt die Rolle des Chips und hält ein echtes
+Ed25519-Schlüsselpaar (libsodium). Beim „Ausweis anhalten“ signiert der
+private Schlüssel eine Zufallsnachricht; der Server prüft die Signatur
+gegen den öffentlichen Schlüssel und leitet daraus das Pseudonym ab.
+**Jede Änderung** (Stimme, Thema, Meldung, Jury-Stimme, Favorit,
+Kontolöschung) verlangt die Karte erneut — ohne gültigen Karten-Schlüssel
+wird die Änderung serverseitig abgelehnt (Transaktionsbestätigung, wie
+später mit der eID-App pro Vorgang). Der Wechsel auf einen echten
+eID-Server ersetzt nur diesen Karten-Block; Pseudonym-Hash, Sitzungen und
+Regeln bleiben unverändert.
 
 ### 5.4 Grenzen und Missbrauchsszenarien
 
@@ -489,6 +496,7 @@ Gebietsdaten (amtliche Gemeindeschlüssel AGS/ARS statt Freitext-Gebieten).
 
 ---
 
-*Anhang: Der technische Prototyp liegt direkt in diesem Repository-Zweig
-(„Hochladen genügt“-Struktur); Installations-, Betriebs- und
-Sicherheitshinweise in `README.md`.*
+*Anhang: Der technische Prototyp ist eine einzige Datei (`index.php`),
+die beim ersten Aufruf Datenverzeichnis, Zugriffsschutz und Datenbank
+selbst anlegt; Installations-, Betriebs- und Sicherheitshinweise in
+`README.md`.*

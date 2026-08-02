@@ -1,79 +1,62 @@
-# Stimmwerk – Installation durch Hochladen
+# Stimmwerk – Ein-Datei-Version
 
 Digitale Bürgerbeteiligung mit dem Personalausweis. Konzept und Fachlogik:
-[whitepaper.md](whitepaper.md). Dieser Zweig (v2) ist so aufgebaut, dass
-**Hochladen genügt** – kein Terminal, kein Installer, keine Datenbank-Einrichtung.
+[whitepaper.md](whitepaper.md). Dieser Zweig (v4) besteht aus **einer einzigen
+Datei**: `index.php` ist die gesamte Anwendung.
 
 > **Testbetrieb:** Im Auslieferungszustand zeigt jede Seite ein Banner
-> „Testbetrieb / Entwicklungsversion …“. Gesteuert über `show_test_banner`
-> in `config/config.php` (Standard: `true`).
+> „Testbetrieb …“. Gesteuert über `show_test_banner` in der Konfiguration
+> am Anfang von `index.php` (Standard: `true`).
 
-## Installation (Webhosting mit PHP)
+## Installation
 
-1. Diesen Zweig als ZIP herunterladen und entpacken.
-2. Den **Inhalt** des entpackten Ordners in das Webverzeichnis hochladen
-   (z. B. `htdocs/`, `public_html/` oder `www/`) – entweder direkt ins
-   Hauptverzeichnis oder in einen Unterordner (beides funktioniert, der
-   Basispfad wird automatisch erkannt).
-3. Im Hosting-Verwaltungsbereich **PHP 8.2 oder neuer** einstellen
-   (Erweiterungen `pdo_sqlite` und `mbstring` sind praktisch überall Standard).
-4. Seite im Browser aufrufen – fertig. Beim ersten Aufruf legt die Anwendung
-   Datenbank und Kategorien selbst an. Themen werden bewusst nicht vorbefüllt;
-   alle Inhalte kommen aus der Bürgerschaft.
+1. `index.php` in das Webverzeichnis hochladen (Hauptverzeichnis oder
+   Unterordner – der Basispfad wird automatisch erkannt).
+2. PHP **8.0 oder neuer** (Erweiterungen `pdo_sqlite`, `mbstring`; für die
+   Schlüssel-Simulation `sodium` – alle drei sind Standard).
+3. Seite aufrufen – fertig. Beim ersten Aufruf erzeugt die Datei selbst:
+   - `data/` (SQLite-Datenbank, Server-Geheimnis, Logs, Zugriffssperre),
+   - `.htaccess` (Routing + Schutz interner Dateien),
+   - `robots.txt`.
 
-Falls stattdessen eine Hinweisseite „Fast geschafft“ erscheint: dem dortigen
-Hinweis folgen (meist: Ordner `data/` per FTP beschreibbar machen, Rechte
-755/775), dann neu laden.
+Erscheint „Fast geschafft“: Ordner der `index.php` per FTP beschreibbar
+machen (Rechte 755/775), neu laden. Ohne `.htaccess`-Unterstützung (z. B.
+nginx) funktioniert alles weiter über automatisch erzeugte
+`/index.php/...`-Links.
 
-**Voraussetzungen an den Server:** Apache oder LiteSpeed mit `.htaccess`-
-Unterstützung (bei PHP-Webhosting der Normalfall). Für nginx müssen alle
-nicht existierenden Pfade auf `index.php` geleitet und die Verzeichnisse
-`src/`, `config/`, `db/`, `data/`, `bin/` gesperrt werden.
+## Ausweis & Bestätigung
 
-## Anmeldung im Testbetrieb
+- **Anmelden:** ein Knopf – „Ausweis anhalten“. Der (im Testbetrieb
+  simulierte) Karten-Chip signiert eine Zufallsnachricht mit seinem privaten
+  Schlüssel; der Server prüft die Signatur gegen den öffentlichen Schlüssel
+  und kennt nur ein daraus abgeleitetes Pseudonym.
+- **Jede Änderung** (Stimme, Thema, Meldung, Jury-Stimme, Favorit, Löschung)
+  verlangt die Karte erneut – ohne gültigen Karten-Schlüssel wird die
+  Änderung abgelehnt.
+- Testbetrieb: Die simulierte Karte liegt in diesem Browser (Cookie,
+  echtes Ed25519-Schlüsselpaar). „Neue Testkarte“ erzeugt eine weitere
+  Identität, z. B. für Vorführungen mit mehreren Rollen.
+- Echtbetrieb: Austausch des Karten-Blocks gegen die eID-Server-Anbindung
+  (BSI TR-03130), siehe Whitepaper Kapitel 5.
 
-„Ausweis anhalten“ → „Neue Testkarte erzeugen und anmelden“. Die angezeigte
-Test-Kennung ersetzt die physische Karte (gleiche Kennung = gleiches Konto)
-und wird für die nächste Anmeldung benötigt. Der echte eID-Ablauf
-(AusweisApp/NFC, BSI TR-03130) ist im Whitepaper, Kapitel 5, beschrieben und
-über `src/Eid/` als Anbindungspunkt vorbereitet.
+## CLI (optional)
 
-## Optional
-
-- **Cron:** nicht erforderlich (Zustandswechsel laufen gedrosselt bei
-  Seitenaufrufen mit). Wer möchte: minütlich `php bin/cron.php`.
-- **Demo-Daten** für Vorführungen (nur CLI, nur Mock-Modus):
-  `php bin/seed_demo.php 400` und `php bin/simulate_jury.php`.
-- **Selbsttest** der Fachregeln: `php bin/selftest.php`.
-- **Lokale Demo ohne Webserver:** `php -S 127.0.0.1:8080 router.php`.
-
-## Aufbau
-
-```
-index.php        # Front-Controller (einziger öffentlicher Einstieg)
-.htaccess        # Routing + Zugriffssperren
-assets/          # CSS, JS, Favicon (einzige weitere öffentliche Dateien)
-src/             # Anwendung (per .htaccess gesperrt)
-config/          # Konfiguration (gesperrt)
-db/schema.sql    # Schema (gesperrt)
-data/            # Laufzeitdaten: SQLite, secret.key, Logs (gesperrt)
-bin/             # CLI-Werkzeuge (gesperrt)
+```bash
+php index.php selftest   # Fachregeln automatisiert prüfen (38 Prüfungen)
+php index.php cron       # Wartungslauf (sonst lazy bei Seitenaufrufen)
+php index.php seed 400   # Demo-Pseudonyme + Zufallsstimmen (Vorführungen)
+php index.php jurysim    # Demo-Jury stimmt in laufenden Prüfungen ab
+php -S 127.0.0.1:8080 index.php   # lokale Demo ohne Webserver
 ```
 
 ## Sicherheitsmerkmale (Auszug)
 
-- Ausschließlich Prepared Statements (PDO), keinerlei String-SQL mit Nutzerdaten
-- Durchgängiges Output-Escaping; CSP `default-src 'none'` ohne `unsafe-inline`,
-  keine Inline-Skripte/-Styles, keine externen Ressourcen
-- Zentrale CSRF-Prüfung für jede POST-Anfrage (`hash_equals`)
-- Sessions: HttpOnly, SameSite, ID-Rotation, Idle-/Absolut-Timeout (Terminals)
+- Ausschließlich Prepared Statements; durchgängiges Output-Escaping
+- CSP `default-src 'none'` ohne `unsafe-inline` (CSS/JS liefert die Datei
+  selbst als eigene Routen aus), restriktive Header, HSTS bei HTTPS
+- Zentrale CSRF-Prüfung jeder POST-Anfrage; Signaturbestätigung jeder Änderung
+- Sessions: HttpOnly, SameSite, ID-Rotation, Idle-/Absolut-Timeout
 - Kernregeln zusätzlich als DB-Constraints (1 Thema/Tag, 1 Stimme/Thema,
   1 offene Meldung/Thema, 1 Jury-Sitz/Meldung)
-- Jury-Losverfahren mit CSPRNG (`random_int`, Fisher-Yates)
-- Rate-Limits je Pseudonym bzw. gehashter Tages-IP; keine Klar-IPs, keine
-  Klaridentitäten, keine Passwörter in der Datenbank
-- Interne Verzeichnisse doppelt gesperrt (Sperr-`.htaccess` je Verzeichnis
-  plus Dateiendungs-Sperren im Root); Geheimnisse mit Rechten 0600
-- Fehlerbilder ohne interne Details; Sicherheitsereignisse ohne Personenbezug
-
-Details und Bedrohungsmodell: Whitepaper, Kapitel 8–9.
+- Jury-Losverfahren mit CSPRNG; Rate-Limits ohne Klar-IP-Speicherung
+- Keine Klaridentitäten, keine Passwörter, keine externen Abhängigkeiten

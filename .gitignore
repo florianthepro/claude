@@ -1,4 +1,4 @@
-# Laufzeitdaten (Datenbank, Geheimnisse, Logs) – niemals einchecken
-data/*
-!data/.gitkeep
-!data/.htaccess
+# Zur Laufzeit von index.php selbst erzeugte Dateien – niemals einchecken
+/data/
+/.htaccess
+/robots.txt
