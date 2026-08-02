@@ -7,10 +7,7 @@ $cardScope = $t('scope.' . (string) $row['scope_level'])
 <article class="card topic-card">
   <div class="topic-card-meta">
     <span class="badge"><?= e($cardName) ?></span>
-    <span class="badge badge-muted"><?= e($cardScope) ?></span>
-    <?php if ((int) $row['author_is_system'] === 1): ?>
-      <span class="badge badge-outline"><?= e($t('topic.start_badge')) ?></span>
-    <?php endif; ?>
+    <span class="badge"><?= e($cardScope) ?></span>
   </div>
   <h3 class="topic-card-title"><a href="<?= base_path() ?>/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a></h3>
   <p class="topic-card-goal"><?= e((string) $row['goal']) ?></p>

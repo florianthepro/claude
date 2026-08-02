@@ -30,6 +30,12 @@ if ($basePath !== '' && preg_match('#^(/[A-Za-z0-9._~\-]+)+$#', $basePath) !== 1
 }
 define('STIMMWERK_BASE', $basePath);
 
+// Saubere Pfade (/topics) nur verlinken, wenn die Rewrite-Regeln nachweislich
+// aktiv sind (Kennung aus .htaccess bzw. router.php). Sonst werden Links im
+// überall funktionierenden Stil /index.php/topics erzeugt – so gibt es auch
+// auf Servern ohne mod_rewrite/.htaccess keine toten Links (404).
+define('STIMMWERK_CLEAN_URLS', (($_SERVER['SW_CLEAN_URLS'] ?? $_SERVER['REDIRECT_SW_CLEAN_URLS'] ?? '') === '1'));
+
 $factory = require __DIR__ . '/src/bootstrap.php';
 
 try {
@@ -79,11 +85,21 @@ if ($lang !== $app->i18n->lang()) {
 }
 
 $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-$path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
-if (STIMMWERK_BASE !== '' && str_starts_with($path, STIMMWERK_BASE)) {
-    $path = substr($path, strlen(STIMMWERK_BASE));
+// Interner Pfad: bevorzugt PATH_INFO (/index.php/topics – läuft ohne Rewrite),
+// sonst REQUEST_URI ohne Basispfad (/topics – läuft mit Rewrite).
+$pathInfo = (string) ($_SERVER['PATH_INFO'] ?? '');
+if ($pathInfo !== '' && $pathInfo[0] === '/') {
+    $path = $pathInfo;
+} else {
+    $path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
+    if (STIMMWERK_BASE !== '' && str_starts_with($path, STIMMWERK_BASE)) {
+        $path = substr($path, strlen(STIMMWERK_BASE));
+    }
+    if (str_starts_with($path, '/index.php')) {
+        $path = substr($path, strlen('/index.php'));
+    }
 }
-if ($path === '' || $path === '/index.php') {
+if ($path === '') {
     $path = '/';
 }
 define('STIMMWERK_PATH', $path);

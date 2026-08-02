@@ -63,9 +63,11 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
 
 ### 2.3 Gestaltungsprinzipien
 
-1. **Schlicht & offiziell wirkend:** ruhige Flächen, klare Typografie
-   (System-Schriften, keine Webfonts), eine zurückhaltende Akzentfarbe (dunkles
-   Blau), keine Verläufe, keine Deko-Effekte, keine „KI-Regenbogen“-Ästhetik.
+1. **Schlicht & offiziell wirkend:** monochromes Schwarz/Weiß mit
+   Grauabstufungen, ruhige Flächen, klare Linien, klare Typografie
+   (System-Schriften, keine Webfonts), keine Verläufe, keine Deko-Effekte,
+   keine „KI-Regenbogen“-Ästhetik. Farbe wird nicht als Schmuck eingesetzt;
+   ein gedecktes Rot bleibt destruktiven Aktionen (Löschen) vorbehalten.
 2. **Keine KI-Hinweistexte** auf der Seite. Die Seite spricht als Produkt, nüchtern
    und in Sie-Form.
 3. **Hell/Dunkel automatisch:** Das Design folgt der Systemeinstellung
@@ -75,8 +77,8 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
    Countdown und Theme-Umschalter).
 5. **Testbetrieb-Banner:** Solange die Konfigurationsvariable
    `show_test_banner` auf `true` steht (Auslieferungszustand), zeigt jede Seite oben
-   ein deutliches Banner: *„Testbetrieb / Entwicklungsversion — dies ist keine
-   offizielle Seite der Bundesregierung oder einer Behörde.“*
+   ein deutliches Banner: *„Testbetrieb — keine offizielle Seite der
+   Bundesregierung oder einer Behörde.“*
 6. **Barrierearmut:** semantisches HTML, Tastaturbedienung, ausreichende Kontraste
    (geprüft, auch bei Farbfehlsichtigkeit: Abstimmungsbalken tragen immer
    Textbeschriftung, Bedeutung hängt nie an Farbe allein). Vollständige
@@ -97,8 +99,9 @@ Bewusste Abgrenzung:
 - Stimmwerk **ersetzt keine rechtlich bindenden Verfahren** (Wahlen, Volksentscheide).
   Ergebnisse sind Meinungsbilder; eine rechtliche Bindung wäre ein politischer
   Folgeschritt, kein technischer.
-- Die Plattform ist **strikt neutral**: Startthemen und Kategorien decken das gesamte
-  politische Spektrum ab (siehe 6.3), die Moderation erfolgt durch geloste Jurys nach
+- Die Plattform ist **strikt neutral**: Zum Start existieren ausschließlich
+  Kategorien über das gesamte politische Spektrum, keine vorbefüllten Themen
+  (siehe 6.3); die Moderation erfolgt durch geloste Jurys nach
   strafrechtlichen — nicht politischen — Kriterien.
 
 ---
@@ -214,13 +217,14 @@ auf einen echten eID-Server ist ein Implementierungsdetail dieser einen Schnitts
 - Ergebnisse sind live sichtbar (Anzahl dafür/dagegen, Anteil, Balkendarstellung mit
   Textbeschriftung).
 
-### 6.3 Kategorien und Startthemen — Neutralität durch Breite
+### 6.3 Kategorien — Neutralität durch Breite, keine vorbefüllten Themen
 
 Damit die Plattform von Beginn an nicht als politisch gefärbt wahrgenommen wird,
-gilt das **Breitenprinzip**: viele Kategorien, und zum Start Themen **in alle
-Richtungen** — quer durch die Debatten der letzten Jahre, jeweils neutral
-formuliert. Startthemen sind als „Startthema“ gekennzeichnet und stammen vom
-System, nicht von Nutzerkonten.
+gilt das **Breitenprinzip auf Kategorien-Ebene**: Zum Start existieren
+ausschließlich die Kategorien — bewusst viele, quer über das gesamte politische
+Spektrum. **Themen werden nicht vorbefüllt**; jeder einzelne Inhalt der
+Plattform stammt aus der Bürgerschaft. So kann keine Startauswahl als
+redaktionelle oder politische Setzung gelesen werden.
 
 Kategorien (Start-Satz, erweiterbar):
 
@@ -230,15 +234,6 @@ Migration & Integration · Innere Sicherheit · Justiz & Bürgerrechte · Digita
 Verwaltung · Verkehr & Infrastruktur · Wohnen & Mieten · Landwirtschaft & Ernährung ·
 Finanzen & Steuern · Europa & Außenpolitik · Verteidigung · Kultur, Medien & Sport ·
 Verbraucherschutz · Kommunales & Ehrenamt · Demokratie & Beteiligung
-
-Beispiele für Startthemen (Auszug; vollständige Liste im Seed-Datensatz): Tempolimit
-auf Autobahnen einführen / Planungsverfahren beschleunigen · Rückkehr zur Kernenergie
-prüfen / Erneuerbaren-Ausbau beschleunigen · Mietpreisbremse verschärfen /
-Bauvorschriften vereinfachen · Bürgergeld-Sanktionen verschärfen /
-Kindergrundsicherung einführen · Irreguläre Migration stärker begrenzen /
-Einbürgerung für Fachkräfte beschleunigen · Wehrpflicht wieder einführen ·
-Schuldenbremse reformieren / strikt einhalten · Videoüberwachung ausweiten /
-Vorratsdatenspeicherung ausschließen · Volksentscheide auf Bundesebene einführen.
 
 ### 6.4 Favoriten und Gesamtansicht („Meine Übersicht“)
 

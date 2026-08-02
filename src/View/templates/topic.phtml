@@ -24,10 +24,7 @@ $user = $app->auth->user();
 <article class="topic-detail">
   <div class="topic-card-meta">
     <span class="badge"><?= e($catName) ?></span>
-    <span class="badge badge-muted"><?= e($scopeText) ?></span>
-    <?php if ((int) $topic['author_is_system'] === 1): ?>
-      <span class="badge badge-outline"><?= e($t('topic.start_badge')) ?></span>
-    <?php endif; ?>
+    <span class="badge"><?= e($scopeText) ?></span>
   </div>
   <h1><?= e((string) $topic['title']) ?></h1>
   <p class="muted"><?= e($t('topic.created', ['date' => Clock::displayLocal((string) $topic['created_at'], $t('common.date_format'))])) ?></p>
@@ -53,11 +50,11 @@ $user = $app->auth->user();
         <?= $app->csrf->field() ?>
         <input type="hidden" name="topic_id" value="<?= (int) $topic['id'] ?>">
         <button type="submit" name="choice" value="for"
-                class="btn vote-btn vote-btn-for <?= $myVote === 'for' ? 'is-active' : '' ?>"
-                aria-pressed="<?= $myVote === 'for' ? 'true' : 'false' ?>">✓ <?= e($t('vote.for')) ?></button>
+                class="btn vote-btn <?= $myVote === 'for' ? 'is-active' : '' ?>"
+                aria-pressed="<?= $myVote === 'for' ? 'true' : 'false' ?>"><?= e($t('vote.for')) ?></button>
         <button type="submit" name="choice" value="against"
-                class="btn vote-btn vote-btn-against <?= $myVote === 'against' ? 'is-active' : '' ?>"
-                aria-pressed="<?= $myVote === 'against' ? 'true' : 'false' ?>">✕ <?= e($t('vote.against')) ?></button>
+                class="btn vote-btn <?= $myVote === 'against' ? 'is-active' : '' ?>"
+                aria-pressed="<?= $myVote === 'against' ? 'true' : 'false' ?>"><?= e($t('vote.against')) ?></button>
         <?php if ($myVote !== null): ?>
           <button type="submit" name="choice" value="none" class="btn btn-ghost"><?= e($t('vote.withdraw')) ?></button>
         <?php endif; ?>
@@ -77,7 +74,7 @@ $user = $app->auth->user();
         <input type="hidden" name="ref" value="<?= e((string) $topic['category_slug']) ?>">
         <input type="hidden" name="return" value="/topic/<?= (int) $topic['id'] ?>">
         <button type="submit" class="btn btn-ghost btn-sm">
-          <?= $isCatFav ? '★ ' . e($t('topic.fav_remove')) : '☆ ' . e($t('topic.fav_add')) ?>
+          <?= e($t($isCatFav ? 'topic.fav_remove' : 'topic.fav_add')) ?>
         </button>
       </form>
       <form method="post" action="<?= base_path() ?>/favorite">
@@ -86,7 +83,7 @@ $user = $app->auth->user();
         <input type="hidden" name="ref" value="<?= e($scopeRef) ?>">
         <input type="hidden" name="return" value="/topic/<?= (int) $topic['id'] ?>">
         <button type="submit" class="btn btn-ghost btn-sm">
-          <?= $isScopeFav ? '★ ' . e($t('topic.fav_scope_remove')) : '☆ ' . e($t('topic.fav_scope_add')) ?>
+          <?= e($t($isScopeFav ? 'topic.fav_scope_remove' : 'topic.fav_scope_add')) ?>
         </button>
       </form>
     <?php endif; ?>

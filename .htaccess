@@ -2,9 +2,13 @@
 Options -Indexes -MultiViews
 DirectoryIndex index.php
 
-# Alle nicht existierenden Pfade an den Front-Controller
+# Alle nicht existierenden Pfade an den Front-Controller. Die Kennung
+# SW_CLEAN_URLS meldet der Anwendung, dass saubere Pfade funktionieren;
+# fehlt sie (kein mod_rewrite / .htaccess ignoriert), erzeugt die Anwendung
+# automatisch Links im Stil /index.php/... , die überall laufen.
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    SetEnv SW_CLEAN_URLS 1
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [L]

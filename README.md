@@ -18,7 +18,8 @@ Digitale Bürgerbeteiligung mit dem Personalausweis. Konzept und Fachlogik:
 3. Im Hosting-Verwaltungsbereich **PHP 8.2 oder neuer** einstellen
    (Erweiterungen `pdo_sqlite` und `mbstring` sind praktisch überall Standard).
 4. Seite im Browser aufrufen – fertig. Beim ersten Aufruf legt die Anwendung
-   Datenbank, Kategorien und die neutralen Startthemen selbst an.
+   Datenbank und Kategorien selbst an. Themen werden bewusst nicht vorbefüllt;
+   alle Inhalte kommen aus der Bürgerschaft.
 
 Falls stattdessen eine Hinweisseite „Fast geschafft“ erscheint: dem dortigen
 Hinweis folgen (meist: Ordner `data/` per FTP beschreibbar machen, Rechte

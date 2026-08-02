@@ -51,8 +51,8 @@ $dtFormat = $t('common.datetime_format');
     <form class="vote-actions" method="post" action="<?= base_path() ?>/jury/vote">
       <?= $app->csrf->field() ?>
       <input type="hidden" name="report_id" value="<?= (int) $duty['id'] ?>">
-      <button type="submit" name="vote" value="confirm" class="btn vote-btn vote-btn-against">✕ <?= e($t('jury.confirm')) ?></button>
-      <button type="submit" name="vote" value="reject" class="btn vote-btn vote-btn-for">✓ <?= e($t('jury.reject')) ?></button>
+      <button type="submit" name="vote" value="confirm" class="btn vote-btn"><?= e($t('jury.confirm')) ?></button>
+      <button type="submit" name="vote" value="reject" class="btn vote-btn"><?= e($t('jury.reject')) ?></button>
       <button type="submit" name="vote" value="neutral" class="btn btn-ghost"><?= e($t('jury.neutral')) ?></button>
     </form>
     <?php if ($tally !== null): ?>

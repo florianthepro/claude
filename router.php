@@ -10,4 +10,5 @@ $path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_P
 if ($path !== '/' && $path !== '/index.php' && is_file(__DIR__ . $path)) {
     return false; // statische Datei ausliefern
 }
+$_SERVER['SW_CLEAN_URLS'] = '1'; // dieser Router übernimmt die Rewrite-Rolle
 require __DIR__ . '/index.php';

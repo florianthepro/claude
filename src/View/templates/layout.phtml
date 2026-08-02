@@ -18,10 +18,10 @@ $flashes = $app->session->takeFlashes();
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title><?= e($title) ?> · <?= e((string) $app->config['app_name']) ?></title>
-<link rel="stylesheet" href="<?= base_path() ?>/assets/app.css">
-<link rel="icon" type="image/svg+xml" href="<?= base_path() ?>/assets/favicon.svg">
-<script src="<?= base_path() ?>/assets/theme.js"></script>
-<script src="<?= base_path() ?>/assets/app.js" defer></script>
+<link rel="stylesheet" href="<?= asset_base() ?>/assets/app.css">
+<link rel="icon" type="image/svg+xml" href="<?= asset_base() ?>/assets/favicon.svg">
+<script src="<?= asset_base() ?>/assets/theme.js"></script>
+<script src="<?= asset_base() ?>/assets/app.js" defer></script>
 </head>
 <body>
 <?php if (!empty($app->config['show_test_banner'])): ?>

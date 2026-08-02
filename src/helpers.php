@@ -78,15 +78,26 @@ function query_int(string $key, int $min, int $max, int $default): int
 
 /**
  * Basispfad der Installation ('' im Webroot, z. B. '/stimmwerk' im
- * Unterordner). Wird vom Front-Controller aus dem Serverpfad abgeleitet
- * und ist auf ein enges Zeichen-Whitelisting geprüft.
+ * Unterordner) – für statische Dateien (Assets).
  */
-function base_path(): string
+function asset_base(): string
 {
     return defined('STIMMWERK_BASE') ? (string) STIMMWERK_BASE : '';
 }
 
-/** Interne URL: Basispfad + anwendungsinterner Pfad. */
+/**
+ * URL-Präfix für anwendungsinterne Links. Sind Rewrite-Regeln aktiv,
+ * entstehen saubere Pfade (/topics); andernfalls der überall lauffähige
+ * Stil /index.php/topics (PATH_INFO) – verhindert 404 auf Servern ohne
+ * mod_rewrite bzw. ohne .htaccess-Auswertung.
+ */
+function base_path(): string
+{
+    $clean = defined('STIMMWERK_CLEAN_URLS') && STIMMWERK_CLEAN_URLS;
+    return asset_base() . ($clean ? '' : '/index.php');
+}
+
+/** Interne URL: Präfix + anwendungsinterner Pfad. */
 function url(string $path): string
 {
     $full = base_path() . $path;

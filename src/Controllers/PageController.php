@@ -8,12 +8,22 @@ final class PageController extends BaseController
 {
     public function home(): never
     {
-        $stats = $this->app->topics->stats();
-        $latest = $this->app->topics->list([], 1, 6)['rows'];
+        $user = $this->app->auth->user();
+        $personal = null;
+        if ($user !== null) {
+            $userId = (int) $user['id'];
+            $personal = [
+                'votes'     => (int) $this->app->db->val('SELECT COUNT(*) FROM votes WHERE user_id = ?', [$userId]),
+                'favorites' => (int) $this->app->db->val('SELECT COUNT(*) FROM favorites WHERE user_id = ?', [$userId]),
+                'duty'      => $this->app->jury->pendingDutyFor($userId),
+                'upcoming'  => $this->app->jury->upcomingDutyFor($userId),
+            ];
+        }
         $this->app->view->render('home', [
-            'title'  => $this->app->i18n->t('app.tagline'),
-            'stats'  => $stats,
-            'latest' => $latest,
+            'title'    => $this->app->i18n->t('app.tagline'),
+            'stats'    => $this->app->topics->stats(),
+            'latest'   => $this->app->topics->list([], 1, 6)['rows'],
+            'personal' => $personal,
         ]);
     }
 

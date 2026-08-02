@@ -13,7 +13,6 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use Stimmwerk\Core\Clock;
-use Stimmwerk\Domain\Seeder;
 
 $tmpDir = sys_get_temp_dir() . '/stimmwerk-selftest-' . bin2hex(random_bytes(4));
 mkdir($tmpDir, 0700, true);
@@ -46,6 +45,18 @@ $addUsers = static function (Stimmwerk\App $app, int $count, string $prefix): ar
     }
     return $ids;
 };
+$makeTopic = static function (Stimmwerk\App $app, int $authorId, string $title): int {
+    $categoryId = (int) $app->db->val('SELECT id FROM categories ORDER BY id LIMIT 1');
+    return $app->topics->create(
+        $authorId,
+        $title,
+        'Ein Ziel für den Selbsttest dieses Themas.',
+        'Eine Begründung für den Selbsttest dieses Themas.',
+        $categoryId,
+        'bund',
+        null
+    );
+};
 
 // Feste Startzeit: 12:00 lokale Zeit, damit "nächste Mitternacht" eindeutig ist.
 $t0 = new DateTimeImmutable('2026-03-02 12:00:00', new DateTimeZone('Europe/Berlin'));
@@ -58,22 +69,21 @@ $warp = static function (string $modify) use (&$t0): void {
 echo "== Grunddaten ==\n";
 $app = $newApp('base');
 $check('Kategorien angelegt', count($app->topics->categories()) >= 20);
-$check('Startthemen angelegt', $app->topics->stats()['topics'] >= 25);
+$check('Keine vorbefüllten Themen (nur Kategorien)', $app->topics->stats()['topics'] === 0);
 $check('System-Konto vorhanden', (int) $app->db->val('SELECT COUNT(*) FROM users WHERE is_system = 1') === 1);
 
 echo "== Themen: 1 pro Tag ==\n";
 [$alice] = $addUsers($app, 1, 'alice');
-$categoryId = (int) $app->db->val('SELECT id FROM categories ORDER BY id LIMIT 1');
-$topicId = $app->topics->create($alice, 'Testthema Nummer eins', 'Ein Ziel für den Selbsttest.', 'Eine Begründung für den Selbsttest.', $categoryId, 'bund', null);
+$topicId = $makeTopic($app, $alice, 'Testthema Nummer eins');
 $check('Erstes Thema angelegt', $topicId > 0);
 try {
-    $app->topics->create($alice, 'Zweites Thema am selben Tag', 'Noch ein Ziel für den Test.', 'Noch eine Begründung dazu.', $categoryId, 'kommune', 'Leipzig');
+    $makeTopic($app, $alice, 'Zweites Thema am selben Tag');
     $check('Zweites Thema am selben Tag abgelehnt', false);
 } catch (DomainException $e) {
     $check('Zweites Thema am selben Tag abgelehnt', $e->getMessage() === 'flash.topic_daily_limit');
 }
 $warp('+1 day');
-$secondTopic = $app->topics->create($alice, 'Thema am nächsten Tag', 'Ziel des zweiten Themas.', 'Begründung des zweiten Themas.', $categoryId, 'bundesland', 'Bayern');
+$secondTopic = $makeTopic($app, $alice, 'Thema am nächsten Tag');
 $check('Thema am Folgetag erlaubt', $secondTopic > 0);
 
 echo "== Stimmen ==\n";
@@ -100,9 +110,9 @@ try {
 
 echo "== Jury-Größe (1 %-Regel) ==\n";
 $big = $newApp('big');
-$addUsers($big, 600, 'crowd');
+$crowd = $addUsers($big, 600, 'crowd');
 [$reporter600] = $addUsers($big, 1, 'rep');
-$targetTopic = (int) $big->db->val("SELECT id FROM topics WHERE status = 'active' ORDER BY id LIMIT 1");
+$targetTopic = $makeTopic($big, $crowd[0], 'Zielthema für die große Jury');
 $big->reports->create($targetTopic, $reporter600, ['volksverhetzung'], null);
 $bigReport = $big->db->one('SELECT * FROM reports ORDER BY id DESC LIMIT 1');
 $check('Jury = 1 % bei 601 Nutzenden (7 Sitze, aufgerundet)', (int) $bigReport['jury_size'] === (int) ceil(601 * 0.01));
@@ -111,8 +121,8 @@ $check('Quorum = 0,5 % (mind. 3)', (int) $bigReport['quorum'] === max(3, (int) c
 echo "== Meldung & Jury: Ausschlüsse, Fristen, Karenz ==\n";
 $j = $newApp('jury');
 $users = $addUsers($j, 12, 'u');
-$topicRows = $j->db->all("SELECT id FROM topics WHERE status = 'active' ORDER BY id LIMIT 4");
-[$tX, $tY, $tZ, $tW] = array_map(static fn (array $r): int => (int) $r['id'], $topicRows);
+$tX = $makeTopic($j, $users[8], 'Gemeldetes Thema X');
+$tY = $makeTopic($j, $users[9], 'Gemeldetes Thema Y');
 $jurorsOf = static fn (int $reportId): array => array_map(
     static fn (array $r): int => (int) $r['user_id'],
     $j->db->all('SELECT user_id FROM report_jurors WHERE report_id = ?', [$reportId])
@@ -121,7 +131,7 @@ $jurorsOf = static fn (int $reportId): array => array_map(
 $r1 = $j->reports->create($tX, $users[0], ['kennzeichen', 'gewalt'], 'Testmeldung.');
 $j1 = $jurorsOf($r1);
 $check('Jury 1: 5 Sitze (Mindestgröße)', count($j1) === 5);
-$check('Jury 1: Melder nicht in der Jury', !in_array($users[0], $j1, true));
+$check('Jury 1: Melder und Autor nicht in der Jury', !in_array($users[0], $j1, true) && !in_array($users[8], $j1, true));
 $r1Row = $j->db->one('SELECT * FROM reports WHERE id = ?', [$r1]);
 $check('Meldung wartet bis Mitternacht', $r1Row['status'] === 'pending');
 $expectedStart = Clock::nextLocalMidnightUtcStr();
@@ -169,8 +179,10 @@ $cooldowns = $j->db->all(
 $expectedCooldown = Clock::addDaysStr((string) $r1Row['decided_at'], 3);
 $check('Karenz (3 Tage) für alle Jury-Mitglieder gesetzt', array_unique(array_column($cooldowns, 'jury_cooldown_until')) === [$expectedCooldown]);
 
-// r3: Melder aus Jury 2 -> ausgeschlossen sind J1 (Karenz) + J2 (laufend) + Melder.
-// Es bleiben deterministisch genau die 2 Nutzenden, die in keiner Jury waren.
+// r3: Autor aus Jury 1, Melder aus Jury 2 -> ausgeschlossen sind J1 (Karenz)
+// + J2 (laufend) + Rollen (beide bereits enthalten). Es bleiben deterministisch
+// genau die 2 Nutzenden, die in keiner der beiden Jurys waren.
+$tZ = $makeTopic($j, $j1[0], 'Gemeldetes Thema Z');
 $r3 = $j->reports->create($tZ, $j2[0], ['privatdaten'], null);
 $j3 = $jurorsOf($r3);
 $expectedJ3 = array_values(array_diff(array_map('intval', $users), $j1, $j2));
@@ -192,6 +204,7 @@ $check('Thema bleibt bei Ablehnung bestehen', $j->db->val('SELECT status FROM to
 // Nach Ablauf der Karenz ist Jury 1 wieder losbar; alle anderen sind gebunden
 // (Jury 2 stimmt noch ab, Jury 3 ist selbst frisch in der Karenz).
 $warp('+2 days');
+$tW = $makeTopic($j, $j2[2], 'Gemeldetes Thema W');
 $r4 = $j->reports->create($tW, $j2[1], ['sonstiges'], null);
 $j4 = $jurorsOf($r4);
 sort($j1);
@@ -200,11 +213,10 @@ $check('Nach 3 Tagen Karenz wieder losbar (Jury 4 = frühere Jury 1)', $j4 === $
 
 echo "== Kontolöschung (DSGVO) ==\n";
 $app2 = $newApp('gdpr');
-[$carol] = $addUsers($app2, 1, 'carol');
-$catId2 = (int) $app2->db->val('SELECT id FROM categories ORDER BY id LIMIT 1');
-$carolTopic = $app2->topics->create($carol, 'Thema von Carol zum Löschen', 'Ziel des Themas von Carol.', 'Begründung des Themas von Carol.', $catId2, 'bund', null);
-$firstTopic = (int) $app2->db->val("SELECT id FROM topics WHERE status = 'active' AND id != ? ORDER BY id LIMIT 1", [$carolTopic]);
-$app2->votes->cast($carol, $firstTopic, 'for');
+[$carol, $dave] = $addUsers($app2, 2, 'cd');
+$carolTopic = $makeTopic($app2, $carol, 'Thema von Carol zum Löschen');
+$daveTopic = $makeTopic($app2, $dave, 'Thema von Dave bleibt bestehen');
+$app2->votes->cast($carol, $daveTopic, 'for');
 $app2->favorites->toggle($carol, 'scope', 'bundesland:Bayern');
 $app2->account->deleteAccount($carol);
 $check('Nutzer gelöscht', $app2->db->val('SELECT COUNT(*) FROM users WHERE id = ?', [$carol]) === 0);
