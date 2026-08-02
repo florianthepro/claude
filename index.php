@@ -1202,8 +1202,73 @@ function fav_list(int $userId): array
 
 /* ============================== Meldungen & Jury ========================== */
 
-const SW_CRITERIA = ['volksverhetzung', 'kennzeichen', 'gewalt', 'terror', 'beleidigung', 'bedrohung', 'privatdaten', 'sonstiges'];
-const SW_FREETEXT_MAX = 1000;
+/** Der einzige Meldegrund ist der Verstoß gegen ein Gesetz. Der verletzte
+ *  Paragraph wird 1:1 zitiert. Texte nach bestem Wissen übernommen – vor
+ *  einem Echtbetrieb wortgleich gegen gesetze-im-internet.de abgleichen. */
+const SW_LAWS = [
+    'stgb-130-1' => [
+        'norm' => '§ 130 Abs. 1 StGB', 'titel' => 'Volksverhetzung',
+        'schlagworte' => 'volksverhetzung hass hetze aufstacheln menschenwürde gruppe bevölkerung',
+        'text' => 'Wer in einer Weise, die geeignet ist, den öffentlichen Frieden zu stören, 1. gegen eine nationale, rassische, religiöse oder durch ihre ethnische Herkunft bestimmte Gruppe, gegen Teile der Bevölkerung oder gegen einen Einzelnen wegen dessen Zugehörigkeit zu einer vorbezeichneten Gruppe oder zu einem Teil der Bevölkerung zum Hass aufstachelt, zu Gewalt- oder Willkürmaßnahmen auffordert oder 2. die Menschenwürde anderer dadurch angreift, dass er eine vorbezeichnete Gruppe, Teile der Bevölkerung oder einen Einzelnen wegen dessen Zugehörigkeit zu einer vorbezeichneten Gruppe oder zu einem Teil der Bevölkerung beschimpft, böswillig verächtlich macht oder verleumdet, wird mit Freiheitsstrafe von drei Monaten bis zu fünf Jahren bestraft.',
+    ],
+    'stgb-86a-1' => [
+        'norm' => '§ 86a Abs. 1 StGB', 'titel' => 'Verwenden von Kennzeichen verfassungswidriger und terroristischer Organisationen',
+        'schlagworte' => 'kennzeichen symbole verfassungswidrig hakenkreuz parole organisation',
+        'text' => 'Mit Freiheitsstrafe bis zu drei Jahren oder mit Geldstrafe wird bestraft, wer 1. im Inland Kennzeichen einer der in § 86 Abs. 1 Nr. 1, 2 und 4 oder Absatz 2 bezeichneten Parteien oder Vereinigungen verbreitet oder öffentlich, in einer Versammlung oder in einem von ihm verbreiteten Inhalt (§ 11 Absatz 3) verwendet oder 2. einen Inhalt (§ 11 Absatz 3), der ein derartiges Kennzeichen darstellt oder enthält, zur Verbreitung oder Verwendung im Inland oder Ausland in der in Nummer 1 bezeichneten Art und Weise herstellt, vorrätig hält, einführt oder ausführt.',
+    ],
+    'stgb-111-1' => [
+        'norm' => '§ 111 Abs. 1 StGB', 'titel' => 'Öffentliche Aufforderung zu Straftaten',
+        'schlagworte' => 'aufforderung straftat aufruf gewalt anstiftung',
+        'text' => 'Wer öffentlich, in einer Versammlung oder durch Verbreiten eines Inhalts (§ 11 Absatz 3) zu einer rechtswidrigen Tat auffordert, wird wie ein Anstifter (§ 26) bestraft.',
+    ],
+    'stgb-185' => [
+        'norm' => '§ 185 StGB', 'titel' => 'Beleidigung',
+        'schlagworte' => 'beleidigung ehre schmähung',
+        'text' => 'Die Beleidigung wird mit Freiheitsstrafe bis zu einem Jahr oder mit Geldstrafe und, wenn die Beleidigung öffentlich, in einer Versammlung, durch Verbreiten eines Inhalts (§ 11 Absatz 3) oder mittels einer Tätlichkeit begangen wird, mit Freiheitsstrafe bis zu zwei Jahren oder mit Geldstrafe bestraft.',
+    ],
+    'stgb-186' => [
+        'norm' => '§ 186 StGB', 'titel' => 'Üble Nachrede',
+        'schlagworte' => 'üble nachrede tatsache herabwürdigen rufschädigung',
+        'text' => 'Wer in Beziehung auf einen anderen eine Tatsache behauptet oder verbreitet, welche denselben verächtlich zu machen oder in der öffentlichen Meinung herabzuwürdigen geeignet ist, wird, wenn nicht diese Tatsache erweislich wahr ist, mit Freiheitsstrafe bis zu einem Jahr oder mit Geldstrafe und, wenn die Tat öffentlich, in einer Versammlung oder durch Verbreiten eines Inhalts (§ 11 Absatz 3) begangen ist, mit Freiheitsstrafe bis zu zwei Jahren oder mit Geldstrafe bestraft.',
+    ],
+    'stgb-187' => [
+        'norm' => '§ 187 StGB', 'titel' => 'Verleumdung',
+        'schlagworte' => 'verleumdung unwahre tatsache lüge kredit',
+        'text' => 'Wer wider besseres Wissen in Beziehung auf einen anderen eine unwahre Tatsache behauptet oder verbreitet, welche denselben verächtlich zu machen oder in der öffentlichen Meinung herabzuwürdigen oder dessen Kredit zu gefährden geeignet ist, wird mit Freiheitsstrafe bis zu zwei Jahren oder mit Geldstrafe und, wenn die Tat öffentlich, in einer Versammlung oder durch Verbreiten eines Inhalts (§ 11 Absatz 3) begangen ist, mit Freiheitsstrafe bis zu fünf Jahren oder mit Geldstrafe bestraft.',
+    ],
+    'stgb-240-1' => [
+        'norm' => '§ 240 Abs. 1 StGB', 'titel' => 'Nötigung',
+        'schlagworte' => 'nötigung zwang drohung übel',
+        'text' => 'Wer einen Menschen rechtswidrig mit Gewalt oder durch Drohung mit einem empfindlichen Übel zu einer Handlung, Duldung oder Unterlassung nötigt, wird mit Freiheitsstrafe bis zu drei Jahren oder mit Geldstrafe bestraft.',
+    ],
+    'stgb-241-1' => [
+        'norm' => '§ 241 Abs. 1 StGB', 'titel' => 'Bedrohung',
+        'schlagworte' => 'bedrohung drohung verbrechen gewalt',
+        'text' => 'Wer einen Menschen mit der Begehung einer gegen ihn oder eine ihm nahestehende Person gerichteten rechtswidrigen Tat gegen die sexuelle Selbstbestimmung, die körperliche Unversehrtheit, die persönliche Freiheit oder gegen eine Sache von bedeutendem Wert bedroht, wird mit Freiheitsstrafe bis zu einem Jahr oder mit Geldstrafe bestraft.',
+    ],
+    'stgb-126a-1' => [
+        'norm' => '§ 126a Abs. 1 StGB', 'titel' => 'Gefährdendes Verbreiten personenbezogener Daten',
+        'schlagworte' => 'doxxing personenbezogene daten adresse veröffentlichen gefährdung',
+        'text' => 'Wer personenbezogene Daten einer anderen Person in einer Art und Weise, die geeignet ist, diese Person oder eine ihr nahestehende Person der Gefahr 1. eines gegen sie gerichteten Verbrechens oder 2. einer sonstigen gegen sie gerichteten rechtswidrigen Tat gegen die körperliche Unversehrtheit, die persönliche Freiheit oder gegen eine Sache von bedeutendem Wert auszusetzen, öffentlich zugänglich macht, wird mit Freiheitsstrafe bis zu zwei Jahren oder mit Geldstrafe bestraft.',
+    ],
+];
+
+/** Schlagwort-/Paragraphensuche im Gesetzesregister. @return array<string,array> */
+function law_search(string $q): array
+{
+    $q = mb_strtolower(trim($q));
+    if ($q === '') {
+        return [];
+    }
+    $hits = [];
+    foreach (SW_LAWS as $id => $law) {
+        $haystack = mb_strtolower($law['norm'] . ' ' . $law['titel'] . ' ' . $law['schlagworte'] . ' ' . $law['text']);
+        if (mb_strpos($haystack, $q) !== false || mb_strpos(str_replace(['§', ' '], '', $haystack), str_replace(['§', ' '], '', $q)) !== false) {
+            $hits[$id] = $law;
+        }
+    }
+    return $hits;
+}
 
 function report_open_for(int $topicId): ?array
 {
@@ -1267,21 +1332,17 @@ function jury_draw(int $reporterId, int $authorId, int $totalUsers): array
     return array_slice($ids, 0, $target);
 }
 
-/** @param list<string> $criteria @throws DomainException */
-function report_create(int $topicId, int $reporterId, array $criteria, ?string $freetext): int
+/** @throws DomainException */
+function report_create(int $topicId, int $reporterId, string $lawId): int
 {
-    $criteria = array_values(array_unique($criteria));
-    if ($criteria === [] || array_diff($criteria, SW_CRITERIA) !== []) {
-        throw new DomainException('flash.invalid_input');
-    }
-    if ($freetext !== null && mb_strlen($freetext) > SW_FREETEXT_MAX) {
-        throw new DomainException('flash.invalid_input');
+    if (!isset(SW_LAWS[$lawId])) {
+        throw new DomainException('flash.report_no_law');
     }
     $topic = SW::$db->one('SELECT id, author_id, status FROM topics WHERE id = ?', [$topicId]);
     if ($topic === null || $topic['status'] !== 'active') {
         throw new DomainException('flash.topic_not_reportable');
     }
-    return SW::$db->tx(function () use ($topicId, $reporterId, $criteria, $freetext, $topic): int {
+    return SW::$db->tx(function () use ($topicId, $reporterId, $lawId, $topic): int {
         if (report_open_for($topicId) !== null) {
             throw new DomainException('flash.report_already_open');
         }
@@ -1305,7 +1366,7 @@ function report_create(int $topicId, int $reporterId, array $criteria, ?string $
             'INSERT INTO reports (topic_id, reporter_id, criteria, freetext, status,
                                   jury_size, quorum, created_at, voting_starts_at)
              VALUES (?, ?, ?, ?, \'pending\', ?, ?, ?, ?)',
-            [$topicId, $reporterId, json_encode($criteria, JSON_THROW_ON_ERROR), $freetext,
+            [$topicId, $reporterId, $lawId, null,
              count($jurors), $quorum, Clock::nowStr(), Clock::nextLocalMidnightUtcStr()]
         );
         $reportId = SW::$db->lastId();
@@ -1468,30 +1529,14 @@ const SW_DE = [
     'banner.test' => 'Testbetrieb – keine offizielle Seite der Bundesregierung oder einer Behörde.',
     'a11y.skip' => 'Zum Inhalt springen',
     'nav.topics' => 'Themen',
-    'nav.new' => 'Thema einbringen',
-    'nav.overview' => 'Meine Übersicht',
     'nav.jury' => 'Jury',
     'auth.login' => 'Ausweis anhalten',
     'auth.logout' => 'Abmelden',
-    'lang.switch' => 'Sprache',
     'common.date_format' => 'd.m.Y',
     'common.datetime_format' => 'd.m.Y, H:i',
     'common.back_home' => 'Zur Startseite',
 
-    'home.title' => 'Digitale Bürgerbeteiligung',
-    'home.locked' => 'Stimmen, Favoriten und Jury: nach dem Anhalten sichtbar.',
-    'home.personal' => 'Mein Bereich',
-    'home.p_votes' => 'Abgegebene Stimmen',
-    'home.p_favorites' => 'Favoriten',
-    'home.p_jury' => 'Meldeverfahren',
-    'home.p_jury_open' => 'Jury-Stimme erforderlich',
-    'home.p_jury_upcoming' => 'Ausgelost, Beginn {date}, 00:00 Uhr',
-    'home.p_jury_none' => 'keine Aufgabe',
-    'home.latest' => 'Neueste Themen',
-    'home.all_topics' => 'Alle Themen',
 
-    'topics.title' => 'Themen',
-    'topics.count' => '{n} Themen',
     'topics.filter_category' => 'Kategorie',
         'topics.filter_all' => 'Alle',
     'topics.search' => 'Suche im Titel',
@@ -1500,7 +1545,6 @@ const SW_DE = [
     'topics.sort_top' => 'Meiste Stimmen',
     'topics.apply' => 'Filtern',
     'topics.none' => 'Keine Themen gefunden.',
-    'topics.none_yet' => 'Noch keine Themen vorhanden.',
     'topics.prev' => 'Zurück',
     'topics.next' => 'Weiter',
     'topics.page_of' => 'Seite {p} von {n}',
@@ -1553,31 +1597,7 @@ const SW_DE = [
     'auth.hold' => 'Ausweis an das Gerät halten …',
     'auth.other_card' => 'Anderen Ausweis verwenden',
 
-    'me.title' => 'Meine Übersicht',
-    'me.short_id' => 'Öffentlicher Schlüssel (Kurzform)',
-    'me.since' => 'Dabei seit {date}',
-    'me.sec_votes' => 'Meine Stimmen',
-    'me.sec_topics' => 'Meine Themen',
-    'me.sec_favorites' => 'Favoriten',
-    'me.sec_reports' => 'Meine Meldungen',
-    'me.sec_jury' => 'Jury',
-    'me.none' => 'Keine Einträge.',
-    'me.status_active' => 'aktiv',
-    'me.status_removed' => 'entfernt',
-    'me.report_pending' => 'wartet auf Start (00:00)',
-    'me.report_voting' => 'Jury stimmt ab',
-    'me.report_removed' => 'Inhalt entfernt',
-    'me.report_kept' => 'Inhalt bleibt',
-    'me.fav_category' => 'Kategorie',
-    'me.fav_scope' => 'Gebiet',
-    'me.unfav' => 'Entfernen',
-    'me.jury_pending' => 'Offene Jury-Aufgabe.',
     'me.jury_upcoming' => 'Ausgelost; Abstimmung ab {date}, 00:00 Uhr.',
-    'me.jury_none' => 'Keine Jury-Aufgabe.',
-    'me.jury_go' => 'Zur Jury-Aufgabe',
-    'me.cooldown' => 'Jury-Karenz bis {date}.',
-    'me.profile' => 'Profil (profil.yaml)',
-    'me.download' => 'profil.yaml herunterladen',
     'me.delete_title' => 'Konto und Daten löschen',
     'me.delete_text' => 'Stimmen, Favoriten und offene Jury-Sitze werden gelöscht. Beiträge bleiben, werden aber dauerhaft vom Pseudonym entkoppelt.',
     'me.delete_confirm' => 'Ja, endgültig löschen',
@@ -1589,9 +1609,8 @@ const SW_DE = [
     'jury.none' => 'Keine Jury-Aufgabe.',
     'jury.upcoming' => 'Ausgelost; Abstimmung ab {date}, 00:00 Uhr. Bis dahin ist nichts zu tun.',
     'jury.reported' => 'Gemeldeter Inhalt',
-    'jury.criteria' => 'Angegebene Kriterien',
-    'jury.freetext' => 'Ergänzung der meldenden Person',
-    'jury.question' => 'Verstößt der Inhalt gegen die angegebenen Kriterien?',
+    'jury.law' => 'Gemeldeter Gesetzesverstoß',
+    'jury.question' => 'Verstößt der Inhalt gegen das zitierte Gesetz?',
     'jury.confirm' => 'Ja – entfernen',
     'jury.reject' => 'Nein – behalten',
     'jury.neutral' => 'Enthaltung',
@@ -1599,21 +1618,14 @@ const SW_DE = [
     'jury.deadline' => 'Reguläres Ende: {date}; danach wird bei erreichtem Quorum entschieden.',
 
     'report.title' => 'Inhalt melden',
-    'report.intro' => 'Nur mutmaßlich rechtswidrige Inhalte melden – politische Meinungen sind kein Meldegrund.',
-    'report.criteria' => 'Kriterien (mindestens eines)',
-    'report.freetext' => 'Ergänzung (optional)',
+    'report.intro' => 'Einziger Meldegrund: Verstoß gegen ein Gesetz. Der verletzte Paragraph wird 1:1 zitiert.',
     'report.process' => 'Es entscheidet eine ausgeloste Bürger-Jury (1 %; ab 00:00 Uhr, 24 h, Quorum 0,5 %).',
+    'report.search' => 'Gesetz finden (Schlagwort oder Paragraph)',
+    'report.pick' => 'Verletztes Gesetz (wird 1:1 zitiert)',
+    'report.none_found' => 'Kein Treffer. Anderes Schlagwort oder Paragraphennummer versuchen.',
     'report.submit' => 'Meldung abschicken',
     'report.cancel' => 'Abbrechen',
 
-    'criteria.volksverhetzung' => 'Volksverhetzung (§ 130 StGB)',
-    'criteria.kennzeichen' => 'Verbotene Kennzeichen (§§ 86, 86a StGB)',
-    'criteria.gewalt' => 'Aufruf zu Gewalt oder Straftaten (§§ 111, 126 StGB)',
-    'criteria.terror' => 'Terror-Propaganda (§§ 86, 129a/b StGB)',
-    'criteria.beleidigung' => 'Beleidigung, üble Nachrede, Verleumdung (§§ 185–187 StGB)',
-    'criteria.bedrohung' => 'Bedrohung (§ 241 StGB)',
-    'criteria.privatdaten' => 'Veröffentlichung privater Daten (Doxxing)',
-    'criteria.sonstiges' => 'Sonstiger mutmaßlich strafbarer Inhalt',
 
     'flash.session_expired' => 'Sitzung beendet. Bitte Ausweis erneut anhalten.',
     'flash.auth_expired' => 'Anmeldung abgelaufen – bitte Ausweis erneut anhalten.',
@@ -1634,8 +1646,8 @@ const SW_DE = [
     'flash.report_duplicate' => 'Dieses Thema wurde von Ihnen bereits gemeldet.',
     'flash.report_daily_limit' => 'Tageslimit für Meldungen erreicht.',
     'flash.report_too_few_users' => 'Für eine Jury sind derzeit zu wenige Teilnehmende registriert.',
+    'flash.report_no_law' => 'Bitte das verletzte Gesetz auswählen.',
     'flash.report_created' => 'Meldung aufgenommen. Die Jury ist ausgelost; Abstimmung ab 00:00 Uhr.',
-    'flash.report_no_criteria' => 'Bitte mindestens ein Kriterium wählen.',
     'flash.jury_not_open' => 'Diese Abstimmung ist nicht (mehr) offen.',
     'flash.jury_not_member' => 'Keine Berechtigung für diese Jury.',
     'flash.jury_already_voted' => 'In dieser Prüfung wurde bereits abgestimmt.',
@@ -1674,30 +1686,14 @@ const SW_EN = [
     'banner.test' => 'Test operation – not an official website of the German federal government or any public authority.',
     'a11y.skip' => 'Skip to content',
     'nav.topics' => 'Topics',
-    'nav.new' => 'Raise a topic',
-    'nav.overview' => 'My overview',
     'nav.jury' => 'Jury',
     'auth.login' => 'Tap your ID card',
     'auth.logout' => 'Sign out',
-    'lang.switch' => 'Language',
     'common.date_format' => 'Y-m-d',
     'common.datetime_format' => 'Y-m-d, H:i',
     'common.back_home' => 'Back to start page',
 
-    'home.title' => 'Digital citizen participation',
-    'home.locked' => 'Votes, favourites and jury: visible after tapping.',
-    'home.personal' => 'My area',
-    'home.p_votes' => 'Votes cast',
-    'home.p_favorites' => 'Favourites',
-    'home.p_jury' => 'Review procedure',
-    'home.p_jury_open' => 'Jury vote required',
-    'home.p_jury_upcoming' => 'Drawn, starts {date}, midnight',
-    'home.p_jury_none' => 'no task',
-    'home.latest' => 'Latest topics',
-    'home.all_topics' => 'All topics',
 
-    'topics.title' => 'Topics',
-    'topics.count' => '{n} topics',
     'topics.filter_category' => 'Category',
         'topics.filter_all' => 'All',
     'topics.search' => 'Search titles',
@@ -1706,7 +1702,6 @@ const SW_EN = [
     'topics.sort_top' => 'Most votes',
     'topics.apply' => 'Apply',
     'topics.none' => 'No topics found.',
-    'topics.none_yet' => 'No topics yet.',
     'topics.prev' => 'Previous',
     'topics.next' => 'Next',
     'topics.page_of' => 'Page {p} of {n}',
@@ -1759,31 +1754,7 @@ const SW_EN = [
     'auth.hold' => 'Hold your ID card to the device …',
     'auth.other_card' => 'Use a different ID card',
 
-    'me.title' => 'My overview',
-    'me.short_id' => 'Public key (short form)',
-    'me.since' => 'Member since {date}',
-    'me.sec_votes' => 'My votes',
-    'me.sec_topics' => 'My topics',
-    'me.sec_favorites' => 'Favourites',
-    'me.sec_reports' => 'My reports',
-    'me.sec_jury' => 'Jury',
-    'me.none' => 'No entries.',
-    'me.status_active' => 'active',
-    'me.status_removed' => 'removed',
-    'me.report_pending' => 'awaiting start (midnight)',
-    'me.report_voting' => 'jury is voting',
-    'me.report_removed' => 'content removed',
-    'me.report_kept' => 'content kept',
-    'me.fav_category' => 'Category',
-    'me.fav_scope' => 'Area',
-    'me.unfav' => 'Remove',
-    'me.jury_pending' => 'Open jury task.',
     'me.jury_upcoming' => 'Drawn; voting starts {date}, midnight.',
-    'me.jury_none' => 'No jury task.',
-    'me.jury_go' => 'Go to jury task',
-    'me.cooldown' => 'Jury cooldown until {date}.',
-    'me.profile' => 'Profile (profil.yaml)',
-    'me.download' => 'Download profil.yaml',
     'me.delete_title' => 'Delete account and data',
     'me.delete_text' => 'Votes, favourites and open jury seats are deleted. Contributions remain but are permanently unlinked from your pseudonym.',
     'me.delete_confirm' => 'Yes, delete permanently',
@@ -1795,9 +1766,8 @@ const SW_EN = [
     'jury.none' => 'No jury task.',
     'jury.upcoming' => 'Drawn; voting starts {date}, midnight. Nothing to do until then.',
     'jury.reported' => 'Reported content',
-    'jury.criteria' => 'Stated criteria',
-    'jury.freetext' => 'Reporter’s note',
-    'jury.question' => 'Does the content violate the stated criteria?',
+    'jury.law' => 'Reported violation of law',
+    'jury.question' => 'Does the content violate the quoted law?',
     'jury.confirm' => 'Yes – remove',
     'jury.reject' => 'No – keep',
     'jury.neutral' => 'Abstain',
@@ -1805,21 +1775,14 @@ const SW_EN = [
     'jury.deadline' => 'Regular end: {date}; afterwards a decision is made once the quorum is reached.',
 
     'report.title' => 'Report content',
-    'report.intro' => 'Report presumably illegal content only – political opinions are not a reason to report.',
-    'report.criteria' => 'Criteria (at least one)',
-    'report.freetext' => 'Note (optional)',
+    'report.intro' => 'The only reason to report: violation of a law. The violated section is quoted verbatim.',
     'report.process' => 'A drawn citizen jury decides (1%; from midnight, 24 h, 0.5% quorum).',
+    'report.search' => 'Find the law (keyword or section number)',
+    'report.pick' => 'Violated law (quoted verbatim)',
+    'report.none_found' => 'No match. Try another keyword or section number.',
     'report.submit' => 'Submit report',
     'report.cancel' => 'Cancel',
 
-    'criteria.volksverhetzung' => 'Incitement to hatred (§ 130 German Criminal Code)',
-    'criteria.kennzeichen' => 'Banned symbols of unconstitutional organisations (§§ 86, 86a)',
-    'criteria.gewalt' => 'Incitement to violence or crime (§§ 111, 126)',
-    'criteria.terror' => 'Terrorist propaganda (§§ 86, 129a/b)',
-    'criteria.beleidigung' => 'Insult or defamation (§§ 185–187)',
-    'criteria.bedrohung' => 'Threats (§ 241)',
-    'criteria.privatdaten' => 'Publication of private data (doxxing)',
-    'criteria.sonstiges' => 'Other presumably criminal content',
 
     'flash.session_expired' => 'Session ended. Please tap your ID card again.',
     'flash.auth_expired' => 'Sign-in expired – please tap your ID card again.',
@@ -1840,8 +1803,8 @@ const SW_EN = [
     'flash.report_duplicate' => 'You have already reported this topic.',
     'flash.report_daily_limit' => 'Daily report limit reached.',
     'flash.report_too_few_users' => 'Too few participants are registered for a jury at the moment.',
+    'flash.report_no_law' => 'Please select the violated law.',
     'flash.report_created' => 'Report received. The jury has been drawn; voting starts at midnight.',
-    'flash.report_no_criteria' => 'Please select at least one criterion.',
     'flash.jury_not_open' => 'This vote is not (or no longer) open.',
     'flash.jury_not_member' => 'No authorisation for this jury.',
     'flash.jury_already_voted' => 'Already voted in this review.',
@@ -2042,7 +2005,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--ink); outline: n
 .error-card { max-width: 34rem; margin: 3rem auto; text-align: center; }
 .prose { max-width: 46rem; }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 650; margin-left: 0.4rem; }
-.yaml-block { background: var(--field); border: 1px solid var(--border); border-radius: 2px; padding: 0.8rem 1rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.45; }
+.law-quote { font-size: 0.88rem; color: var(--muted); display: block; margin-top: 0.2rem; }
+.form-details summary { font-weight: 650; cursor: pointer; }
+.form-details[open] summary { margin-bottom: 0.6rem; }
 .site-footer { border-top: 1px solid var(--border); background: var(--surface); font-size: 0.83rem; color: var(--muted); }
 .footer-inner { display: flex; justify-content: space-between; gap: 0.5rem 1.5rem; flex-wrap: wrap; padding-top: 0.8rem; padding-bottom: 0.8rem; }
 .footer-nav { display: flex; gap: 1rem; }
@@ -2082,11 +2047,18 @@ const SW_JS = <<<'JS'
       setInterval(update, 1000);
     }
 
-    /* profil.yaml: beim Anhalten geladen, im Browser gehalten (sessionStorage),
-       der Abmelde-Knopf loescht sie wieder. */
-    var yaml = document.getElementById('profil-yaml');
-    if (yaml) {
-      try { sessionStorage.setItem('profil.yaml', yaml.textContent); } catch (e) {}
+    /* profil.yaml: bei jedem Seitenaufruf frisch angefordert und nur im
+       Browser gehalten; der Abmelde-Knopf loescht sie wieder. */
+    var profileUrl = document.body.getAttribute('data-profile-url');
+    if (profileUrl) {
+      fetch(profileUrl, { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.text() : null; })
+        .then(function (text) {
+          try {
+            if (text) { sessionStorage.setItem('profil.yaml', text); }
+          } catch (e) {}
+        })
+        .catch(function () {});
     }
     var logoutForms = document.querySelectorAll('form.js-logout');
     logoutForms.forEach(function (form) {
@@ -2119,6 +2091,9 @@ const SW_JS = <<<'JS'
           if (status) { status.hidden = false; }
         }).catch(function () { /* Knopf-Fallback */ });
       } catch (e) { /* Knopf-Fallback */ }
+      /* Auf NFC-Geraeten loest NUR der Kartenkontakt aus - kein Zeit-Rueckfall.
+         Schlaegt der Lesestart fehl (Berechtigung verweigert), sendet der
+         Knopf direkt. */
       tapForm.addEventListener('submit', function (ev) {
         if (tapForm.getAttribute('data-armed') === '1') { return; }
         ev.preventDefault();
@@ -2126,7 +2101,6 @@ const SW_JS = <<<'JS'
         if (status) { status.hidden = false; }
         try {
           startScan().catch(go);
-          setTimeout(go, 15000);
         } catch (e) { go(); }
       });
     }
@@ -2195,7 +2169,7 @@ function v_layout(string $title, string $content): string
         . '<link rel="stylesheet" href="' . e(url('/a/app.css')) . '">'
         . '<link rel="icon" type="image/svg+xml" href="' . e(url('/a/icon.svg')) . '">'
         . '<script src="' . e(url('/a/app.js')) . '" defer></script>'
-        . '</head><body>';
+        . '</head><body' . ($user !== null ? ' data-profile-url="' . e(url('/profil.yaml')) . '"' : '') . '>';
     if (!empty($cfg['show_test_banner'])) {
         $html .= '<div class="test-banner" role="note">' . e(t('banner.test')) . '</div>';
     }
@@ -2206,26 +2180,11 @@ function v_layout(string $title, string $content): string
         . '<rect x="1.5" y="1.5" width="21" height="21" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>'
         . '<path d="M6.5 12.5l3.6 3.6 7.4-8.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
         . '</svg><span>' . e((string) $cfg['app_name']) . '</span></a>'
-        . '<nav class="main-nav" aria-label="Navigation">'
-        . '<a href="' . e(url('/topics')) . '"' . (SW::$path === '/topics' ? ' aria-current="page"' : '') . '>' . e(t('nav.topics')) . '</a>'
-        . '<a href="' . e(url('/topics/new')) . '"' . (SW::$path === '/topics/new' ? ' aria-current="page"' : '') . '>' . e(t('nav.new')) . '</a>';
-    if ($user !== null) {
-        $html .= '<a href="' . e(url('/me')) . '"' . (SW::$path === '/me' ? ' aria-current="page"' : '') . '>' . e(t('nav.overview')) . '</a>';
-        if ($duty !== null) {
-            $html .= '<a class="nav-duty" href="' . e(url('/jury')) . '">' . e(t('nav.jury')) . '<span class="duty-dot" aria-hidden="true"></span></a>';
-        }
-    }
-    $html .= '</nav><div class="header-controls">'
-        . '<form class="lang-form" method="post" action="' . e(url('/lang')) . '" aria-label="' . e(t('lang.switch')) . '">'
-        . csrf_field()
-        . '<input type="hidden" name="return" value="' . e($returnValue) . '">'
-        . '<button type="submit" name="lang" value="de" class="lang-btn ' . (SW::$lang === 'de' ? 'is-active' : '') . '" aria-pressed="' . (SW::$lang === 'de' ? 'true' : 'false') . '">DE</button>'
-        . '<button type="submit" name="lang" value="en" class="lang-btn ' . (SW::$lang === 'en' ? 'is-active' : '') . '" aria-pressed="' . (SW::$lang === 'en' ? 'true' : 'false') . '">EN</button>'
-        . '</form>';
+        . '<div class="header-controls">';
     if ($user === null) {
         $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
     } else {
-        $html .= '<a class="id-chip" href="' . e(url('/me')) . '" title="' . e(t('me.title')) . '">' . e(short_id($user)) . '</a>'
+        $html .= '<a class="nav-duty" href="' . e(url('/jury')) . '"' . ($duty !== null ? '' : ' hidden') . '>' . e(t('nav.jury')) . ($duty !== null ? '<span class="duty-dot" aria-hidden="true"></span>' : '') . '</a>'
             . '<form method="post" action="' . e(url('/logout')) . '" class="js-logout">' . csrf_field()
             . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.logout')) . '</button></form>';
     }
@@ -2301,51 +2260,85 @@ function p_votebar(int $for, int $against): string
     return $html;
 }
 
-function v_home(): void
+/** Formularteil "Thema einbringen" (in der Hauptseite eingebettet). */
+function topic_form_html(array $errors, array $old): string
 {
-    $user = auth_user();
-    $latest = topics_list([], 1, 6, $user === null ? null : (int) $user['id']);
-    $html = '<section class="intro"><h1>' . e(t('home.title')) . '</h1></section>';
-    if ($user === null) {
-        $html .= '<section class="card gate-card"><p>' . e(t('home.locked')) . '</p>'
-            . '<p><a class="btn btn-primary" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a></p></section>';
-    } else {
-        $userId = (int) $user['id'];
-        $myVotes = (int) SW::$db->val('SELECT COUNT(*) FROM votes WHERE user_id = ?', [$userId]);
-        $myFavs = (int) SW::$db->val('SELECT COUNT(*) FROM favorites WHERE user_id = ?', [$userId]);
-        $duty = jury_pending_for($userId);
-        $upcoming = $duty === null ? jury_upcoming_for($userId) : null;
-        if ($duty !== null) {
-            $juryText = '<a class="duty-link" href="' . e(url('/jury')) . '">' . e(t('home.p_jury_open')) . '</a>';
-        } elseif ($upcoming !== null) {
-            $juryText = e(t('home.p_jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))]));
-        } else {
-            $juryText = e(t('home.p_jury_none'));
+    $html = '';
+    if ($errors !== []) {
+        $html .= '<div class="flash flash-error" role="alert"><ul class="plain-list">';
+        foreach ($errors as $error) {
+            $html .= '<li>' . e(t($error)) . '</li>';
         }
-        $html .= '<section class="card personal-card"><h2>' . e(t('home.personal')) . '</h2><ul class="personal-list">'
-            . '<li><span>' . e(t('home.p_votes')) . '</span><span><a href="' . e(url('/me')) . '">' . e(num($myVotes)) . '</a></span></li>'
-            . '<li><span>' . e(t('home.p_favorites')) . '</span><span><a href="' . e(url('/me')) . '">' . e(num($myFavs)) . '</a></span></li>'
-            . '<li><span>' . e(t('home.p_jury')) . '</span><span>' . $juryText . '</span></li>'
-            . '</ul></section>';
+        $html .= '</ul></div>';
     }
-    $html .= '<section><div class="page-head"><h2>' . e(t('home.latest')) . '</h2>'
-        . '<a class="link-quiet" href="' . e(url('/topics')) . '">' . e(t('home.all_topics')) . '</a></div>';
-    if ($latest['rows'] === []) {
-        $html .= '<p class="muted">' . e(t('topics.none_yet')) . ' <a href="' . e(url('/topics/new')) . '">' . e(t('nav.new')) . '</a></p>';
-    } else {
-        $html .= '<div class="topic-grid">';
-        foreach ($latest['rows'] as $row) {
-            $html .= p_topic_card($row);
-        }
-        $html .= '</div>';
+    $html .= '<form class="form-stack" method="post" action="' . e(url('/topics')) . '">' . csrf_field()
+        . '<label><span>' . e(t('topic.f_title')) . '</span>'
+        . '<input type="text" name="title" required minlength="' . SW_TITLE_MIN . '" maxlength="' . SW_TITLE_MAX . '" value="' . e((string) $old['title']) . '"></label>'
+        . '<label><span>' . e(t('topic.f_goal')) . '</span>'
+        . '<textarea name="goal" rows="3" required minlength="' . SW_GOAL_MIN . '" maxlength="' . SW_GOAL_MAX . '">' . e((string) $old['goal']) . '</textarea></label>'
+        . '<label><span>' . e(t('topic.f_reasoning')) . '</span>'
+        . '<textarea name="reasoning" rows="5" required minlength="' . SW_REASONING_MIN . '" maxlength="' . SW_REASONING_MAX . '">' . e((string) $old['reasoning']) . '</textarea></label>'
+        . '<div class="form-row"><label><span>' . e(t('topic.f_category')) . '</span><select name="category_id" required>'
+        . '<option value="">' . e(t('topic.f_choose')) . '</option>';
+    foreach (categories() as $category) {
+        $sel = (int) $old['category_id'] === (int) $category['id'] ? ' selected' : '';
+        $html .= '<option value="' . (int) $category['id'] . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
     }
-    $html .= '</section>';
-    render(t('app.tagline'), $html);
+    $html .= '</select></label>'
+        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
+        . scope_select('scope', (string) $old['scope'], false)
+        . '</label></div>'
+        . '<div><button type="submit" class="btn btn-primary">' . e(t('topic.submit')) . '</button></div></form>';
+    return $html;
 }
 
-function v_topics(): void
+/** Die eine Hauptseite: Thema einbringen, Themen wählen, eigene Übersicht. */
+function v_main(array $formErrors = [], ?array $formOld = null): void
 {
-    $user = auth_user();
+    $user = require_user();
+    $userId = (int) $user['id'];
+
+    // Übersicht: Jury-Status (das Gate führt bei offener Aufgabe ohnehin hierhin)
+    $html = '';
+    $upcoming = jury_upcoming_for($userId);
+    if ($upcoming !== null) {
+        $html .= '<div class="flash">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))])) . '</div>';
+    }
+
+    // Thema einbringen (eingeklappt; bei Fehlern oder Tageslimit offen)
+    $old = $formOld ?? ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0, 'scope' => 'de'];
+    $openForm = $formErrors !== [] || $formOld !== null;
+    $html .= '<details class="card form-details"' . ($openForm ? ' open' : '') . '><summary>' . e(t('topic.new_title')) . '</summary>';
+    if (topic_has_posted_today($userId)) {
+        $html .= '<p class="muted">' . e(t('topic.posted_today'))
+            . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></p>';
+    } else {
+        $html .= '<p class="muted">' . e(t('topic.new_intro')) . '</p>' . topic_form_html($formErrors, $old);
+    }
+    $html .= '</details>';
+
+    // Favoriten-Schnellfilter
+    $chips = '';
+    foreach (fav_list($userId) as $favorite) {
+        if ($favorite['kind'] === 'category') {
+            $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
+            $href = url('/') . '?category=' . rawurlencode((string) $favorite['ref']);
+        } else {
+            $gebiet = fav_to_gebiet((string) $favorite['ref']);
+            if ($gebiet === null) {
+                continue;
+            }
+            $parts = explode(':', (string) $favorite['ref'], 2);
+            $label = $parts[0] === 'bund' || !isset($parts[1]) ? t('scope.bund') : $parts[1];
+            $href = url('/') . '?gebiet=' . rawurlencode($gebiet);
+        }
+        $chips .= '<a class="btn btn-ghost btn-sm" href="' . e($href) . '">★ ' . e($label) . '</a>';
+    }
+    if ($chips !== '') {
+        $html .= '<div class="fav-chips">' . $chips . '</div>';
+    }
+
+    // Themenliste mit Filtern
     $scopeValue = query_str('gebiet', 160);
     $scopeDecoded = $scopeValue === '' ? null : scope_decode($scopeValue);
     if ($scopeDecoded === null) {
@@ -2361,12 +2354,10 @@ function v_topics(): void
     ];
     $page = query_int('page', 1, 500, 1);
     $perPage = (int) SW::$cfg['page_size'];
-    $result = topics_list($filters, $page, $perPage, $user === null ? null : (int) $user['id']);
+    $result = topics_list($filters, $page, $perPage, $userId);
     $pages = max(1, (int) ceil($result['total'] / $perPage));
 
-    $html = '<div class="page-head"><h1>' . e(t('topics.title')) . '</h1>'
-        . '<span class="muted">' . e(t('topics.count', ['n' => num($result['total'])])) . '</span></div>'
-        . '<form class="filter-bar" method="get" action="' . e(url('/topics')) . '">'
+    $html .= '<form class="filter-bar" method="get" action="' . e(url('/')) . '">'
         . '<label><span>' . e(t('topics.filter_category')) . '</span><select name="category">'
         . '<option value="">' . e(t('topics.filter_all')) . '</option>';
     foreach (categories() as $category) {
@@ -2384,27 +2375,6 @@ function v_topics(): void
         . '</select></label>'
         . '<button type="submit" class="btn btn-outline">' . e(t('topics.apply')) . '</button></form>';
 
-    if ($user !== null) {
-        $chips = '';
-        foreach (fav_list((int) $user['id']) as $favorite) {
-            if ($favorite['kind'] === 'category') {
-                $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
-                $href = url('/topics') . '?category=' . rawurlencode((string) $favorite['ref']);
-            } else {
-                $gebiet = fav_to_gebiet((string) $favorite['ref']);
-                if ($gebiet === null) {
-                    continue;
-                }
-                $parts = explode(':', (string) $favorite['ref'], 2);
-                $label = $parts[0] === 'bund' || !isset($parts[1]) ? t('scope.bund') : $parts[1];
-                $href = url('/topics') . '?gebiet=' . rawurlencode($gebiet);
-            }
-            $chips .= '<a class="btn btn-ghost btn-sm" href="' . e($href) . '">★ ' . e($label) . '</a>';
-        }
-        if ($chips !== '') {
-            $html .= '<div class="fav-chips">' . $chips . '</div>';
-        }
-    }
     if ($result['rows'] === []) {
         $html .= '<p class="muted">' . e(t('topics.none')) . '</p>';
     } else {
@@ -2425,16 +2395,26 @@ function v_topics(): void
         };
         $html .= '<nav class="pagination" aria-label="Pagination">';
         if ($page > 1) {
-            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topics') . $mkQuery($page - 1)) . '">&laquo; ' . e(t('topics.prev')) . '</a>';
+            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/') . $mkQuery($page - 1)) . '">&laquo; ' . e(t('topics.prev')) . '</a>';
         }
         $html .= '<span class="muted">' . e(t('topics.page_of', ['p' => $page, 'n' => $pages])) . '</span>';
         if ($page < $pages) {
-            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topics') . $mkQuery($page + 1)) . '">' . e(t('topics.next')) . ' &raquo;</a>';
+            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/') . $mkQuery($page + 1)) . '">' . e(t('topics.next')) . ' &raquo;</a>';
         }
         $html .= '</nav>';
     }
-    render(t('topics.title'), $html);
+
+    // Konto löschen (eingeklappt, am Ende)
+    $html .= '<details class="card danger-zone form-details"><summary>' . e(t('me.delete_title')) . '</summary>'
+        . '<p class="muted">' . e(t('me.delete_text')) . '</p>'
+        . '<form method="post" action="' . e(url('/account/delete')) . '" class="form-stack">' . csrf_field()
+        . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required><span>' . e(t('me.delete_confirm')) . '</span></label>'
+        . '<div><button type="submit" class="btn btn-danger">' . e(t('me.delete_button')) . '</button></div></form></details>';
+
+    render(t('app.tagline'), $html);
 }
+
+
 
 function v_topic(int $id): void
 {
@@ -2507,44 +2487,6 @@ function v_topic(int $id): void
     }
     $html .= '</section></article>';
     render((string) $topic['title'], $html);
-}
-
-/** @param list<string> $errors @param array<string,mixed> $old */
-function v_topic_new(array $errors, array $old, bool $postedToday): void
-{
-    $html = '<h1>' . e(t('topic.new_title')) . '</h1>'
-        . '<p class="muted">' . e(t('topic.new_intro')) . '</p>';
-    if ($postedToday) {
-        $html .= '<div class="flash">' . e(t('topic.posted_today'))
-            . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></div>';
-        render(t('topic.new_title'), $html);
-    }
-    if ($errors !== []) {
-        $html .= '<div class="flash flash-error" role="alert"><ul class="plain-list">';
-        foreach ($errors as $error) {
-            $html .= '<li>' . e(t($error)) . '</li>';
-        }
-        $html .= '</ul></div>';
-    }
-    $html .= '<form class="card form-stack" method="post" action="' . e(url('/topics')) . '">' . csrf_field()
-        . '<label><span>' . e(t('topic.f_title')) . '</span>'
-        . '<input type="text" name="title" required minlength="' . SW_TITLE_MIN . '" maxlength="' . SW_TITLE_MAX . '" value="' . e((string) $old['title']) . '"></label>'
-        . '<label><span>' . e(t('topic.f_goal')) . '</span>'
-        . '<textarea name="goal" rows="3" required minlength="' . SW_GOAL_MIN . '" maxlength="' . SW_GOAL_MAX . '">' . e((string) $old['goal']) . '</textarea></label>'
-        . '<label><span>' . e(t('topic.f_reasoning')) . '</span>'
-        . '<textarea name="reasoning" rows="6" required minlength="' . SW_REASONING_MIN . '" maxlength="' . SW_REASONING_MAX . '">' . e((string) $old['reasoning']) . '</textarea></label>'
-        . '<div class="form-row"><label><span>' . e(t('topic.f_category')) . '</span><select name="category_id" required>'
-        . '<option value="">' . e(t('topic.f_choose')) . '</option>';
-    foreach (categories() as $category) {
-        $sel = (int) $old['category_id'] === (int) $category['id'] ? ' selected' : '';
-        $html .= '<option value="' . (int) $category['id'] . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
-    }
-    $html .= '</select></label>'
-        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
-        . scope_select('scope', (string) $old['scope'], false)
-        . '</label></div>'
-        . '<div><button type="submit" class="btn btn-primary">' . e(t('topic.submit')) . '</button></div></form>';
-    render(t('topic.new_title'), $html);
 }
 
 function v_auth(): void
@@ -2648,13 +2590,8 @@ function yq(string $v): string
 function profile_yaml(array $user): string
 {
     $userId = (int) $user['id'];
-    $slot = is_int($_SESSION['auth_slot'] ?? null) ? (int) $_SESSION['auth_slot'] : time_slot();
-    $validUntil = date('c', ($slot + SW_AUTH_SLOTS) * SW_SLOT_SECONDS);
     $y = "stimmwerk_profil:\n";
     $y .= "  oeffentlicher_schluessel: " . yq((string) $user['pseudonym_hash']) . "\n";
-    $y .= "  stand: " . yq(date('c', Clock::now()->getTimestamp())) . "\n";
-    $y .= "  anmeldung_gueltig_bis: " . yq($validUntil) . "\n";
-    $y .= "  sprache: " . yq((string) $user['lang']) . "\n";
     $duty = jury_pending_for($userId);
     $upcoming = $duty === null ? jury_upcoming_for($userId) : null;
     $y .= "  jury_aufgabe: " . yq($duty !== null ? 'offen' : ($upcoming !== null ? 'ausgelost' : 'keine')) . "\n";
@@ -2699,41 +2636,6 @@ function profile_yaml(array $user): string
     return $y;
 }
 
-function v_me(): void
-{
-    $user = require_user();
-    $userId = (int) $user['id'];
-    $duty = jury_pending_for($userId);
-    $upcoming = $duty === null ? jury_upcoming_for($userId) : null;
-    $yaml = profile_yaml($user);
-
-    $html = '<div class="page-head"><h1>' . e(t('me.title')) . '</h1></div>'
-        . '<section class="card id-card"><div><span class="field-label">' . e(t('me.short_id')) . '</span>'
-        . '<span class="id-value">' . e(short_id($user)) . '</span></div>'
-        . '<span class="muted">' . e(t('me.since', ['date' => Clock::displayLocal((string) $user['created_at'], t('common.date_format'))])) . '</span>';
-    if ($user['jury_cooldown_until'] !== null && (string) $user['jury_cooldown_until'] > Clock::nowStr()) {
-        $html .= '<span class="muted">' . e(t('me.cooldown', ['date' => Clock::displayLocal((string) $user['jury_cooldown_until'], t('common.datetime_format'))])) . '</span>';
-    }
-    $html .= '</section>';
-
-    if ($duty !== null) {
-        $html .= '<div class="flash">' . e(t('me.jury_pending')) . ' <a href="' . e(url('/jury')) . '">' . e(t('me.jury_go')) . '</a></div>';
-    } elseif ($upcoming !== null) {
-        $html .= '<p class="muted">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))])) . '</p>';
-    }
-
-    $html .= '<section><div class="page-head"><h2>' . e(t('me.profile')) . '</h2>'
-        . '<a class="btn btn-outline btn-sm" href="' . e(url('/profil.yaml')) . '">' . e(t('me.download')) . '</a></div>'
-        . '<pre id="profil-yaml" class="yaml-block">' . e($yaml) . '</pre></section>';
-
-    $html .= '<section class="card danger-zone"><h2>' . e(t('me.delete_title')) . '</h2>'
-        . '<p class="muted">' . e(t('me.delete_text')) . '</p>'
-        . '<form method="post" action="' . e(url('/account/delete')) . '" class="form-stack">' . csrf_field()
-        . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required><span>' . e(t('me.delete_confirm')) . '</span></label>'
-        . '<div><button type="submit" class="btn btn-danger">' . e(t('me.delete_button')) . '</button></div></form></section>';
-    render(t('me.title'), $html);
-}
-
 function v_jury(): void
 {
     $user = require_user();
@@ -2753,8 +2655,7 @@ function v_jury(): void
         render(t('jury.title'), $html);
     }
 
-    $criteria = json_decode((string) $duty['criteria'], true);
-    $criteria = is_array($criteria) ? array_values(array_filter($criteria, 'is_string')) : [];
+    $law = SW_LAWS[(string) $duty['criteria']] ?? null;
     $tally = jury_tally((int) $duty['id']);
     $deadline = jury_deadline($duty);
 
@@ -2764,13 +2665,12 @@ function v_jury(): void
         . '<h3>' . e((string) $duty['title']) . '</h3>'
         . '<p class="field-label">' . e(t('topic.goal_label')) . '</p><p>' . nl2br(e((string) $duty['goal'])) . '</p>'
         . '<p class="field-label">' . e(t('topic.reasoning_label')) . '</p><p>' . nl2br(e((string) $duty['reasoning'])) . '</p></section>'
-        . '<section class="card"><h2 class="field-label">' . e(t('jury.criteria')) . '</h2><ul>';
-    foreach ($criteria as $criterion) {
-        $html .= '<li>' . e(t('criteria.' . $criterion)) . '</li>';
-    }
-    $html .= '</ul>';
-    if ((string) ($duty['freetext'] ?? '') !== '') {
-        $html .= '<h2 class="field-label">' . e(t('jury.freetext')) . '</h2><p>' . nl2br(e((string) $duty['freetext'])) . '</p>';
+        . '<section class="card"><h2 class="field-label">' . e(t('jury.law')) . '</h2>';
+    if ($law !== null) {
+        $html .= '<p><strong>' . e($law['norm']) . ' – ' . e($law['titel']) . '</strong></p>'
+            . '<p class="law-quote">„' . e($law['text']) . '“</p>';
+    } else {
+        $html .= '<p class="muted">' . e((string) $duty['criteria']) . '</p>';
     }
     $html .= '</section><section class="card"><h2>' . e(t('jury.question')) . '</h2>'
         . '<form class="vote-actions" method="post" action="' . e(url('/jury/vote')) . '">' . csrf_field()
@@ -2800,25 +2700,35 @@ function v_report(int $topicId): void
         flash('info', 'flash.report_already_open');
         redirect('/topic/' . $topicId);
     }
+    $q = query_str('q', 80);
+    $hits = law_search($q);
     $html = '<h1>' . e(t('report.title')) . '</h1>'
-        . '<p>' . e(t('report.intro')) . '</p>'
+        . '<p class="muted">' . e(t('report.intro')) . '</p>'
         . '<section class="card"><p class="field-label">' . e(t('jury.reported')) . '</p>'
-        . '<h2>' . e((string) $topic['title']) . '</h2>'
-        . '<p class="muted">' . e((string) $topic['goal']) . '</p></section>'
-        . '<form class="card form-stack" method="post" action="' . e(url('/report')) . '">' . csrf_field()
-        . '<input type="hidden" name="topic_id" value="' . (int) $topic['id'] . '">'
-        . '<fieldset class="criteria-set"><legend>' . e(t('report.criteria')) . '</legend>';
-    foreach (SW_CRITERIA as $criterion) {
-        $html .= '<label class="check-label"><input type="checkbox" name="criteria[]" value="' . e($criterion) . '">'
-            . '<span>' . e(t('criteria.' . $criterion)) . '</span></label>';
-    }
-    $html .= '</fieldset>'
-        . '<label><span>' . e(t('report.freetext')) . '</span>'
-        . '<textarea name="freetext" rows="4" maxlength="' . SW_FREETEXT_MAX . '"></textarea></label>'
-        . '<p class="muted">' . e(t('report.process')) . '</p>'
-        . '<div class="btn-row"><button type="submit" class="btn btn-primary">' . e(t('report.submit')) . '</button>'
-        . '<a class="btn btn-ghost" href="' . e(url('/topic/' . (int) $topic['id'])) . '">' . e(t('report.cancel')) . '</a></div>'
+        . '<h2>' . e((string) $topic['title']) . '</h2></section>'
+        . '<form class="card form-stack" method="get" action="' . e(url('/report/' . (int) $topic['id'])) . '">'
+        . '<label><span>' . e(t('report.search')) . '</span>'
+        . '<input type="search" name="q" maxlength="80" value="' . e($q) . '"></label>'
+        . '<div><button type="submit" class="btn btn-outline">' . e(t('topics.apply')) . '</button></div>'
         . '</form>';
+    if ($q !== '' && $hits === []) {
+        $html .= '<p class="muted">' . e(t('report.none_found')) . '</p>';
+    }
+    if ($hits !== []) {
+        $html .= '<form class="card form-stack" method="post" action="' . e(url('/report')) . '">' . csrf_field()
+            . '<input type="hidden" name="topic_id" value="' . (int) $topic['id'] . '">'
+            . '<fieldset class="criteria-set"><legend>' . e(t('report.pick')) . '</legend>';
+        foreach ($hits as $id => $law) {
+            $html .= '<label class="check-label"><input type="radio" name="law" value="' . e($id) . '" required>'
+                . '<span><strong>' . e($law['norm']) . ' – ' . e($law['titel']) . '</strong><br>'
+                . '<span class="law-quote">„' . e($law['text']) . '“</span></span></label>';
+        }
+        $html .= '</fieldset>'
+            . '<p class="muted">' . e(t('report.process')) . '</p>'
+            . '<div class="btn-row"><button type="submit" class="btn btn-primary">' . e(t('report.submit')) . '</button>'
+            . '<a class="btn btn-ghost" href="' . e(url('/topic/' . (int) $topic['id'])) . '">' . e(t('report.cancel')) . '</a></div>'
+            . '</form>';
+    }
     render(t('report.title'), $html);
 }
 
@@ -2880,10 +2790,6 @@ function h_lang(): void
         redirect('/');
     }
     $_SESSION['lang'] = $lang;
-    $user = auth_user();
-    if ($user !== null) {
-        SW::$db->run('UPDATE users SET lang = ? WHERE id = ?', [$lang, (int) $user['id']]);
-    }
     redirect(safe_return('/'));
 }
 
@@ -2948,7 +2854,7 @@ function h_topic_create(): void
         $errors[] = 'topic.err_scope';
     }
     if ($errors !== []) {
-        v_topic_new($errors, $old, topic_has_posted_today($userId));
+        v_main($errors, $old);
     }
     try {
         $topicId = topic_create(
@@ -2961,7 +2867,7 @@ function h_topic_create(): void
             $scope[1]
         );
     } catch (DomainException $e) {
-        v_topic_new([$e->getMessage()], $old, topic_has_posted_today($userId));
+        v_main([$e->getMessage()], $old);
         return;
     }
     flash('success', 'flash.topic_created');
@@ -3001,14 +2907,13 @@ function h_report_create(): void
         flash('error', 'flash.rate_limited');
         redirect('/report/' . $topicId);
     }
-    $criteria = post_str_list('criteria', SW_CRITERIA);
-    if ($criteria === []) {
-        flash('error', 'flash.report_no_criteria');
+    $lawId = post_str('law', 40);
+    if (!isset(SW_LAWS[$lawId])) {
+        flash('error', 'flash.report_no_law');
         redirect('/report/' . $topicId);
     }
-    $freetext = post_str('freetext', SW_FREETEXT_MAX, true);
     try {
-        report_create($topicId, (int) $user['id'], $criteria, $freetext === '' ? null : $freetext);
+        report_create($topicId, (int) $user['id'], $lawId);
     } catch (DomainException $e) {
         flash('error', $e->getMessage());
         redirect('/topic/' . $topicId);
@@ -3060,7 +2965,7 @@ function h_account_delete(): void
 function send_security_headers(): void
 {
     header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; "
-        . "img-src 'self'; font-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+        . "img-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: no-referrer');
@@ -3131,12 +3036,9 @@ function web_main(): void
     send_security_headers();
     session_boot();
 
-    // Sprache: Nutzerkonto -> Sitzung -> Standard.
+    // Sprache: nur Sitzung (Wahl beim Start); nichts wird am Konto gespeichert.
     $user = auth_user();
     $lang = is_string($_SESSION['lang'] ?? null) ? (string) $_SESSION['lang'] : '';
-    if ($user !== null) {
-        $lang = (string) $user['lang'];
-    }
     if (!in_array($lang, (array) SW::$cfg['langs'], true)) {
         $lang = (string) SW::$cfg['default_lang'];
     }
@@ -3179,18 +3081,19 @@ function web_main(): void
         }
 
         $isGet = $method === 'GET' || $method === 'HEAD';
+
+        // Ohne gescannten Ausweis ist die Seite nicht sichtbar:
+        // nur Anmeldung und Rechtliches sind offen.
+        if ($user === null && $isGet
+            && !in_array($path, ['/auth', '/imprint', '/privacy'], true)) {
+            redirect('/auth');
+        }
+
         if ($path === '/' && $isGet) {
-            v_home();
+            v_main();
         }
-        if ($path === '/topics' && $isGet) {
-            v_topics();
-        }
-        if ($path === '/topics/new' && $isGet) {
-            $u = require_user();
-            v_topic_new([], [
-                'title' => '', 'goal' => '', 'reasoning' => '',
-                'category_id' => 0, 'scope' => 'de',
-            ], topic_has_posted_today((int) $u['id']));
+        if (($path === '/topics' || $path === '/topics/new' || $path === '/me') && $isGet) {
+            redirect('/');
         }
         if ($path === '/topics' && $method === 'POST') {
             h_topic_create();
@@ -3215,9 +3118,6 @@ function web_main(): void
         }
         if ($path === '/jury/vote' && $method === 'POST') {
             h_jury_vote();
-        }
-        if ($path === '/me' && $isGet) {
-            v_me();
         }
         if ($path === '/profil.yaml' && $isGet) {
             $u = require_user();
@@ -3338,6 +3238,17 @@ function cli_selftest(): int
     Clock::setTestNow($t0);
     $check('Identität = öffentlicher Schlüssel (kein Pseudonym)', card_identity($card) === bin2hex($card['pk']));
 
+    echo "== Meldegrund: Gesetzesverstoß ==\n";
+    $check('Suche nach Schlagwort findet Volksverhetzung', isset(law_search('hetze')['stgb-130-1']));
+    $check('Suche nach Paragraph findet § 185', isset(law_search('185')['stgb-185']));
+    $check('Leere Suche liefert nichts', law_search('') === []);
+    try {
+        report_create(999999, 1, 'kein-gesetz');
+        $check('Unbekanntes Gesetz abgelehnt', false);
+    } catch (DomainException $e) {
+        $check('Unbekanntes Gesetz abgelehnt', $e->getMessage() === 'flash.report_no_law');
+    }
+
     echo "== Geltungsbereich (amtliche Auswahl) ==\n";
     $check('Deutschland', scope_decode('de') === ['bund', null]);
     $check('Bundesland', scope_decode('bl:Bayern') === ['bundesland', 'Bayern']);
@@ -3382,7 +3293,7 @@ function cli_selftest(): int
     $crowd = cli_add_users(600, 'crowd');
     $reporter600 = cli_add_users(1, 'rep')[0];
     $target = cli_make_topic($crowd[0], 'Zielthema für die große Jury');
-    report_create($target, $reporter600, ['volksverhetzung'], null);
+    report_create($target, $reporter600, 'stgb-130-1');
     $bigReport = SW::$db->one('SELECT * FROM reports ORDER BY id DESC LIMIT 1');
     $check('Jury = 1 % bei 601 Nutzenden (aufgerundet)', (int) $bigReport['jury_size'] === (int) ceil(601 * 0.01));
     $check('Quorum = 0,5 % (mind. 3)', (int) $bigReport['quorum'] === max(3, (int) ceil(601 * 0.005)));
@@ -3398,7 +3309,7 @@ function cli_selftest(): int
         }, SW::$db->all('SELECT user_id FROM report_jurors WHERE report_id = ?', [$reportId]));
     };
 
-    $r1 = report_create($tX, $users[0], ['kennzeichen', 'gewalt'], 'Testmeldung.');
+    $r1 = report_create($tX, $users[0], 'stgb-86a-1');
     $j1 = $jurorsOf($r1);
     $check('Jury 1: 5 Sitze (Mindestgröße)', count($j1) === 5);
     $check('Melder und Autor nicht in der Jury', !in_array($users[0], $j1, true) && !in_array($users[8], $j1, true));
@@ -3406,12 +3317,12 @@ function cli_selftest(): int
     $check('Meldung wartet bis Mitternacht', $r1Row['status'] === 'pending');
     $check('Start zur nächsten Mitternacht (00:00 lokal)', $r1Row['voting_starts_at'] === Clock::nextLocalMidnightUtcStr());
     try {
-        report_create($tX, $users[1], ['beleidigung'], null);
+        report_create($tX, $users[1], 'stgb-185');
         $check('Zweite Meldung zum selben Thema abgelehnt', false);
     } catch (DomainException $e) {
         $check('Zweite Meldung zum selben Thema abgelehnt', $e->getMessage() === 'flash.report_already_open');
     }
-    $r2 = report_create($tY, $users[1], ['bedrohung'], null);
+    $r2 = report_create($tY, $users[1], 'stgb-241-1');
     $j2 = $jurorsOf($r2);
     $check('Jury 2 disjunkt zu laufender Jury 1', array_intersect($j1, $j2) === []);
     $check('Kein Jury-Gate vor Abstimmungsstart', jury_pending_for($j1[0]) === null);
@@ -3444,7 +3355,7 @@ function cli_selftest(): int
     $check('Karenz (3 Tage) für alle Jury-Mitglieder gesetzt', array_unique(array_column($cooldowns, 'jury_cooldown_until')) === [$expectedCooldown]);
 
     $tZ = cli_make_topic($j1[0], 'Gemeldetes Thema Z');
-    $r3 = report_create($tZ, $j2[0], ['privatdaten'], null);
+    $r3 = report_create($tZ, $j2[0], 'stgb-126a-1');
     $j3 = $jurorsOf($r3);
     $expectedJ3 = array_values(array_diff(array_map('intval', $users), $j1, $j2));
     sort($j3);
@@ -3463,7 +3374,7 @@ function cli_selftest(): int
 
     $warp('+2 days');
     $tW = cli_make_topic($j2[2], 'Gemeldetes Thema W');
-    $r4 = report_create($tW, $j2[1], ['sonstiges'], null);
+    $r4 = report_create($tW, $j2[1], 'stgb-240-1');
     $j4 = $jurorsOf($r4);
     sort($j1);
     sort($j4);

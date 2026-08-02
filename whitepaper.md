@@ -124,9 +124,10 @@ Bewusste Abgrenzung:
   keine Passwörter existieren, kann bedenkenlos das Gerät einer anderen Person
   genutzt werden.
 
-Sprachen: **Deutsch (Standard) und Englisch**, umschaltbar auf jeder Seite. Die
-Sprachwahl wird am Ausweis-Pseudonym gespeichert und gilt damit auf jedem Gerät nach
-dem Anhalten des Ausweises automatisch.
+Sprachen: **Deutsch und Englisch**. Die Wahl erfolgt symbolhaft über zwei
+Flaggen beim Sitzungsbeginn, gilt für die Sitzung und wird **nirgends
+gespeichert** — weder im Browser noch am Konto. Ohne angehaltenen Ausweis
+ist die Seite nicht sichtbar (nur Anmeldung und Rechtliches sind offen).
 
 ---
 
@@ -308,9 +309,12 @@ sind konkrete Delikte — und genau diese bildet der Kriterienkatalog ab:
 | Veröffentlichung privater Daten (Doxxing) | § 126a StGB, DSGVO |
 | Sonstiger mutmaßlich strafbarer Inhalt | Auffangtatbestand |
 
-Eine Meldung besteht aus **mindestens einem Kriterium** (Ankreuzliste) und
-**optionalem Freitext**. Die Kriterien sind bewusst so gewählt, dass sie in der
-Regel ohne Freitext auskommen.
+Eine Meldung besteht aus genau **einem Grund: dem Verstoß gegen ein
+Gesetz**. Beim Melden führt ein Suchfeld (Schlagwort oder
+Paragraphennummer) zum eingebauten Gesetzesregister; der gewählte
+Paragraph wird **wortgleich (1:1) zitiert** und der Jury unverändert
+vorgelegt. Freitext gibt es nicht — bewertet wird ausschließlich am
+zitierten Gesetz.
 
 ### 7.2 Bürger-Jury statt Redaktionsmoderation
 

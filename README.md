@@ -26,16 +26,23 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 
 ## Ausweis, profil.yaml, Bestätigung
 
-- **Start:** Beim allerersten Aufruf erscheint nur die Sprachwahl über zwei
-  Flaggen (Deutsch/English), danach die Seite.
+- **Start:** Beim Sitzungsbeginn nur die Sprachwahl über zwei Flaggen
+  (Deutsch/English) – die Sprache gilt für die Sitzung und wird nirgends
+  gespeichert. Danach ist **ohne gescannten Ausweis nichts sichtbar**:
+  Alle Seiten außer Anmeldung und Rechtlichem verlangen die Anmeldung.
+- **Eine Seite:** Thema einbringen (aufklappbar), Themen wählen (Filter,
+  Favoriten-Chips, Liste) und die eigene Übersicht sind eine einzige
+  Hauptseite; oben rechts steht nur „Abmelden“.
 - **Anmelden (Profil laden):** Auf der Anmeldeseite ist der NFC-Leser am
   Smartphone automatisch scharf (Web NFC): den Personalausweis anhalten
   genügt, die Anmeldung löst direkt aus. Der Knopf dient als Rückfall und
   für die einmalige Browser-Berechtigung; ohne NFC sendet er normal ab. Die
   statische Challenge ist der öffentliche Schlüssel selbst – **kein
   abgeleitetes Pseudonym**, die Identität ist der Schlüssel („on the go“).
-  Das Anhalten lädt die **profil.yaml** (Stimmen, Themen, Favoriten,
-  Jury-Status) in den Browser; der Abmelde-Knopf löscht sie dort wieder.
+  Die **profil.yaml** (Stimmen, Themen, Favoriten, Jury-Status) wird bei
+  **jedem Seitenaufruf frisch** vom Server angefordert und nur im Browser
+  zwischengehalten – die Seite zeigt weder Schlüssel noch Beitrittsdatum;
+  „Abmelden“ löscht die zwischengehaltene Datei.
 - **Zeitfenster (TOTP-artig):** Der Anmeldenachweis gilt nur kurz
   (5-Minuten-Fenster, höchstens zwei Fenster); danach ist erneutes
   Anhalten nötig. Zu anderer Zeit entsteht ein anderer Nachweis.
@@ -45,6 +52,12 @@ nginx) funktioniert alles weiter über automatisch erzeugte
   Aktion, der Server öffnet mit dem öffentlichen Schlüssel und trägt das
   Ergebnis für genau diesen Schlüssel ein. Alte Umschläge verfallen;
   zusätzlich ist jedes Formular-Token einmalig (kein Replay, deckt CSRF ab).
+- **Melden nur bei Gesetzesverstoß:** Der einzige Meldegrund ist der
+  Verstoß gegen ein Gesetz. Beim Melden führt ein Suchfeld (Schlagwort
+  oder Paragraphennummer) zum eingebauten Gesetzesregister; der gewählte
+  Paragraph wird **1:1 zitiert** und der Jury wortgleich vorgelegt.
+  Die Gesetzestexte sind vor einem Echtbetrieb wortgleich gegen
+  gesetze-im-internet.de abzugleichen.
 - **Geltungsbereich ohne Freitext:** Themen und Filter nutzen eine
   hierarchische Auswahl Deutschland → Bundesland → Landkreis/kreisfreie
   Stadt (eingebaute Liste, 16 Länder, rund 400 Kreise) – vor Echtbetrieb
@@ -60,7 +73,7 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 ## CLI (optional)
 
 ```bash
-php index.php selftest   # Fachregeln automatisiert prüfen (49 Prüfungen)
+php index.php selftest   # Fachregeln automatisiert prüfen (53 Prüfungen)
 php index.php cron       # Wartungslauf (sonst lazy bei Seitenaufrufen)
 php index.php seed 400   # Demo-Pseudonyme + Zufallsstimmen (Vorführungen)
 php index.php jurysim    # Demo-Jury stimmt in laufenden Prüfungen ab
