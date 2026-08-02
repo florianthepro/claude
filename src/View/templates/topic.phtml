@@ -18,7 +18,7 @@ $user = $app->auth->user();
   <article class="card">
     <h1><?= e($t('topic.removed_title')) ?></h1>
     <p class="muted"><?= e($t('topic.removed_text')) ?></p>
-    <p><a class="btn btn-outline btn-sm" href="/topics"><?= e($t('nav.topics')) ?></a></p>
+    <p><a class="btn btn-outline btn-sm" href="<?= base_path() ?>/topics"><?= e($t('nav.topics')) ?></a></p>
   </article>
 <?php else: ?>
 <article class="topic-detail">
@@ -47,9 +47,9 @@ $user = $app->auth->user();
     <?php endif; ?>
 
     <?php if ($user === null): ?>
-      <p><a class="btn btn-primary" href="/auth"><?= e($t('vote.login_hint')) ?></a></p>
+      <p><a class="btn btn-primary" href="<?= base_path() ?>/auth"><?= e($t('vote.login_hint')) ?></a></p>
     <?php else: ?>
-      <form class="vote-actions" method="post" action="/vote">
+      <form class="vote-actions" method="post" action="<?= base_path() ?>/vote">
         <?= $app->csrf->field() ?>
         <input type="hidden" name="topic_id" value="<?= (int) $topic['id'] ?>">
         <button type="submit" name="choice" value="for"
@@ -71,7 +71,7 @@ $user = $app->auth->user();
 
   <section class="topic-tools">
     <?php if ($user !== null): ?>
-      <form method="post" action="/favorite">
+      <form method="post" action="<?= base_path() ?>/favorite">
         <?= $app->csrf->field() ?>
         <input type="hidden" name="kind" value="category">
         <input type="hidden" name="ref" value="<?= e((string) $topic['category_slug']) ?>">
@@ -80,7 +80,7 @@ $user = $app->auth->user();
           <?= $isCatFav ? '★ ' . e($t('topic.fav_remove')) : '☆ ' . e($t('topic.fav_add')) ?>
         </button>
       </form>
-      <form method="post" action="/favorite">
+      <form method="post" action="<?= base_path() ?>/favorite">
         <?= $app->csrf->field() ?>
         <input type="hidden" name="kind" value="scope">
         <input type="hidden" name="ref" value="<?= e($scopeRef) ?>">
@@ -93,7 +93,7 @@ $user = $app->auth->user();
     <?php if ($openReport !== null): ?>
       <span class="muted"><?= e($t('topic.report_open')) ?></span>
     <?php elseif ($user !== null): ?>
-      <a class="link-quiet" href="/report/<?= (int) $topic['id'] ?>"><?= e($t('topic.report_link')) ?></a>
+      <a class="link-quiet" href="<?= base_path() ?>/report/<?= (int) $topic['id'] ?>"><?= e($t('topic.report_link')) ?></a>
     <?php endif; ?>
   </section>
 </article>

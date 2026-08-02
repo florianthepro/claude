@@ -1,3 +1,4 @@
-# Laufzeitdaten des Prototyps (Datenbank, Geheimnisse, Logs) – niemals einchecken
-webserver/data/*
-!webserver/data/.gitkeep
+# Laufzeitdaten (Datenbank, Geheimnisse, Logs) – niemals einchecken
+data/*
+!data/.gitkeep
+!data/.htaccess

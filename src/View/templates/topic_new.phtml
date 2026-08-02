@@ -28,7 +28,7 @@ $lang = $app->i18n->lang();
   </div>
 <?php endif; ?>
 
-<form class="card form-stack" method="post" action="/topics">
+<form class="card form-stack" method="post" action="<?= base_path() ?>/topics">
   <?= $app->csrf->field() ?>
   <label>
     <span><?= e($t('topic.f_title')) ?></span>

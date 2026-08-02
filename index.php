@@ -3,9 +3,53 @@
 declare(strict_types=1);
 
 /**
- * Front-Controller: Sicherheitsheader, Session, Sprachauflösung, zentrale
- * CSRF-Prüfung für alle POST-Anfragen, Jury-Mitwirkungs-Gate, Routing.
+ * Front-Controller (liegt bewusst im Webroot: Hochladen/Entpacken genügt).
+ * Sicherheitsheader, Session, Sprachauflösung, zentrale CSRF-Prüfung für alle
+ * POST-Anfragen, Jury-Mitwirkungs-Gate, Routing. Läuft auch in einem
+ * Unterordner des Webspace (Basispfad wird automatisch erkannt).
  */
+
+// Freundlicher Hinweis statt weißer Seite, falls der Hoster noch auf einer
+// alten PHP-Version steht. (Nur hier: keine PHP-8-Syntax vor dieser Prüfung.)
+if (PHP_VERSION_ID < 80200) {
+    http_response_code(500);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
+        . '<title>PHP-Version zu alt</title></head><body style="font-family:sans-serif;max-width:40em;margin:3em auto">'
+        . '<h1>PHP-Version zu alt</h1><p>Diese Anwendung ben&ouml;tigt PHP 8.2 oder neuer '
+        . '(gefunden: ' . htmlspecialchars(PHP_VERSION, ENT_QUOTES, 'UTF-8') . '). '
+        . 'Bitte stellen Sie die PHP-Version im Verwaltungsbereich Ihres Hosters um.</p></body></html>';
+    exit;
+}
+
+// Basispfad erkennen (Installation im Webroot ODER in einem Unterordner).
+$scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php')));
+$basePath = rtrim($scriptDir, '/');
+if ($basePath !== '' && preg_match('#^(/[A-Za-z0-9._~\-]+)+$#', $basePath) !== 1) {
+    $basePath = '';
+}
+define('STIMMWERK_BASE', $basePath);
+
+$factory = require __DIR__ . '/src/bootstrap.php';
+
+try {
+    $app = $factory();
+} catch (Throwable $e) {
+    // Häufigste Ursache nach dem Hochladen: data/ ist nicht beschreibbar.
+    error_log('stimmwerk bootstrap: ' . $e->getMessage());
+    http_response_code(500);
+    header('Content-Type: text/html; charset=utf-8');
+    $dataWritable = is_writable(__DIR__ . '/data') || (!is_dir(__DIR__ . '/data') && is_writable(__DIR__));
+    $hint = $dataWritable
+        ? 'Bitte pr&uuml;fen Sie, ob die PHP-Erweiterungen <code>pdo_sqlite</code> und <code>mbstring</code> aktiv sind.'
+        : 'Bitte machen Sie das Verzeichnis <code>data/</code> f&uuml;r PHP beschreibbar (per FTP: Rechte 755 oder 775 setzen) und laden Sie die Seite neu.';
+    echo '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        . '<title>Einrichtung erforderlich</title></head><body style="font-family:sans-serif;max-width:40em;margin:3em auto;padding:0 1em">'
+        . '<h1>Fast geschafft</h1><p>Die Anwendung konnte noch nicht starten.</p><p>' . $hint . '</p>'
+        . '<p style="color:#666">Details stehen im Server-Fehlerprotokoll; auf der Seite werden aus Sicherheitsgr&uuml;nden keine internen Angaben angezeigt.</p>'
+        . '</body></html>';
+    exit;
+}
 
 use Stimmwerk\Controllers\AccountController;
 use Stimmwerk\Controllers\AuthController;
@@ -17,18 +61,6 @@ use Stimmwerk\Controllers\TopicController;
 use Stimmwerk\Controllers\VoteController;
 use Stimmwerk\I18n\I18n;
 use Stimmwerk\Security\Headers;
-
-$factory = require dirname(__DIR__) . '/src/bootstrap.php';
-
-try {
-    $app = $factory();
-} catch (Throwable $e) {
-    http_response_code(500);
-    header('Content-Type: text/plain; charset=utf-8');
-    echo "Service nicht verfuegbar.\n";
-    error_log('bootstrap: ' . $e->getMessage());
-    exit;
-}
 
 Headers::send($app->session->isHttps());
 $app->session->start();
@@ -48,6 +80,13 @@ if ($lang !== $app->i18n->lang()) {
 
 $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
+if (STIMMWERK_BASE !== '' && str_starts_with($path, STIMMWERK_BASE)) {
+    $path = substr($path, strlen(STIMMWERK_BASE));
+}
+if ($path === '' || $path === '/index.php') {
+    $path = '/';
+}
+define('STIMMWERK_PATH', $path);
 $pages = new PageController($app);
 
 try {
@@ -136,6 +175,6 @@ try {
 
     $pages->notFound();
 } catch (Throwable $e) {
-    $app->log->error('unhandled', ['type' => $e::class, 'msg' => $e->getMessage(), 'path' => $path]);
+    $app->log->error('unhandled', ['type' => get_class($e), 'msg' => $e->getMessage(), 'path' => $path]);
     $pages->serverError();
 }

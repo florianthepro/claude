@@ -14,12 +14,12 @@ $dtFormat = $t('common.datetime_format');
 
 <?php if ($duty === null && $upcoming === null): ?>
   <p class="muted"><?= e($t('jury.none')) ?></p>
-  <p><a class="btn btn-outline btn-sm" href="/topics"><?= e($t('nav.topics')) ?></a></p>
+  <p><a class="btn btn-outline btn-sm" href="<?= base_path() ?>/topics"><?= e($t('nav.topics')) ?></a></p>
 <?php elseif ($duty === null && $upcoming !== null): ?>
   <div class="flash flash-info">
     <?= e($t('jury.upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], $t('common.date_format'))])) ?>
   </div>
-  <p><a class="btn btn-outline btn-sm" href="/topics"><?= e($t('nav.topics')) ?></a></p>
+  <p><a class="btn btn-outline btn-sm" href="<?= base_path() ?>/topics"><?= e($t('nav.topics')) ?></a></p>
 <?php else: ?>
   <p><?= e($t('jury.intro')) ?></p>
   <div class="flash flash-info"><?= e($t('jury.blocked')) ?></div>
@@ -48,7 +48,7 @@ $dtFormat = $t('common.datetime_format');
 
   <section class="card">
     <h2><?= e($t('jury.question')) ?></h2>
-    <form class="vote-actions" method="post" action="/jury/vote">
+    <form class="vote-actions" method="post" action="<?= base_path() ?>/jury/vote">
       <?= $app->csrf->field() ?>
       <input type="hidden" name="report_id" value="<?= (int) $duty['id'] ?>">
       <button type="submit" name="vote" value="confirm" class="btn vote-btn vote-btn-against">✕ <?= e($t('jury.confirm')) ?></button>

@@ -39,7 +39,7 @@ $reportStatusKey = static fn (string $status): string => match ($status) {
 <section>
   <h2><?= e($t('me.sec_jury')) ?></h2>
   <?php if ($duty !== null): ?>
-    <div class="flash flash-info"><?= e($t('me.jury_pending')) ?> <a href="/jury"><?= e($t('me.jury_go')) ?></a></div>
+    <div class="flash flash-info"><?= e($t('me.jury_pending')) ?> <a href="<?= base_path() ?>/jury"><?= e($t('me.jury_go')) ?></a></div>
   <?php elseif ($upcoming !== null): ?>
     <p class="muted"><?= e($t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], $dateFormat)])) ?></p>
   <?php else: ?>
@@ -57,7 +57,7 @@ $reportStatusKey = static fn (string $status): string => match ($status) {
     <li class="row-item">
       <div class="row-main">
         <?php if ($row['status'] === 'active'): ?>
-          <a href="/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a>
+          <a href="<?= base_path() ?>/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a>
         <?php else: ?>
           <span class="muted"><?= e((string) $row['title']) ?> (<?= e($t('me.status_removed')) ?>)</span>
         <?php endif; ?>
@@ -83,7 +83,7 @@ $reportStatusKey = static fn (string $status): string => match ($status) {
     <?php foreach ($authored as $row): ?>
     <li class="row-item">
       <div class="row-main">
-        <a href="/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a>
+        <a href="<?= base_path() ?>/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a>
         <span class="badge <?= $row['status'] === 'active' ? 'badge-muted' : 'badge-danger' ?>">
           <?= e($t($row['status'] === 'active' ? 'me.status_active' : 'me.status_removed')) ?>
         </span>
@@ -109,7 +109,7 @@ $reportStatusKey = static fn (string $status): string => match ($status) {
       <div class="row-main">
         <span class="badge badge-muted"><?= e($t($favorite['kind'] === 'category' ? 'me.fav_category' : 'me.fav_scope')) ?></span>
         <?php if ($favorite['kind'] === 'category'): ?>
-          <a href="/topics?category=<?= e(rawurlencode((string) $favorite['ref'])) ?>">
+          <a href="<?= base_path() ?>/topics?category=<?= e(rawurlencode((string) $favorite['ref'])) ?>">
             <?= e($lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref'])) ?>
           </a>
         <?php else: ?>
@@ -120,11 +120,11 @@ $reportStatusKey = static fn (string $status): string => match ($status) {
                 ? 'level=' . rawurlencode($scopeParts[0]) . '&scope=' . rawurlencode($scopeParts[1])
                 : 'level=' . rawurlencode($scopeParts[0]);
           ?>
-          <a href="/topics?<?= e($favQuery) ?>"><?= e($favLabel) ?></a>
+          <a href="<?= base_path() ?>/topics?<?= e($favQuery) ?>"><?= e($favLabel) ?></a>
         <?php endif; ?>
       </div>
       <div class="row-side">
-        <form method="post" action="/favorite">
+        <form method="post" action="<?= base_path() ?>/favorite">
           <?= $app->csrf->field() ?>
           <input type="hidden" name="kind" value="<?= e((string) $favorite['kind']) ?>">
           <input type="hidden" name="ref" value="<?= e((string) $favorite['ref']) ?>">
@@ -147,7 +147,7 @@ $reportStatusKey = static fn (string $status): string => match ($status) {
     <?php foreach ($myReports as $report): ?>
     <li class="row-item">
       <div class="row-main">
-        <a href="/topic/<?= (int) $report['topic_id'] ?>"><?= e((string) $report['title']) ?></a>
+        <a href="<?= base_path() ?>/topic/<?= (int) $report['topic_id'] ?>"><?= e((string) $report['title']) ?></a>
       </div>
       <div class="row-side muted">
         <?= e($t($reportStatusKey((string) $report['status']))) ?>
@@ -162,7 +162,7 @@ $reportStatusKey = static fn (string $status): string => match ($status) {
 <section class="card danger-zone">
   <h2><?= e($t('me.delete_title')) ?></h2>
   <p class="muted"><?= e($t('me.delete_text')) ?></p>
-  <form method="post" action="/account/delete" class="form-stack">
+  <form method="post" action="<?= base_path() ?>/account/delete" class="form-stack">
     <?= $app->csrf->field() ?>
     <label class="check-label">
       <input type="checkbox" name="confirm" value="yes" required>

@@ -37,8 +37,12 @@ final class Session
 
     public function isHttps(): bool
     {
+        // X-Forwarded-Proto: bei Hosting-Paketen mit vorgeschaltetem
+        // TLS-Proxy üblich; führt höchstens dazu, dass das Sitzungs-Cookie
+        // ZUSÄTZLICH als "secure" markiert wird (sichere Richtung).
         return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
+            || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443
+            || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
     }
 
     private function enforceTimeouts(): void

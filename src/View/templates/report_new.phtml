@@ -14,7 +14,7 @@ use Stimmwerk\Domain\ReportService;
   <p class="muted"><?= e((string) $topic['goal']) ?></p>
 </section>
 
-<form class="card form-stack" method="post" action="/report">
+<form class="card form-stack" method="post" action="<?= base_path() ?>/report">
   <?= $app->csrf->field() ?>
   <input type="hidden" name="topic_id" value="<?= (int) $topic['id'] ?>">
   <fieldset class="criteria-set">
@@ -34,6 +34,6 @@ use Stimmwerk\Domain\ReportService;
   <p class="muted"><?= e($t('report.process')) ?></p>
   <div class="btn-row">
     <button type="submit" class="btn btn-primary"><?= e($t('report.submit')) ?></button>
-    <a class="btn btn-ghost" href="/topic/<?= (int) $topic['id'] ?>"><?= e($t('report.cancel')) ?></a>
+    <a class="btn btn-ghost" href="<?= base_path() ?>/topic/<?= (int) $topic['id'] ?>"><?= e($t('report.cancel')) ?></a>
   </div>
 </form>

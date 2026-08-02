@@ -5,7 +5,8 @@
 /** @var string $title */
 $navUser = $app->auth->user();
 $navDuty = $navUser === null ? null : $app->jury->pendingDutyFor((int) $navUser['id']);
-$currentPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
+// Interner (basispfad-freier) Pfad der aktuellen Seite, vom Front-Controller gesetzt.
+$currentPath = defined('STIMMWERK_PATH') ? (string) STIMMWERK_PATH : '/';
 $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
 $returnValue = $currentPath . ($query !== '' ? '?' . $query : '');
 $flashes = $app->session->takeFlashes();
@@ -17,10 +18,10 @@ $flashes = $app->session->takeFlashes();
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title><?= e($title) ?> · <?= e((string) $app->config['app_name']) ?></title>
-<link rel="stylesheet" href="/assets/app.css">
-<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-<script src="/assets/theme.js"></script>
-<script src="/assets/app.js" defer></script>
+<link rel="stylesheet" href="<?= base_path() ?>/assets/app.css">
+<link rel="icon" type="image/svg+xml" href="<?= base_path() ?>/assets/favicon.svg">
+<script src="<?= base_path() ?>/assets/theme.js"></script>
+<script src="<?= base_path() ?>/assets/app.js" defer></script>
 </head>
 <body>
 <?php if (!empty($app->config['show_test_banner'])): ?>
@@ -29,7 +30,7 @@ $flashes = $app->session->takeFlashes();
 <a class="skip-link" href="#main"><?= e($t('a11y.skip')) ?></a>
 <header class="site-header">
   <div class="shell header-inner">
-    <a class="brand" href="/" aria-label="<?= e((string) $app->config['app_name']) ?>">
+    <a class="brand" href="<?= base_path() ?>/" aria-label="<?= e((string) $app->config['app_name']) ?>">
       <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="1.5" y="1.5" width="21" height="21" rx="4.5" fill="none" stroke="currentColor" stroke-width="2"/>
         <path d="M6.5 12.5l3.6 3.6 7.4-8.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -37,17 +38,17 @@ $flashes = $app->session->takeFlashes();
       <span class="brand-name"><?= e((string) $app->config['app_name']) ?></span>
     </a>
     <nav class="main-nav" aria-label="Navigation">
-      <a href="/topics" <?= $currentPath === '/topics' ? 'aria-current="page"' : '' ?>><?= e($t('nav.topics')) ?></a>
-      <a href="/topics/new" <?= $currentPath === '/topics/new' ? 'aria-current="page"' : '' ?>><?= e($t('nav.new')) ?></a>
+      <a href="<?= base_path() ?>/topics" <?= $currentPath === '/topics' ? 'aria-current="page"' : '' ?>><?= e($t('nav.topics')) ?></a>
+      <a href="<?= base_path() ?>/topics/new" <?= $currentPath === '/topics/new' ? 'aria-current="page"' : '' ?>><?= e($t('nav.new')) ?></a>
       <?php if ($navUser !== null): ?>
-        <a href="/me" <?= $currentPath === '/me' ? 'aria-current="page"' : '' ?>><?= e($t('nav.overview')) ?></a>
+        <a href="<?= base_path() ?>/me" <?= $currentPath === '/me' ? 'aria-current="page"' : '' ?>><?= e($t('nav.overview')) ?></a>
         <?php if ($navDuty !== null): ?>
-          <a class="nav-duty" href="/jury"><?= e($t('nav.jury')) ?><span class="duty-dot" aria-hidden="true"></span></a>
+          <a class="nav-duty" href="<?= base_path() ?>/jury"><?= e($t('nav.jury')) ?><span class="duty-dot" aria-hidden="true"></span></a>
         <?php endif; ?>
       <?php endif; ?>
     </nav>
     <div class="header-controls">
-      <form class="lang-form" method="post" action="/lang" aria-label="<?= e($t('lang.switch')) ?>">
+      <form class="lang-form" method="post" action="<?= base_path() ?>/lang" aria-label="<?= e($t('lang.switch')) ?>">
         <?= $app->csrf->field() ?>
         <input type="hidden" name="return" value="<?= e($returnValue) ?>">
         <button type="submit" name="lang" value="de" class="lang-btn <?= $app->i18n->lang() === 'de' ? 'is-active' : '' ?>" aria-pressed="<?= $app->i18n->lang() === 'de' ? 'true' : 'false' ?>">DE</button>
@@ -59,9 +60,9 @@ $flashes = $app->session->takeFlashes();
               data-l-light="<?= e($t('theme.light')) ?>"
               data-l-dark="<?= e($t('theme.dark')) ?>"></button>
       <?php if ($navUser === null): ?>
-        <a class="btn btn-primary btn-sm" href="/auth"><?= e($t('auth.login')) ?></a>
+        <a class="btn btn-primary btn-sm" href="<?= base_path() ?>/auth"><?= e($t('auth.login')) ?></a>
       <?php else: ?>
-        <form method="post" action="/logout">
+        <form method="post" action="<?= base_path() ?>/logout">
           <?= $app->csrf->field() ?>
           <button type="submit" class="btn btn-ghost btn-sm"><?= e($t('auth.logout')) ?></button>
         </form>
@@ -83,8 +84,8 @@ $flashes = $app->session->takeFlashes();
   <div class="shell footer-inner">
     <span class="footer-note"><?= e((string) $app->config['app_name']) ?> · <?= e($t('footer.note')) ?></span>
     <nav class="footer-nav" aria-label="Footer">
-      <a href="/imprint"><?= e($t('footer.imprint')) ?></a>
-      <a href="/privacy"><?= e($t('footer.privacy')) ?></a>
+      <a href="<?= base_path() ?>/imprint"><?= e($t('footer.imprint')) ?></a>
+      <a href="<?= base_path() ?>/privacy"><?= e($t('footer.privacy')) ?></a>
     </nav>
   </div>
 </footer>

@@ -12,7 +12,7 @@ $cardScope = $t('scope.' . (string) $row['scope_level'])
       <span class="badge badge-outline"><?= e($t('topic.start_badge')) ?></span>
     <?php endif; ?>
   </div>
-  <h3 class="topic-card-title"><a href="/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a></h3>
+  <h3 class="topic-card-title"><a href="<?= base_path() ?>/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a></h3>
   <p class="topic-card-goal"><?= e((string) $row['goal']) ?></p>
   <div class="topic-card-votes">
     <span class="dot dot-for" aria-hidden="true"></span><?= e($t('vote.for')) ?> <?= e($app->i18n->num((int) $row['votes_for'])) ?>

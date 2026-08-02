@@ -494,5 +494,6 @@ Gebietsdaten (amtliche Gemeindeschlüssel AGS/ARS statt Freitext-Gebieten).
 
 ---
 
-*Anhang: Der technische Prototyp liegt im Verzeichnis `webserver/` dieses
-Repositories; Betriebs- und Sicherheitshinweise in `webserver/README.md`.*
+*Anhang: Der technische Prototyp liegt direkt in diesem Repository-Zweig
+(„Hochladen genügt“-Struktur); Installations-, Betriebs- und
+Sicherheitshinweise in `README.md`.*

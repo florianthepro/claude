@@ -76,12 +76,29 @@ function query_int(string $key, int $min, int $max, int $default): int
     return $default;
 }
 
-/** Interner Redirect – ausschließlich auf eigene Pfade. */
+/**
+ * Basispfad der Installation ('' im Webroot, z. B. '/stimmwerk' im
+ * Unterordner). Wird vom Front-Controller aus dem Serverpfad abgeleitet
+ * und ist auf ein enges Zeichen-Whitelisting geprüft.
+ */
+function base_path(): string
+{
+    return defined('STIMMWERK_BASE') ? (string) STIMMWERK_BASE : '';
+}
+
+/** Interne URL: Basispfad + anwendungsinterner Pfad. */
+function url(string $path): string
+{
+    $full = base_path() . $path;
+    return $full === '' ? '/' : $full;
+}
+
+/** Interner Redirect – ausschließlich auf eigene, interne Pfade. */
 function redirect(string $path): never
 {
     if ($path === '' || $path[0] !== '/' || str_starts_with($path, '//')) {
         $path = '/';
     }
-    header('Location: ' . $path, true, 303);
+    header('Location: ' . url($path), true, 303);
     exit;
 }
