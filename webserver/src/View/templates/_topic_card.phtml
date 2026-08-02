@@ -1,0 +1,22 @@
+<?php
+/** Themenkarte für Listen. Erwartet: $app, $t, $row (Themen-Datensatz mit Zählern). */
+$cardName = $app->i18n->lang() === 'de' ? (string) $row['name_de'] : (string) $row['name_en'];
+$cardScope = $t('scope.' . (string) $row['scope_level'])
+    . ((string) ($row['scope_name'] ?? '') !== '' ? ': ' . (string) $row['scope_name'] : '');
+?>
+<article class="card topic-card">
+  <div class="topic-card-meta">
+    <span class="badge"><?= e($cardName) ?></span>
+    <span class="badge badge-muted"><?= e($cardScope) ?></span>
+    <?php if ((int) $row['author_is_system'] === 1): ?>
+      <span class="badge badge-outline"><?= e($t('topic.start_badge')) ?></span>
+    <?php endif; ?>
+  </div>
+  <h3 class="topic-card-title"><a href="/topic/<?= (int) $row['id'] ?>"><?= e((string) $row['title']) ?></a></h3>
+  <p class="topic-card-goal"><?= e((string) $row['goal']) ?></p>
+  <div class="topic-card-votes">
+    <span class="dot dot-for" aria-hidden="true"></span><?= e($t('vote.for')) ?> <?= e($app->i18n->num((int) $row['votes_for'])) ?>
+    <span class="vote-sep" aria-hidden="true">·</span>
+    <span class="dot dot-against" aria-hidden="true"></span><?= e($t('vote.against')) ?> <?= e($app->i18n->num((int) $row['votes_against'])) ?>
+  </div>
+</article>

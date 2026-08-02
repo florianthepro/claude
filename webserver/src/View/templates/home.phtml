@@ -1,0 +1,51 @@
+<?php
+/** @var \Stimmwerk\App $app */
+/** @var callable $t */
+/** @var array $stats */
+/** @var array $latest */
+?>
+<section class="hero">
+  <h1><?= e($t('home.hero_title')) ?></h1>
+  <p class="hero-text"><?= e($t('home.hero_text')) ?></p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="/topics"><?= e($t('home.cta_topics')) ?></a>
+    <a class="btn btn-outline" href="/topics/new"><?= e($t('home.cta_new')) ?></a>
+  </div>
+</section>
+
+<section class="stat-row" aria-label="Statistik">
+  <div class="stat-tile">
+    <span class="stat-value"><?= e($app->i18n->num((int) $stats['topics'])) ?></span>
+    <span class="stat-label"><?= e($t('home.stat_topics')) ?></span>
+  </div>
+  <div class="stat-tile">
+    <span class="stat-value"><?= e($app->i18n->num((int) $stats['votes'])) ?></span>
+    <span class="stat-label"><?= e($t('home.stat_votes')) ?></span>
+  </div>
+  <div class="stat-tile">
+    <span class="stat-value"><?= e($app->i18n->num((int) $stats['users'])) ?></span>
+    <span class="stat-label"><?= e($t('home.stat_users')) ?></span>
+  </div>
+</section>
+
+<section>
+  <h2><?= e($t('home.how_title')) ?></h2>
+  <div class="how-grid">
+    <?php foreach ([1, 2, 3, 4] as $step): ?>
+    <div class="card how-card">
+      <span class="how-step" aria-hidden="true"><?= $step ?></span>
+      <h3><?= e($t('home.how_' . $step . '_t')) ?></h3>
+      <p><?= e($t('home.how_' . $step . '_d')) ?></p>
+    </div>
+    <?php endforeach; ?>
+  </div>
+</section>
+
+<section>
+  <h2><?= e($t('home.latest')) ?></h2>
+  <div class="topic-grid">
+    <?php foreach ($latest as $row): ?>
+      <?php require __DIR__ . '/_topic_card.phtml'; ?>
+    <?php endforeach; ?>
+  </div>
+</section>

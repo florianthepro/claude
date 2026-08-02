@@ -1,0 +1,69 @@
+<?php
+/** @var \Stimmwerk\App $app */
+/** @var callable $t */
+/** @var array|null $duty */
+/** @var array|null $upcoming */
+/** @var array|null $tally */
+/** @var string|null $deadline */
+/** @var list<string> $criteria */
+use Stimmwerk\Core\Clock;
+
+$dtFormat = $t('common.datetime_format');
+?>
+<h1><?= e($t('jury.title')) ?></h1>
+
+<?php if ($duty === null && $upcoming === null): ?>
+  <p class="muted"><?= e($t('jury.none')) ?></p>
+  <p><a class="btn btn-outline btn-sm" href="/topics"><?= e($t('nav.topics')) ?></a></p>
+<?php elseif ($duty === null && $upcoming !== null): ?>
+  <div class="flash flash-info">
+    <?= e($t('jury.upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], $t('common.date_format'))])) ?>
+  </div>
+  <p><a class="btn btn-outline btn-sm" href="/topics"><?= e($t('nav.topics')) ?></a></p>
+<?php else: ?>
+  <p><?= e($t('jury.intro')) ?></p>
+  <div class="flash flash-info"><?= e($t('jury.blocked')) ?></div>
+
+  <section class="card">
+    <h2 class="field-label"><?= e($t('jury.reported')) ?></h2>
+    <h3><?= e((string) $duty['title']) ?></h3>
+    <p class="field-label"><?= e($t('topic.goal_label')) ?></p>
+    <p><?= nl2br(e((string) $duty['goal'])) ?></p>
+    <p class="field-label"><?= e($t('topic.reasoning_label')) ?></p>
+    <p><?= nl2br(e((string) $duty['reasoning'])) ?></p>
+  </section>
+
+  <section class="card">
+    <h2 class="field-label"><?= e($t('jury.criteria')) ?></h2>
+    <ul>
+      <?php foreach ($criteria as $criterion): ?>
+      <li><?= e($t('criteria.' . $criterion)) ?></li>
+      <?php endforeach; ?>
+    </ul>
+    <?php if ((string) ($duty['freetext'] ?? '') !== ''): ?>
+      <h2 class="field-label"><?= e($t('jury.freetext')) ?></h2>
+      <p><?= nl2br(e((string) $duty['freetext'])) ?></p>
+    <?php endif; ?>
+  </section>
+
+  <section class="card">
+    <h2><?= e($t('jury.question')) ?></h2>
+    <form class="vote-actions" method="post" action="/jury/vote">
+      <?= $app->csrf->field() ?>
+      <input type="hidden" name="report_id" value="<?= (int) $duty['id'] ?>">
+      <button type="submit" name="vote" value="confirm" class="btn vote-btn vote-btn-against">✕ <?= e($t('jury.confirm')) ?></button>
+      <button type="submit" name="vote" value="reject" class="btn vote-btn vote-btn-for">✓ <?= e($t('jury.reject')) ?></button>
+      <button type="submit" name="vote" value="neutral" class="btn btn-ghost"><?= e($t('jury.neutral')) ?></button>
+    </form>
+    <?php if ($tally !== null): ?>
+      <p class="muted"><?= e($t('jury.stats', [
+          'cast'   => $app->i18n->num((int) $tally['cast']),
+          'seats'  => $app->i18n->num((int) $tally['seats']),
+          'quorum' => $app->i18n->num(min((int) $duty['quorum'], (int) $tally['seats'])),
+      ])) ?></p>
+    <?php endif; ?>
+    <?php if ($deadline !== null): ?>
+      <p class="muted"><?= e($t('jury.deadline', ['date' => Clock::displayLocal($deadline, $dtFormat)])) ?></p>
+    <?php endif; ?>
+  </section>
+<?php endif; ?>

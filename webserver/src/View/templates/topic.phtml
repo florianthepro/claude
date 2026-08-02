@@ -1,0 +1,100 @@
+<?php
+/** @var \Stimmwerk\App $app */
+/** @var callable $t */
+/** @var array $topic */
+/** @var string|null $myVote */
+/** @var array|null $openReport */
+/** @var bool $isCatFav */
+use Stimmwerk\Core\Clock;
+
+$lang = $app->i18n->lang();
+$catName = $lang === 'de' ? (string) $topic['name_de'] : (string) $topic['name_en'];
+$scopeText = $t('scope.' . (string) $topic['scope_level'])
+    . ((string) ($topic['scope_name'] ?? '') !== '' ? ': ' . (string) $topic['scope_name'] : '');
+$isRemoved = $topic['status'] === 'removed';
+$user = $app->auth->user();
+?>
+<?php if ($isRemoved): ?>
+  <article class="card">
+    <h1><?= e($t('topic.removed_title')) ?></h1>
+    <p class="muted"><?= e($t('topic.removed_text')) ?></p>
+    <p><a class="btn btn-outline btn-sm" href="/topics"><?= e($t('nav.topics')) ?></a></p>
+  </article>
+<?php else: ?>
+<article class="topic-detail">
+  <div class="topic-card-meta">
+    <span class="badge"><?= e($catName) ?></span>
+    <span class="badge badge-muted"><?= e($scopeText) ?></span>
+    <?php if ((int) $topic['author_is_system'] === 1): ?>
+      <span class="badge badge-outline"><?= e($t('topic.start_badge')) ?></span>
+    <?php endif; ?>
+  </div>
+  <h1><?= e((string) $topic['title']) ?></h1>
+  <p class="muted"><?= e($t('topic.created', ['date' => Clock::displayLocal((string) $topic['created_at'], $t('common.date_format'))])) ?></p>
+
+  <section class="card">
+    <h2 class="field-label"><?= e($t('topic.goal_label')) ?></h2>
+    <p><?= nl2br(e((string) $topic['goal'])) ?></p>
+    <h2 class="field-label"><?= e($t('topic.reasoning_label')) ?></h2>
+    <p><?= nl2br(e((string) $topic['reasoning'])) ?></p>
+  </section>
+
+  <section class="card">
+    <?php $barFor = (int) $topic['votes_for']; $barAgainst = (int) $topic['votes_against']; ?>
+    <?php require __DIR__ . '/_votebar.phtml'; ?>
+    <?php if (($barFor + $barAgainst) > 0): ?>
+      <p class="muted"><?= e($t('vote.total', ['n' => $app->i18n->num($barFor + $barAgainst)])) ?></p>
+    <?php endif; ?>
+
+    <?php if ($user === null): ?>
+      <p><a class="btn btn-primary" href="/auth"><?= e($t('vote.login_hint')) ?></a></p>
+    <?php else: ?>
+      <form class="vote-actions" method="post" action="/vote">
+        <?= $app->csrf->field() ?>
+        <input type="hidden" name="topic_id" value="<?= (int) $topic['id'] ?>">
+        <button type="submit" name="choice" value="for"
+                class="btn vote-btn vote-btn-for <?= $myVote === 'for' ? 'is-active' : '' ?>"
+                aria-pressed="<?= $myVote === 'for' ? 'true' : 'false' ?>">✓ <?= e($t('vote.for')) ?></button>
+        <button type="submit" name="choice" value="against"
+                class="btn vote-btn vote-btn-against <?= $myVote === 'against' ? 'is-active' : '' ?>"
+                aria-pressed="<?= $myVote === 'against' ? 'true' : 'false' ?>">✕ <?= e($t('vote.against')) ?></button>
+        <?php if ($myVote !== null): ?>
+          <button type="submit" name="choice" value="none" class="btn btn-ghost"><?= e($t('vote.withdraw')) ?></button>
+        <?php endif; ?>
+      </form>
+      <?php if ($myVote !== null): ?>
+        <p class="muted"><?= e($t('vote.your_current', ['choice' => $t($myVote === 'for' ? 'vote.for' : 'vote.against')])) ?></p>
+      <?php endif; ?>
+      <p class="muted"><?= e($t('vote.neutral_hint')) ?></p>
+    <?php endif; ?>
+  </section>
+
+  <section class="topic-tools">
+    <?php if ($user !== null): ?>
+      <form method="post" action="/favorite">
+        <?= $app->csrf->field() ?>
+        <input type="hidden" name="kind" value="category">
+        <input type="hidden" name="ref" value="<?= e((string) $topic['category_slug']) ?>">
+        <input type="hidden" name="return" value="/topic/<?= (int) $topic['id'] ?>">
+        <button type="submit" class="btn btn-ghost btn-sm">
+          <?= $isCatFav ? '★ ' . e($t('topic.fav_remove')) : '☆ ' . e($t('topic.fav_add')) ?>
+        </button>
+      </form>
+      <form method="post" action="/favorite">
+        <?= $app->csrf->field() ?>
+        <input type="hidden" name="kind" value="scope">
+        <input type="hidden" name="ref" value="<?= e($scopeRef) ?>">
+        <input type="hidden" name="return" value="/topic/<?= (int) $topic['id'] ?>">
+        <button type="submit" class="btn btn-ghost btn-sm">
+          <?= $isScopeFav ? '★ ' . e($t('topic.fav_scope_remove')) : '☆ ' . e($t('topic.fav_scope_add')) ?>
+        </button>
+      </form>
+    <?php endif; ?>
+    <?php if ($openReport !== null): ?>
+      <span class="muted"><?= e($t('topic.report_open')) ?></span>
+    <?php elseif ($user !== null): ?>
+      <a class="link-quiet" href="/report/<?= (int) $topic['id'] ?>"><?= e($t('topic.report_link')) ?></a>
+    <?php endif; ?>
+  </section>
+</article>
+<?php endif; ?>

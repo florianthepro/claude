@@ -1,0 +1,10 @@
+# Stimmwerk – Apache-Konfiguration für das Webroot (public/)
+Options -Indexes -MultiViews
+
+# Alle nicht-statischen Pfade an den Front-Controller
+FallbackResource /index.php
+
+# Versteckte Dateien niemals ausliefern
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
