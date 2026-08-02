@@ -694,22 +694,64 @@ function card_forget(): void
     unset($_SESSION['card']);
 }
 
-/** Challenge–Response: Karte signiert Zufallsnachricht, Server prüft gegen
- *  den öffentlichen Schlüssel. true = Karte ist echt und gehört zum pk. */
-function card_verify(array $card): bool
+/** Identität „on the go“: der öffentliche Schlüssel selbst (hex) – es wird
+ *  kein abgeleitetes Pseudonym erzeugt oder zugeordnet. */
+function card_identity(array $card): string
 {
-    if (card_supports_sodium()) {
-        $challenge = random_bytes(32);
-        $signature = sodium_crypto_sign_detached($challenge, $card['secret']);
-        return sodium_crypto_sign_verify_detached($signature, $challenge, $card['pk']);
-    }
-    return hash_equals(hash('sha256', 'pk|' . $card['secret'], true), $card['pk']);
+    return bin2hex($card['pk']);
 }
 
-/** Pseudonym: HMAC über den öffentlichen Schlüssel – mehr kennt der Server nicht. */
-function card_pseudonym(array $card): string
+/* TOTP-artige Zeitbindung: Alle Nachweise gelten nur für ein kurzes
+   Zeitfenster – dieselbe Aktion ergibt zu anderer Zeit einen anderen,
+   nicht wiederverwendbaren Nachweis. */
+const SW_SLOT_SECONDS = 300; // Fensterlänge (5 Minuten)
+const SW_AUTH_SLOTS = 2;     // Anmeldung gilt für aktuelles + folgendes Fenster
+
+function time_slot(): int
 {
-    return sw_hmac('pk|' . bin2hex($card['pk']));
+    return intdiv(Clock::now()->getTimestamp(), SW_SLOT_SECONDS);
+}
+
+/** Versiegelter Aktions-Umschlag: Die Karte signiert/versiegelt Aktion +
+ *  Zeitfenster mit ihrem privaten Schlüssel (kombinierter Signaturmodus);
+ *  der Server ÖFFNET den Umschlag mit dem öffentlichen Schlüssel. */
+function card_seal(array $card, string $action): string
+{
+    $payload = json_encode(['a' => $action, 'slot' => time_slot(), 'n' => bin2hex(random_bytes(8))]);
+    if (card_supports_sodium()) {
+        return sodium_crypto_sign($payload, $card['secret']);
+    }
+    // Rückfall ohne sodium: an den öffentlichen Schlüssel gebundene Prüfsumme.
+    return $payload . '.' . hash('sha256', 'seal|' . $card['pk'] . '|' . $payload);
+}
+
+/** Öffnet den Umschlag mit dem öffentlichen Schlüssel und prüft Aktion und
+ *  Zeitfenster (aktuelles oder unmittelbar vorheriges). */
+function card_open(string $pk, string $sealed, string $action): bool
+{
+    if (card_supports_sodium()) {
+        $payload = sodium_crypto_sign_open($sealed, $pk);
+        if ($payload === false) {
+            return false;
+        }
+    } else {
+        $dot = strrpos($sealed, '.');
+        if ($dot === false) {
+            return false;
+        }
+        $payload = substr($sealed, 0, $dot);
+        $mac = substr($sealed, $dot + 1);
+        if (!hash_equals(hash('sha256', 'seal|' . $pk . '|' . $payload), $mac)) {
+            return false;
+        }
+    }
+    $data = json_decode($payload, true);
+    if (!is_array($data) || ($data['a'] ?? '') !== $action) {
+        return false;
+    }
+    $slot = (int) ($data['slot'] ?? -1);
+    $current = time_slot();
+    return $slot === $current || $slot === $current - 1;
 }
 
 /* ============================== Konto & Anmeldung ========================= */
@@ -750,6 +792,15 @@ function auth_user(): ?array
     if (!is_int($id)) {
         return null;
     }
+    // Zeitfenster abgelaufen -> Identitätsnachweis verfällt, erneut anhalten.
+    $slot = $_SESSION['auth_slot'] ?? null;
+    if (is_int($slot) && (time_slot() - $slot) >= SW_AUTH_SLOTS) {
+        unset($_SESSION['user_id'], $_SESSION['auth_time'], $_SESSION['auth_slot']);
+        card_forget();
+        session_regenerate_id(true);
+        flash('info', 'flash.auth_expired');
+        return null;
+    }
     SW::$user = SW::$db->one('SELECT * FROM users WHERE id = ? AND is_system = 0', [$id]);
     return SW::$user;
 }
@@ -764,12 +815,18 @@ function require_user(): array
     return $user;
 }
 
-/** Jede Änderung erfordert die Karte erneut: Signaturprüfung + Abgleich,
- *  dass der Schlüssel zum angemeldeten Pseudonym gehört. */
+/** Jede Änderung läuft unabhängig von der Profil-Anmeldung über einen
+ *  eigenen, zeitgebundenen versiegelten Umschlag: Die Karte versiegelt die
+ *  Aktion, der Server öffnet mit dem öffentlichen Schlüssel und trägt das
+ *  Ergebnis für genau diesen Schlüssel ein. Ein alter Umschlag (anderes
+ *  Zeitfenster) wird abgelehnt. */
 function require_card(array $user): void
 {
     $card = card_load();
-    if ($card === null || !card_verify($card) || !hash_equals((string) $user['pseudonym_hash'], card_pseudonym($card))) {
+    $action = 'confirm:' . SW::$path;
+    if ($card === null
+        || !hash_equals((string) $user['pseudonym_hash'], card_identity($card))
+        || !card_open($card['pk'], card_seal($card, $action), $action)) {
         log_line('SECURITY', 'card_confirm_failed', []);
         flash('error', 'flash.card_required');
         redirect('/auth');
@@ -783,14 +840,80 @@ function short_id(array $user): string
 
 /* ============================== Fachlogik: Themen ========================= */
 
-const SW_SCOPE_LEVELS = ['kommune', 'landkreis', 'bundesland', 'bund'];
 const SW_TITLE_MIN = 8;
 const SW_TITLE_MAX = 120;
 const SW_GOAL_MIN = 10;
 const SW_GOAL_MAX = 500;
 const SW_REASONING_MIN = 10;
 const SW_REASONING_MAX = 4000;
-const SW_SCOPE_NAME_MAX = 80;
+
+/** Amtliche Verwaltungsgliederung: 16 Länder mit ihren Landkreisen und
+    kreisfreien Städten – Auswahl statt Freitext. Vor einem Echtbetrieb
+    gegen das amtliche Gemeindeverzeichnis (Destatis, ARS) abgleichen;
+    die Gemeindeebene folgt in der Ausbaustufe über dasselbe Verzeichnis. */
+const SW_REGIONS = [
+    'Baden-Württemberg' => ['Alb-Donau-Kreis', 'Baden-Baden (Stadt)', 'Bodenseekreis', 'Enzkreis', 'Freiburg im Breisgau (Stadt)', 'Heidelberg (Stadt)', 'Heilbronn (Stadt)', 'Hohenlohekreis', 'Karlsruhe (Stadt)', 'Landkreis Biberach', 'Landkreis Breisgau-Hochschwarzwald', 'Landkreis Böblingen', 'Landkreis Calw', 'Landkreis Emmendingen', 'Landkreis Esslingen', 'Landkreis Freudenstadt', 'Landkreis Göppingen', 'Landkreis Heidenheim', 'Landkreis Heilbronn', 'Landkreis Karlsruhe', 'Landkreis Konstanz', 'Landkreis Ludwigsburg', 'Landkreis Lörrach', 'Landkreis Rastatt', 'Landkreis Ravensburg', 'Landkreis Reutlingen', 'Landkreis Rottweil', 'Landkreis Schwäbisch Hall', 'Landkreis Sigmaringen', 'Landkreis Tuttlingen', 'Landkreis Tübingen', 'Landkreis Waldshut', 'Main-Tauber-Kreis', 'Mannheim (Stadt)', 'Neckar-Odenwald-Kreis', 'Ortenaukreis', 'Ostalbkreis', 'Pforzheim (Stadt)', 'Rems-Murr-Kreis', 'Rhein-Neckar-Kreis', 'Schwarzwald-Baar-Kreis', 'Stuttgart (Stadt)', 'Ulm (Stadt)', 'Zollernalbkreis'],
+    'Bayern' => ['Amberg (Stadt)', 'Ansbach (Stadt)', 'Aschaffenburg (Stadt)', 'Augsburg (Stadt)', 'Bamberg (Stadt)', 'Bayreuth (Stadt)', 'Coburg (Stadt)', 'Erlangen (Stadt)', 'Fürth (Stadt)', 'Hof (Stadt)', 'Ingolstadt (Stadt)', 'Kaufbeuren (Stadt)', 'Kempten (Allgäu) (Stadt)', 'Landkreis Aichach-Friedberg', 'Landkreis Altötting', 'Landkreis Amberg-Sulzbach', 'Landkreis Ansbach', 'Landkreis Aschaffenburg', 'Landkreis Augsburg', 'Landkreis Bad Kissingen', 'Landkreis Bad Tölz-Wolfratshausen', 'Landkreis Bamberg', 'Landkreis Bayreuth', 'Landkreis Berchtesgadener Land', 'Landkreis Cham', 'Landkreis Coburg', 'Landkreis Dachau', 'Landkreis Deggendorf', 'Landkreis Dillingen a.d.Donau', 'Landkreis Dingolfing-Landau', 'Landkreis Donau-Ries', 'Landkreis Ebersberg', 'Landkreis Eichstätt', 'Landkreis Erding', 'Landkreis Erlangen-Höchstadt', 'Landkreis Forchheim', 'Landkreis Freising', 'Landkreis Freyung-Grafenau', 'Landkreis Fürstenfeldbruck', 'Landkreis Fürth', 'Landkreis Garmisch-Partenkirchen', 'Landkreis Günzburg', 'Landkreis Haßberge', 'Landkreis Hof', 'Landkreis Kelheim', 'Landkreis Kitzingen', 'Landkreis Kronach', 'Landkreis Kulmbach', 'Landkreis Landsberg am Lech', 'Landkreis Landshut', 'Landkreis Lichtenfels', 'Landkreis Lindau (Bodensee)', 'Landkreis Main-Spessart', 'Landkreis Miesbach', 'Landkreis Miltenberg', 'Landkreis Mühldorf a.Inn', 'Landkreis München', 'Landkreis Neu-Ulm', 'Landkreis Neuburg-Schrobenhausen', 'Landkreis Neumarkt i.d.OPf.', 'Landkreis Neustadt a.d.Aisch-Bad Windsheim', 'Landkreis Neustadt a.d.Waldnaab', 'Landkreis Nürnberger Land', 'Landkreis Oberallgäu', 'Landkreis Ostallgäu', 'Landkreis Passau', 'Landkreis Pfaffenhofen a.d.Ilm', 'Landkreis Regen', 'Landkreis Regensburg', 'Landkreis Rhön-Grabfeld', 'Landkreis Rosenheim', 'Landkreis Roth', 'Landkreis Rottal-Inn', 'Landkreis Schwandorf', 'Landkreis Schweinfurt', 'Landkreis Starnberg', 'Landkreis Straubing-Bogen', 'Landkreis Tirschenreuth', 'Landkreis Traunstein', 'Landkreis Unterallgäu', 'Landkreis Weilheim-Schongau', 'Landkreis Weißenburg-Gunzenhausen', 'Landkreis Wunsiedel i.Fichtelgebirge', 'Landkreis Würzburg', 'Landshut (Stadt)', 'Memmingen (Stadt)', 'München (Stadt)', 'Nürnberg (Stadt)', 'Passau (Stadt)', 'Regensburg (Stadt)', 'Rosenheim (Stadt)', 'Schwabach (Stadt)', 'Schweinfurt (Stadt)', 'Straubing (Stadt)', 'Weiden i.d.OPf. (Stadt)', 'Würzburg (Stadt)'],
+    'Berlin' => [],
+    'Brandenburg' => ['Brandenburg an der Havel (Stadt)', 'Cottbus (Stadt)', 'Frankfurt (Oder) (Stadt)', 'Landkreis Barnim', 'Landkreis Dahme-Spreewald', 'Landkreis Elbe-Elster', 'Landkreis Havelland', 'Landkreis Märkisch-Oderland', 'Landkreis Oberhavel', 'Landkreis Oberspreewald-Lausitz', 'Landkreis Oder-Spree', 'Landkreis Ostprignitz-Ruppin', 'Landkreis Potsdam-Mittelmark', 'Landkreis Prignitz', 'Landkreis Spree-Neiße', 'Landkreis Teltow-Fläming', 'Landkreis Uckermark', 'Potsdam (Stadt)'],
+    'Bremen' => ['Bremen (Stadt)', 'Bremerhaven (Stadt)'],
+    'Hamburg' => [],
+    'Hessen' => ['Darmstadt (Stadt)', 'Frankfurt am Main (Stadt)', 'Hochtaunuskreis', 'Kassel (Stadt)', 'Lahn-Dill-Kreis', 'Landkreis Bergstraße', 'Landkreis Darmstadt-Dieburg', 'Landkreis Fulda', 'Landkreis Gießen', 'Landkreis Groß-Gerau', 'Landkreis Hersfeld-Rotenburg', 'Landkreis Kassel', 'Landkreis Limburg-Weilburg', 'Landkreis Marburg-Biedenkopf', 'Landkreis Offenbach', 'Landkreis Waldeck-Frankenberg', 'Main-Kinzig-Kreis', 'Main-Taunus-Kreis', 'Odenwaldkreis', 'Offenbach am Main (Stadt)', 'Rheingau-Taunus-Kreis', 'Schwalm-Eder-Kreis', 'Vogelsbergkreis', 'Werra-Meißner-Kreis', 'Wetteraukreis', 'Wiesbaden (Stadt)'],
+    'Mecklenburg-Vorpommern' => ['Landkreis Ludwigslust-Parchim', 'Landkreis Mecklenburgische Seenplatte', 'Landkreis Nordwestmecklenburg', 'Landkreis Rostock', 'Landkreis Vorpommern-Greifswald', 'Landkreis Vorpommern-Rügen', 'Rostock (Stadt)', 'Schwerin (Stadt)'],
+    'Niedersachsen' => ['Braunschweig (Stadt)', 'Delmenhorst (Stadt)', 'Emden (Stadt)', 'Heidekreis', 'Landkreis Ammerland', 'Landkreis Aurich', 'Landkreis Celle', 'Landkreis Cloppenburg', 'Landkreis Cuxhaven', 'Landkreis Diepholz', 'Landkreis Emsland', 'Landkreis Friesland', 'Landkreis Gifhorn', 'Landkreis Goslar', 'Landkreis Grafschaft Bentheim', 'Landkreis Göttingen', 'Landkreis Hameln-Pyrmont', 'Landkreis Harburg', 'Landkreis Helmstedt', 'Landkreis Hildesheim', 'Landkreis Holzminden', 'Landkreis Leer', 'Landkreis Lüchow-Dannenberg', 'Landkreis Lüneburg', 'Landkreis Nienburg/Weser', 'Landkreis Northeim', 'Landkreis Oldenburg', 'Landkreis Osnabrück', 'Landkreis Osterholz', 'Landkreis Peine', 'Landkreis Rotenburg (Wümme)', 'Landkreis Schaumburg', 'Landkreis Stade', 'Landkreis Uelzen', 'Landkreis Vechta', 'Landkreis Verden', 'Landkreis Wesermarsch', 'Landkreis Wittmund', 'Landkreis Wolfenbüttel', 'Oldenburg (Stadt)', 'Osnabrück (Stadt)', 'Region Hannover', 'Salzgitter (Stadt)', 'Wilhelmshaven (Stadt)', 'Wolfsburg (Stadt)'],
+    'Nordrhein-Westfalen' => ['Bielefeld (Stadt)', 'Bochum (Stadt)', 'Bonn (Stadt)', 'Bottrop (Stadt)', 'Dortmund (Stadt)', 'Duisburg (Stadt)', 'Düsseldorf (Stadt)', 'Ennepe-Ruhr-Kreis', 'Essen (Stadt)', 'Gelsenkirchen (Stadt)', 'Hagen (Stadt)', 'Hamm (Stadt)', 'Herne (Stadt)', 'Hochsauerlandkreis', 'Krefeld (Stadt)', 'Köln (Stadt)', 'Landkreis Borken', 'Landkreis Coesfeld', 'Landkreis Düren', 'Landkreis Euskirchen', 'Landkreis Gütersloh', 'Landkreis Heinsberg', 'Landkreis Herford', 'Landkreis Höxter', 'Landkreis Kleve', 'Landkreis Lippe', 'Landkreis Mettmann', 'Landkreis Minden-Lübbecke', 'Landkreis Olpe', 'Landkreis Paderborn', 'Landkreis Recklinghausen', 'Landkreis Siegen-Wittgenstein', 'Landkreis Soest', 'Landkreis Steinfurt', 'Landkreis Städteregion Aachen', 'Landkreis Unna', 'Landkreis Viersen', 'Landkreis Warendorf', 'Landkreis Wesel', 'Leverkusen (Stadt)', 'Märkischer Kreis', 'Mönchengladbach (Stadt)', 'Mülheim an der Ruhr (Stadt)', 'Münster (Stadt)', 'Oberbergischer Kreis', 'Oberhausen (Stadt)', 'Remscheid (Stadt)', 'Rhein-Erft-Kreis', 'Rhein-Kreis Neuss', 'Rhein-Sieg-Kreis', 'Rheinisch-Bergischer Kreis', 'Solingen (Stadt)', 'Wuppertal (Stadt)'],
+    'Rheinland-Pfalz' => ['Donnersbergkreis', 'Eifelkreis Bitburg-Prüm', 'Frankenthal (Pfalz) (Stadt)', 'Kaiserslautern (Stadt)', 'Koblenz (Stadt)', 'Landau in der Pfalz (Stadt)', 'Landkreis Ahrweiler', 'Landkreis Altenkirchen (Westerwald)', 'Landkreis Alzey-Worms', 'Landkreis Bad Dürkheim', 'Landkreis Bad Kreuznach', 'Landkreis Bernkastel-Wittlich', 'Landkreis Birkenfeld', 'Landkreis Cochem-Zell', 'Landkreis Germersheim', 'Landkreis Kaiserslautern', 'Landkreis Kusel', 'Landkreis Mainz-Bingen', 'Landkreis Mayen-Koblenz', 'Landkreis Neuwied', 'Landkreis Südliche Weinstraße', 'Landkreis Südwestpfalz', 'Landkreis Trier-Saarburg', 'Landkreis Vulkaneifel', 'Ludwigshafen am Rhein (Stadt)', 'Mainz (Stadt)', 'Neustadt an der Weinstraße (Stadt)', 'Pirmasens (Stadt)', 'Rhein-Hunsrück-Kreis', 'Rhein-Lahn-Kreis', 'Rhein-Pfalz-Kreis', 'Speyer (Stadt)', 'Trier (Stadt)', 'Westerwaldkreis', 'Worms (Stadt)', 'Zweibrücken (Stadt)'],
+    'Saarland' => ['Landkreis Merzig-Wadern', 'Landkreis Neunkirchen', 'Landkreis Saarlouis', 'Landkreis St. Wendel', 'Regionalverband Saarbrücken', 'Saarpfalz-Kreis'],
+    'Sachsen' => ['Chemnitz (Stadt)', 'Dresden (Stadt)', 'Erzgebirgskreis', 'Landkreis Bautzen', 'Landkreis Görlitz', 'Landkreis Leipzig', 'Landkreis Meißen', 'Landkreis Mittelsachsen', 'Landkreis Nordsachsen', 'Landkreis Sächsische Schweiz-Osterzgebirge', 'Landkreis Zwickau', 'Leipzig (Stadt)', 'Vogtlandkreis'],
+    'Sachsen-Anhalt' => ['Altmarkkreis Salzwedel', 'Burgenlandkreis', 'Dessau-Roßlau (Stadt)', 'Halle (Saale) (Stadt)', 'Landkreis Anhalt-Bitterfeld', 'Landkreis Börde', 'Landkreis Harz', 'Landkreis Jerichower Land', 'Landkreis Mansfeld-Südharz', 'Landkreis Stendal', 'Landkreis Wittenberg', 'Magdeburg (Stadt)', 'Saalekreis', 'Salzlandkreis'],
+    'Schleswig-Holstein' => ['Flensburg (Stadt)', 'Kiel (Stadt)', 'Landkreis Dithmarschen', 'Landkreis Herzogtum Lauenburg', 'Landkreis Nordfriesland', 'Landkreis Ostholstein', 'Landkreis Pinneberg', 'Landkreis Plön', 'Landkreis Rendsburg-Eckernförde', 'Landkreis Schleswig-Flensburg', 'Landkreis Segeberg', 'Landkreis Steinburg', 'Landkreis Stormarn', 'Lübeck (Stadt)', 'Neumünster (Stadt)'],
+    'Thüringen' => ['Erfurt (Stadt)', 'Gera (Stadt)', 'Ilm-Kreis', 'Jena (Stadt)', 'Kyffhäuserkreis', 'Landkreis Altenburger Land', 'Landkreis Eichsfeld', 'Landkreis Gotha', 'Landkreis Greiz', 'Landkreis Hildburghausen', 'Landkreis Nordhausen', 'Landkreis Saalfeld-Rudolstadt', 'Landkreis Schmalkalden-Meiningen', 'Landkreis Sonneberg', 'Landkreis Sömmerda', 'Landkreis Weimarer Land', 'Saale-Holzland-Kreis', 'Saale-Orla-Kreis', 'Suhl (Stadt)', 'Unstrut-Hainich-Kreis', 'Wartburgkreis', 'Weimar (Stadt)'],
+];
+
+/** Kodierte Geltungsbereich-Werte: 'de' | 'bl:<Land>' | 'kr:<Land>:<Kreis>'.
+ *  @return array{0:string,1:?string}|null [scope_level, scope_name] */
+function scope_decode(string $value): ?array
+{
+    if ($value === 'de') {
+        return ['bund', null];
+    }
+    if (strpos($value, 'bl:') === 0) {
+        $land = substr($value, 3);
+        return isset(SW_REGIONS[$land]) ? ['bundesland', $land] : null;
+    }
+    if (strpos($value, 'kr:') === 0) {
+        $parts = explode(':', substr($value, 3), 2);
+        if (count($parts) === 2 && isset(SW_REGIONS[$parts[0]])
+            && in_array($parts[1], SW_REGIONS[$parts[0]], true)) {
+            return ['landkreis', $parts[1]];
+        }
+        return null;
+    }
+    return null;
+}
+
+/** Hierarchisches Auswahlfeld (eine Liste, wie im Behördenfinder). */
+function scope_select(string $name, string $selected, bool $withAll): string
+{
+    $html = '<select name="' . e($name) . '">';
+    if ($withAll) {
+        $html .= '<option value="">' . e(t('topics.filter_all')) . '</option>';
+    }
+    $html .= '<option value="de"' . ($selected === 'de' ? ' selected' : '') . '>' . e(t('scope.bund')) . '</option>';
+    foreach (SW_REGIONS as $land => $kreise) {
+        $html .= '<optgroup label="' . e($land) . '">';
+        $value = 'bl:' . $land;
+        $html .= '<option value="' . e($value) . '"' . ($selected === $value ? ' selected' : '') . '>'
+            . e($land) . ' (' . e(t('scope.bundesland')) . ')</option>';
+        foreach ($kreise as $kreis) {
+            $value = 'kr:' . $land . ':' . $kreis;
+            $html .= '<option value="' . e($value) . '"' . ($selected === $value ? ' selected' : '') . '>'
+                . e($kreis) . '</option>';
+        }
+        $html .= '</optgroup>';
+    }
+    return $html . '</select>';
+}
 
 const SW_CATEGORIES = [
     ['umwelt-klima', 'Umwelt & Klima', 'Environment & Climate'],
@@ -1000,11 +1123,20 @@ function fav_valid(string $kind, string $ref): bool
             return true;
         }
         $parts = explode(':', $ref, 2);
-        return count($parts) === 2
-            && in_array($parts[0], ['kommune', 'landkreis', 'bundesland'], true)
-            && $parts[1] !== ''
-            && mb_strlen($parts[1]) <= SW_SCOPE_NAME_MAX
-            && preg_match('/^[\p{L}0-9 .\-()]+$/u', $parts[1]) === 1;
+        if (count($parts) !== 2) {
+            return false;
+        }
+        if ($parts[0] === 'bundesland') {
+            return isset(SW_REGIONS[$parts[1]]);
+        }
+        if ($parts[0] === 'landkreis') {
+            foreach (SW_REGIONS as $kreise) {
+                if (in_array($parts[1], $kreise, true)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     return false;
 }
@@ -1341,8 +1473,7 @@ const SW_DE = [
     'topics.title' => 'Themen',
     'topics.count' => '{n} Themen',
     'topics.filter_category' => 'Kategorie',
-    'topics.filter_level' => 'Ebene',
-    'topics.filter_all' => 'Alle',
+        'topics.filter_all' => 'Alle',
     'topics.search' => 'Suche im Titel',
     'topics.sort' => 'Sortierung',
     'topics.sort_new' => 'Neueste',
@@ -1390,27 +1521,23 @@ const SW_DE = [
     'topic.f_goal' => 'Ziel',
     'topic.f_reasoning' => 'Begründung',
     'topic.f_category' => 'Kategorie',
-    'topic.f_scope_level' => 'Ebene',
-    'topic.f_scope_name' => 'Gebiet',
-    'topic.f_scope_name_hint' => 'z. B. „Leipzig“, „Landkreis Harburg“, „Bayern“; entfällt bei Deutschland.',
+    'topic.f_scope' => 'Geltungsbereich',
     'topic.f_choose' => 'Bitte wählen',
     'topic.submit' => 'Veröffentlichen',
     'topic.err_title' => 'Titel: mindestens 8 Zeichen.',
     'topic.err_goal' => 'Ziel: mindestens 10 Zeichen.',
     'topic.err_reasoning' => 'Begründung: mindestens 10 Zeichen.',
     'topic.err_category' => 'Bitte eine Kategorie wählen.',
-    'topic.err_scope' => 'Bitte eine gültige Ebene wählen.',
-    'topic.err_scope_name' => 'Gebiet: nur Buchstaben, Zahlen, Leer- und Satzzeichen.',
+    'topic.err_scope' => 'Bitte einen Geltungsbereich wählen.',
 
     'auth.title' => 'Ausweis anhalten',
-    'auth.line' => 'Der Ausweis bestätigt sich über seinen Schlüssel. Die Seite erhält nur ein Pseudonym – keinen Namen.',
+    'auth.line' => 'Der Ausweis meldet sich mit seinem öffentlichen Schlüssel an – zeitlich begrenzt, ohne Namen. Das Anhalten lädt Ihre profil.yaml.',
     'auth.tap' => 'Ausweis anhalten',
-    'auth.mock_note' => 'Testbetrieb: simulierte Karte nur für diese Sitzung – im Browser wird nichts gespeichert.',
     'auth.hold' => 'Ausweis an das Gerät halten …',
-    'auth.new_card' => 'Neue Testkarte',
+    'auth.other_card' => 'Anderen Ausweis verwenden',
 
     'me.title' => 'Meine Übersicht',
-    'me.short_id' => 'Ausweis-Pseudonym',
+    'me.short_id' => 'Öffentlicher Schlüssel (Kurzform)',
     'me.since' => 'Dabei seit {date}',
     'me.sec_votes' => 'Meine Stimmen',
     'me.sec_topics' => 'Meine Themen',
@@ -1432,6 +1559,9 @@ const SW_DE = [
     'me.jury_none' => 'Keine Jury-Aufgabe.',
     'me.jury_go' => 'Zur Jury-Aufgabe',
     'me.cooldown' => 'Jury-Karenz bis {date}.',
+    'me.profile' => 'Profil (profil.yaml)',
+    'me.download' => 'profil.yaml herunterladen',
+    'me.logout_note' => 'Abmelden löscht die profil.yaml aus dem Browser.',
     'me.delete_title' => 'Konto und Daten löschen',
     'me.delete_text' => 'Stimmen, Favoriten und offene Jury-Sitze werden gelöscht. Beiträge bleiben, werden aber dauerhaft vom Pseudonym entkoppelt.',
     'me.delete_confirm' => 'Ja, endgültig löschen',
@@ -1470,6 +1600,7 @@ const SW_DE = [
     'criteria.sonstiges' => 'Sonstiger mutmaßlich strafbarer Inhalt',
 
     'flash.session_expired' => 'Sitzung beendet. Bitte Ausweis erneut anhalten.',
+    'flash.auth_expired' => 'Anmeldung abgelaufen – bitte Ausweis erneut anhalten.',
     'flash.login_required' => 'Bitte zuerst den Ausweis anhalten.',
     'flash.card_required' => 'Bestätigung fehlgeschlagen. Bitte Ausweis erneut anhalten.',
     'flash.rate_limited' => 'Zu viele Anfragen. Bitte kurz warten.',
@@ -1495,7 +1626,7 @@ const SW_DE = [
     'flash.jury_voted' => 'Jury-Stimme gezählt.',
     'flash.auth_failed' => 'Anmeldung fehlgeschlagen.',
     'flash.auth_ok' => 'Angemeldet.',
-    'flash.card_new' => 'Neue Testkarte bereit. Zum Anmelden Ausweis anhalten.',
+    'flash.card_new' => 'Bereit für einen anderen Ausweis. Zum Anmelden anhalten.',
     'flash.logged_out' => 'Abgemeldet.',
     'flash.delete_not_confirmed' => 'Bitte die Löschung bestätigen.',
     'flash.account_deleted' => 'Konto gelöscht.',
@@ -1556,8 +1687,7 @@ const SW_EN = [
     'topics.title' => 'Topics',
     'topics.count' => '{n} topics',
     'topics.filter_category' => 'Category',
-    'topics.filter_level' => 'Level',
-    'topics.filter_all' => 'All',
+        'topics.filter_all' => 'All',
     'topics.search' => 'Search titles',
     'topics.sort' => 'Sort',
     'topics.sort_new' => 'Newest',
@@ -1605,27 +1735,23 @@ const SW_EN = [
     'topic.f_goal' => 'Goal',
     'topic.f_reasoning' => 'Reasoning',
     'topic.f_category' => 'Category',
-    'topic.f_scope_level' => 'Level',
-    'topic.f_scope_name' => 'Area',
-    'topic.f_scope_name_hint' => 'e.g. “Leipzig”, “Landkreis Harburg”, “Bayern”; not needed for Germany.',
+    'topic.f_scope' => 'Jurisdiction',
     'topic.f_choose' => 'Please choose',
     'topic.submit' => 'Publish',
     'topic.err_title' => 'Title: at least 8 characters.',
     'topic.err_goal' => 'Goal: at least 10 characters.',
     'topic.err_reasoning' => 'Reasoning: at least 10 characters.',
     'topic.err_category' => 'Please choose a category.',
-    'topic.err_scope' => 'Please choose a valid level.',
-    'topic.err_scope_name' => 'Area: letters, digits, spaces and punctuation only.',
+    'topic.err_scope' => 'Please choose a jurisdiction.',
 
     'auth.title' => 'Tap your ID card',
-    'auth.line' => 'The card proves itself with its key. The site only receives a pseudonym – never your name.',
+    'auth.line' => 'The card signs in with its public key – time-limited, without a name. Tapping loads your profil.yaml.',
     'auth.tap' => 'Tap your ID card',
-    'auth.mock_note' => 'Test operation: simulated card for this session only – nothing is stored in the browser.',
     'auth.hold' => 'Hold your ID card to the device …',
-    'auth.new_card' => 'New test card',
+    'auth.other_card' => 'Use a different ID card',
 
     'me.title' => 'My overview',
-    'me.short_id' => 'ID card pseudonym',
+    'me.short_id' => 'Public key (short form)',
     'me.since' => 'Member since {date}',
     'me.sec_votes' => 'My votes',
     'me.sec_topics' => 'My topics',
@@ -1647,6 +1773,9 @@ const SW_EN = [
     'me.jury_none' => 'No jury task.',
     'me.jury_go' => 'Go to jury task',
     'me.cooldown' => 'Jury cooldown until {date}.',
+    'me.profile' => 'Profile (profil.yaml)',
+    'me.download' => 'Download profil.yaml',
+    'me.logout_note' => 'Signing out deletes the profil.yaml from the browser.',
     'me.delete_title' => 'Delete account and data',
     'me.delete_text' => 'Votes, favourites and open jury seats are deleted. Contributions remain but are permanently unlinked from your pseudonym.',
     'me.delete_confirm' => 'Yes, delete permanently',
@@ -1685,6 +1814,7 @@ const SW_EN = [
     'criteria.sonstiges' => 'Other presumably criminal content',
 
     'flash.session_expired' => 'Session ended. Please tap your ID card again.',
+    'flash.auth_expired' => 'Sign-in expired – please tap your ID card again.',
     'flash.login_required' => 'Please tap your ID card first.',
     'flash.card_required' => 'Confirmation failed. Please tap your ID card again.',
     'flash.rate_limited' => 'Too many requests. Please wait a moment.',
@@ -1710,7 +1840,7 @@ const SW_EN = [
     'flash.jury_voted' => 'Jury vote counted.',
     'flash.auth_failed' => 'Sign-in failed.',
     'flash.auth_ok' => 'Signed in.',
-    'flash.card_new' => 'New test card ready. Tap your ID card to sign in.',
+    'flash.card_new' => 'Ready for a different ID card. Tap to sign in.',
     'flash.logged_out' => 'Signed out.',
     'flash.delete_not_confirmed' => 'Please confirm the deletion.',
     'flash.account_deleted' => 'Account deleted.',
@@ -1882,7 +2012,7 @@ a:hover { color: var(--accent-hover); }
 .form-stack { display: flex; flex-direction: column; gap: 0.85rem; }
 .form-stack > label { display: flex; flex-direction: column; gap: 0.25rem; font-weight: 600; font-size: 0.9rem; }
 .form-stack small { font-weight: 400; }
-.form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; }
+.form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.85rem; }
 .form-row label { display: flex; flex-direction: column; gap: 0.25rem; font-weight: 600; font-size: 0.9rem; }
 input[type="text"], input[type="search"], textarea, select { font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--border); border-radius: 2px; padding: 0.45rem 0.6rem; width: 100%; }
 textarea { resize: vertical; }
@@ -1905,6 +2035,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--ink); outline: n
 .error-card { max-width: 34rem; margin: 3rem auto; text-align: center; }
 .prose { max-width: 46rem; }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 650; margin-left: 0.4rem; }
+.yaml-block { background: var(--field); border: 1px solid var(--border); border-radius: 2px; padding: 0.8rem 1rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.45; }
 .site-footer { border-top: 1px solid var(--border); background: var(--surface); font-size: 0.83rem; color: var(--muted); }
 .footer-inner { display: flex; justify-content: space-between; gap: 0.5rem 1.5rem; flex-wrap: wrap; padding-top: 0.8rem; padding-bottom: 0.8rem; }
 .footer-nav { display: flex; gap: 1rem; }
@@ -1923,9 +2054,9 @@ CSS;
 
 const SW_JS = <<<'JS'
 /* Progressive Verbesserungen - alles laeuft auch ohne JavaScript.
-   Es wird NICHTS im Browser gespeichert (kein localStorage, keine Cookies
-   aus Skripten). Hier nur: Countdown bis Mitternacht und - am Smartphone -
-   das direkte Ausloesen der Anmeldung per NFC-Kontakt (Web NFC). */
+   Einzige bewusste Ablage im Browser: die profil.yaml (sessionStorage),
+   die der Abmelde-Knopf wieder loescht. Sonst: Countdown und - am
+   Smartphone - das direkte Ausloesen der Anmeldung per NFC (Web NFC). */
 (function () {
   'use strict';
   var init = function () {
@@ -1944,6 +2075,19 @@ const SW_JS = <<<'JS'
       update();
       setInterval(update, 1000);
     }
+
+    /* profil.yaml: beim Anhalten geladen, im Browser gehalten (sessionStorage),
+       der Abmelde-Knopf loescht sie wieder. */
+    var yaml = document.getElementById('profil-yaml');
+    if (yaml) {
+      try { sessionStorage.setItem('profil.yaml', yaml.textContent); } catch (e) {}
+    }
+    var logoutForms = document.querySelectorAll('form.js-logout');
+    logoutForms.forEach(function (form) {
+      form.addEventListener('submit', function () {
+        try { sessionStorage.removeItem('profil.yaml'); } catch (e) {}
+      });
+    });
 
     /* NFC direkt vom Handy: Knopf startet den Leser; das Anhalten der Karte
        loest die Anmeldung aus. Der Personalausweis ist kein NDEF-Tag, daher
@@ -2065,7 +2209,7 @@ function v_layout(string $title, string $content): string
     if ($user === null) {
         $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
     } else {
-        $html .= '<form method="post" action="' . e(url('/logout')) . '">' . csrf_field()
+        $html .= '<form method="post" action="' . e(url('/logout')) . '" class="js-logout">' . csrf_field()
             . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.logout')) . '</button></form>';
     }
     $html .= '</div></div></header>'
@@ -2192,11 +2336,16 @@ function v_home(): void
 function v_topics(): void
 {
     $user = auth_user();
-    $level = query_str('level', 20);
+    $scopeValue = query_str('gebiet', 160);
+    $scopeDecoded = $scopeValue === '' ? null : scope_decode($scopeValue);
+    if ($scopeDecoded === null) {
+        $scopeValue = '';
+    }
     $filters = [
         'category' => query_str('category', 64),
-        'level'    => in_array($level, SW_SCOPE_LEVELS, true) ? $level : '',
-        'scope'    => query_str('scope', SW_SCOPE_NAME_MAX),
+        'level'    => $scopeDecoded === null ? '' : $scopeDecoded[0],
+        'scope'    => $scopeDecoded === null || $scopeDecoded[1] === null ? '' : $scopeDecoded[1],
+        'gebiet'   => $scopeValue,
         'q'        => query_str('q', 80),
         'sort'     => query_str('sort', 10) === 'top' ? 'top' : 'new',
     ];
@@ -2215,13 +2364,9 @@ function v_topics(): void
         $html .= '<option value="' . e((string) $category['slug']) . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
     }
     $html .= '</select></label>'
-        . '<label><span>' . e(t('topics.filter_level')) . '</span><select name="level">'
-        . '<option value="">' . e(t('topics.filter_all')) . '</option>';
-    foreach (SW_SCOPE_LEVELS as $lvl) {
-        $sel = $filters['level'] === $lvl ? ' selected' : '';
-        $html .= '<option value="' . e($lvl) . '"' . $sel . '>' . e(t('scope.' . $lvl)) . '</option>';
-    }
-    $html .= '</select></label>'
+        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
+        . scope_select('gebiet', $filters['gebiet'], true)
+        . '</label>'
         . '<label><span>' . e(t('topics.search')) . '</span><input type="search" name="q" maxlength="80" value="' . e($filters['q']) . '"></label>'
         . '<label><span>' . e(t('topics.sort')) . '</span><select name="sort">'
         . '<option value="new"' . ($filters['sort'] === 'new' ? ' selected' : '') . '>' . e(t('topics.sort_new')) . '</option>'
@@ -2240,7 +2385,9 @@ function v_topics(): void
     }
     if ($pages > 1) {
         $mkQuery = static function (int $p) use ($filters): string {
-            $params = array_filter(array_merge($filters, ['page' => $p]), static function ($v) {
+            $keep = ['category' => $filters['category'], 'gebiet' => $filters['gebiet'],
+                     'q' => $filters['q'], 'sort' => $filters['sort'], 'page' => $p];
+            $params = array_filter($keep, static function ($v) {
                 return $v !== '' && $v !== null;
             });
             return $params === [] ? '' : '?' . http_build_query($params);
@@ -2363,21 +2510,10 @@ function v_topic_new(array $errors, array $old, bool $postedToday): void
         $html .= '<option value="' . (int) $category['id'] . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
     }
     $html .= '</select></label>'
-        . '<label><span>' . e(t('topic.f_scope_level')) . '</span><select name="scope_level" required>';
-    foreach (SW_SCOPE_LEVELS as $lvl) {
-        $sel = (string) $old['scope_level'] === $lvl ? ' selected' : '';
-        $html .= '<option value="' . e($lvl) . '"' . $sel . '>' . e(t('scope.' . $lvl)) . '</option>';
-    }
-    $html .= '</select></label>'
-        . '<label><span>' . e(t('topic.f_scope_name')) . '</span>'
-        . '<input type="text" name="scope_name" maxlength="' . SW_SCOPE_NAME_MAX . '" value="' . e((string) $old['scope_name']) . '" list="scope-suggestions">'
-        . '<small class="muted">' . e(t('topic.f_scope_name_hint')) . '</small></label></div>'
-        . '<datalist id="scope-suggestions">';
-    $states = ['Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen', 'Hamburg', 'Hessen', 'Mecklenburg-Vorpommern', 'Niedersachsen', 'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Saarland', 'Sachsen', 'Sachsen-Anhalt', 'Schleswig-Holstein', 'Thüringen'];
-    foreach ($states as $state) {
-        $html .= '<option value="' . e($state) . '"></option>';
-    }
-    $html .= '</datalist><div><button type="submit" class="btn btn-primary">' . e(t('topic.submit')) . '</button></div></form>';
+        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
+        . scope_select('scope', (string) $old['scope'], false)
+        . '</label></div>'
+        . '<div><button type="submit" class="btn btn-primary">' . e(t('topic.submit')) . '</button></div></form>';
     render(t('topic.new_title'), $html);
 }
 
@@ -2403,9 +2539,8 @@ function v_auth(): void
         . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
         . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
         . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>'
-        . '<p class="muted">' . e(t('auth.mock_note')) . '</p>'
         . '<form method="post" action="' . e(url('/card/new')) . '">' . csrf_field()
-        . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.new_card')) . '</button></form>'
+        . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.other_card')) . '</button></form>'
         . '</section>';
     render(t('auth.title'), $html);
 }
@@ -2473,128 +2608,95 @@ function v_static(string $titleKey, array $paraKeys): void
     render(t($titleKey), $html);
 }
 
+/** Einfache, sichere YAML-Ausgabe (Werte stets in Anführungszeichen). */
+function yq(string $v): string
+{
+    return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $v) . '"';
+}
+
+/** profil.yaml: die Gesamtansicht der Person – wird beim Anhalten geladen,
+ *  im Browser gehalten und beim Abmelden dort gelöscht. */
+function profile_yaml(array $user): string
+{
+    $userId = (int) $user['id'];
+    $slot = is_int($_SESSION['auth_slot'] ?? null) ? (int) $_SESSION['auth_slot'] : time_slot();
+    $validUntil = date('c', ($slot + SW_AUTH_SLOTS) * SW_SLOT_SECONDS);
+    $y = "stimmwerk_profil:\n";
+    $y .= "  oeffentlicher_schluessel: " . yq((string) $user['pseudonym_hash']) . "\n";
+    $y .= "  stand: " . yq(date('c', Clock::now()->getTimestamp())) . "\n";
+    $y .= "  anmeldung_gueltig_bis: " . yq($validUntil) . "\n";
+    $y .= "  sprache: " . yq((string) $user['lang']) . "\n";
+    $duty = jury_pending_for($userId);
+    $upcoming = $duty === null ? jury_upcoming_for($userId) : null;
+    $y .= "  jury_aufgabe: " . yq($duty !== null ? 'offen' : ($upcoming !== null ? 'ausgelost' : 'keine')) . "\n";
+    $y .= "  stimmen:\n";
+    $voted = topics_voted_by($userId);
+    if ($voted === []) {
+        $y = substr($y, 0, -1) . " []\n";
+    }
+    foreach ($voted as $row) {
+        $y .= "    - thema: " . (int) $row['id'] . "\n";
+        $y .= "      titel: " . yq((string) $row['title']) . "\n";
+        $y .= "      stimme: " . yq($row['my_choice'] === 'for' ? 'dafuer' : 'dagegen') . "\n";
+    }
+    $y .= "  eigene_themen:\n";
+    $authored = topics_by_author($userId);
+    if ($authored === []) {
+        $y = substr($y, 0, -1) . " []\n";
+    }
+    foreach ($authored as $row) {
+        $y .= "    - thema: " . (int) $row['id'] . "\n";
+        $y .= "      titel: " . yq((string) $row['title']) . "\n";
+        $y .= "      status: " . yq((string) $row['status']) . "\n";
+    }
+    $y .= "  favoriten:\n";
+    $favorites = fav_list($userId);
+    if ($favorites === []) {
+        $y = substr($y, 0, -1) . " []\n";
+    }
+    foreach ($favorites as $favorite) {
+        $y .= "    - art: " . yq($favorite['kind'] === 'category' ? 'kategorie' : 'gebiet') . "\n";
+        $y .= "      wert: " . yq((string) $favorite['ref']) . "\n";
+    }
+    $y .= "  meldungen:\n";
+    $reports = reports_by($userId);
+    if ($reports === []) {
+        $y = substr($y, 0, -1) . " []\n";
+    }
+    foreach ($reports as $report) {
+        $y .= "    - thema: " . (int) $report['topic_id'] . "\n";
+        $y .= "      status: " . yq((string) $report['status']) . "\n";
+    }
+    return $y;
+}
+
 function v_me(): void
 {
     $user = require_user();
     $userId = (int) $user['id'];
-    $dateF = t('common.date_format');
-    $dtF = t('common.datetime_format');
+    $duty = jury_pending_for($userId);
+    $upcoming = $duty === null ? jury_upcoming_for($userId) : null;
+    $yaml = profile_yaml($user);
 
     $html = '<div class="page-head"><h1>' . e(t('me.title')) . '</h1></div>'
         . '<section class="card id-card"><div><span class="field-label">' . e(t('me.short_id')) . '</span>'
         . '<span class="id-value">' . e(short_id($user)) . '</span></div>'
-        . '<span class="muted">' . e(t('me.since', ['date' => Clock::displayLocal((string) $user['created_at'], $dateF)])) . '</span>';
+        . '<span class="muted">' . e(t('me.since', ['date' => Clock::displayLocal((string) $user['created_at'], t('common.date_format'))])) . '</span>';
     if ($user['jury_cooldown_until'] !== null && (string) $user['jury_cooldown_until'] > Clock::nowStr()) {
-        $html .= '<span class="muted">' . e(t('me.cooldown', ['date' => Clock::displayLocal((string) $user['jury_cooldown_until'], $dtF)])) . '</span>';
+        $html .= '<span class="muted">' . e(t('me.cooldown', ['date' => Clock::displayLocal((string) $user['jury_cooldown_until'], t('common.datetime_format'))])) . '</span>';
     }
     $html .= '</section>';
 
-    $duty = jury_pending_for($userId);
-    $upcoming = $duty === null ? jury_upcoming_for($userId) : null;
-    $html .= '<section><h2>' . e(t('me.sec_jury')) . '</h2>';
     if ($duty !== null) {
         $html .= '<div class="flash">' . e(t('me.jury_pending')) . ' <a href="' . e(url('/jury')) . '">' . e(t('me.jury_go')) . '</a></div>';
     } elseif ($upcoming !== null) {
-        $html .= '<p class="muted">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], $dateF)])) . '</p>';
-    } else {
-        $html .= '<p class="muted">' . e(t('me.jury_none')) . '</p>';
+        $html .= '<p class="muted">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))])) . '</p>';
     }
-    $html .= '</section>';
 
-    $voted = topics_voted_by($userId);
-    $html .= '<section><h2>' . e(t('me.sec_votes')) . '</h2>';
-    if ($voted === []) {
-        $html .= '<p class="muted">' . e(t('me.none')) . '</p>';
-    } else {
-        $html .= '<ul class="row-list">';
-        foreach ($voted as $row) {
-            $html .= '<li class="row-item"><div class="row-main">';
-            if ($row['status'] === 'active') {
-                $html .= '<a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a>';
-            } else {
-                $html .= '<span class="muted">' . e((string) $row['title']) . ' (' . e(t('me.status_removed')) . ')</span>';
-            }
-            $html .= '<span class="badge">' . e(cat_name($row)) . '</span></div>'
-                . '<div class="row-side"><span class="dot ' . ($row['my_choice'] === 'for' ? 'dot-for' : 'dot-against') . '" aria-hidden="true"></span>'
-                . e(t($row['my_choice'] === 'for' ? 'vote.for' : 'vote.against'))
-                . '<span class="muted">· ' . e(num((int) $row['votes_for'])) . ' / ' . e(num((int) $row['votes_against'])) . '</span></div></li>';
-        }
-        $html .= '</ul>';
-    }
-    $html .= '</section>';
-
-    $authored = topics_by_author($userId);
-    $html .= '<section><h2>' . e(t('me.sec_topics')) . '</h2>';
-    if ($authored === []) {
-        $html .= '<p class="muted">' . e(t('me.none')) . '</p>';
-    } else {
-        $html .= '<ul class="row-list">';
-        foreach ($authored as $row) {
-            $statusKey = $row['status'] === 'active' ? 'me.status_active' : 'me.status_removed';
-            $html .= '<li class="row-item"><div class="row-main">'
-                . '<a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a>'
-                . '<span class="badge">' . e(t($statusKey)) . '</span></div>'
-                . '<div class="row-side muted">' . e(Clock::displayLocal((string) $row['created_at'], $dateF))
-                . ' · ' . e(num((int) $row['votes_for'])) . ' / ' . e(num((int) $row['votes_against'])) . '</div></li>';
-        }
-        $html .= '</ul>';
-    }
-    $html .= '</section>';
-
-    $favorites = fav_list($userId);
-    $html .= '<section><h2>' . e(t('me.sec_favorites')) . '</h2>';
-    if ($favorites === []) {
-        $html .= '<p class="muted">' . e(t('me.none')) . '</p>';
-    } else {
-        $html .= '<ul class="row-list">';
-        foreach ($favorites as $favorite) {
-            $html .= '<li class="row-item"><div class="row-main">'
-                . '<span class="badge">' . e(t($favorite['kind'] === 'category' ? 'me.fav_category' : 'me.fav_scope')) . '</span>';
-            if ($favorite['kind'] === 'category') {
-                $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
-                $html .= '<a href="' . e(url('/topics') . '?category=' . rawurlencode((string) $favorite['ref'])) . '">' . e($label) . '</a>';
-            } else {
-                $parts = explode(':', (string) $favorite['ref'], 2);
-                $label = t('scope.' . $parts[0]) . (isset($parts[1]) ? ': ' . $parts[1] : '');
-                $favQuery = isset($parts[1])
-                    ? 'level=' . rawurlencode($parts[0]) . '&scope=' . rawurlencode($parts[1])
-                    : 'level=' . rawurlencode($parts[0]);
-                $html .= '<a href="' . e(url('/topics') . '?' . $favQuery) . '">' . e($label) . '</a>';
-            }
-            $html .= '</div><div class="row-side"><form method="post" action="' . e(url('/favorite')) . '">' . csrf_field()
-                . '<input type="hidden" name="kind" value="' . e((string) $favorite['kind']) . '">'
-                . '<input type="hidden" name="ref" value="' . e((string) $favorite['ref']) . '">'
-                . '<input type="hidden" name="return" value="/me">'
-                . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('me.unfav')) . '</button></form></div></li>';
-        }
-        $html .= '</ul>';
-    }
-    $html .= '</section>';
-
-    $reports = reports_by($userId);
-    $html .= '<section><h2>' . e(t('me.sec_reports')) . '</h2>';
-    if ($reports === []) {
-        $html .= '<p class="muted">' . e(t('me.none')) . '</p>';
-    } else {
-        $html .= '<ul class="row-list">';
-        foreach ($reports as $report) {
-            $status = (string) $report['status'];
-            if ($status === 'pending') {
-                $statusKey = 'me.report_pending';
-            } elseif ($status === 'voting') {
-                $statusKey = 'me.report_voting';
-            } elseif ($status === 'decided_removed') {
-                $statusKey = 'me.report_removed';
-            } else {
-                $statusKey = 'me.report_kept';
-            }
-            $html .= '<li class="row-item"><div class="row-main">'
-                . '<a href="' . e(url('/topic/' . (int) $report['topic_id'])) . '">' . e((string) $report['title']) . '</a></div>'
-                . '<div class="row-side muted">' . e(t($statusKey)) . ' · ' . e(Clock::displayLocal((string) $report['created_at'], $dateF)) . '</div></li>';
-        }
-        $html .= '</ul>';
-    }
-    $html .= '</section>';
+    $html .= '<section><div class="page-head"><h2>' . e(t('me.profile')) . '</h2>'
+        . '<a class="btn btn-outline btn-sm" href="' . e(url('/profil.yaml')) . '">' . e(t('me.download')) . '</a></div>'
+        . '<pre id="profil-yaml" class="yaml-block">' . e($yaml) . '</pre>'
+        . '<p class="muted">' . e(t('me.logout_note')) . '</p></section>';
 
     $html .= '<section class="card danger-zone"><h2>' . e(t('me.delete_title')) . '</h2>'
         . '<p class="muted">' . e(t('me.delete_text')) . '</p>'
@@ -2713,14 +2815,19 @@ function h_tap(): void
     if ($card === null) {
         $card = card_create();
     }
-    if (!card_verify($card)) {
+    // Statische Challenge = der öffentliche Schlüssel selbst, zeitgebunden
+    // versiegelt; der Server öffnet mit dem öffentlichen Schlüssel.
+    $identity = card_identity($card);
+    $sealed = card_seal($card, 'login:' . $identity);
+    if (!card_open($card['pk'], $sealed, 'login:' . $identity)) {
         log_line('SECURITY', 'card_verify_failed', []);
         flash('error', 'flash.auth_failed');
         redirect('/auth');
     }
-    auth_login(card_pseudonym($card));
+    auth_login($identity);
+    $_SESSION['auth_slot'] = time_slot();
     flash('success', 'flash.auth_ok');
-    redirect('/');
+    redirect('/me');
 }
 
 function h_card_new(): void
@@ -2790,8 +2897,7 @@ function h_topic_create(): void
         'goal'        => post_str('goal', SW_GOAL_MAX, true),
         'reasoning'   => post_str('reasoning', SW_REASONING_MAX, true),
         'category_id' => post_int('category_id') ?? 0,
-        'scope_level' => post_str('scope_level', 20),
-        'scope_name'  => post_str('scope_name', SW_SCOPE_NAME_MAX),
+        'scope'       => post_str('scope', 160),
     ];
     $errors = [];
     if (mb_strlen($old['title']) < SW_TITLE_MIN) {
@@ -2809,12 +2915,9 @@ function h_topic_create(): void
     if ($category === null) {
         $errors[] = 'topic.err_category';
     }
-    if (!in_array($old['scope_level'], SW_SCOPE_LEVELS, true)) {
+    $scope = scope_decode($old['scope']);
+    if ($scope === null) {
         $errors[] = 'topic.err_scope';
-    } elseif ($old['scope_level'] === 'bund') {
-        $old['scope_name'] = '';
-    } elseif (mb_strlen($old['scope_name']) < 2 || preg_match('/^[\p{L}0-9 .\-()]+$/u', $old['scope_name']) !== 1) {
-        $errors[] = 'topic.err_scope_name';
     }
     if ($errors !== []) {
         v_topic_new($errors, $old, topic_has_posted_today($userId));
@@ -2826,8 +2929,8 @@ function h_topic_create(): void
             $old['goal'],
             $old['reasoning'],
             (int) $old['category_id'],
-            $old['scope_level'],
-            $old['scope_level'] === 'bund' ? null : $old['scope_name']
+            $scope[0],
+            $scope[1]
         );
     } catch (DomainException $e) {
         v_topic_new([$e->getMessage()], $old, topic_has_posted_today($userId));
@@ -3058,7 +3161,7 @@ function web_main(): void
             $u = require_user();
             v_topic_new([], [
                 'title' => '', 'goal' => '', 'reasoning' => '',
-                'category_id' => 0, 'scope_level' => 'bund', 'scope_name' => '',
+                'category_id' => 0, 'scope' => 'de',
             ], topic_has_posted_today((int) $u['id']));
         }
         if ($path === '/topics' && $method === 'POST') {
@@ -3087,6 +3190,13 @@ function web_main(): void
         }
         if ($path === '/me' && $isGet) {
             v_me();
+        }
+        if ($path === '/profil.yaml' && $isGet) {
+            $u = require_user();
+            header('Content-Type: text/yaml; charset=utf-8');
+            header('Content-Disposition: attachment; filename="profil.yaml"');
+            echo profile_yaml($u);
+            exit;
         }
         if ($path === '/lang' && $method === 'POST') {
             h_lang();
@@ -3176,19 +3286,36 @@ function cli_selftest(): int
     $check('Keine vorbefüllten Themen', site_stats()['topics'] === 0);
     $check('System-Konto vorhanden', (int) SW::$db->val('SELECT COUNT(*) FROM users WHERE is_system = 1') === 1);
 
-    echo "== Ausweis-Schlüssel ==\n";
+    echo "== Ausweis-Schlüssel & Zeitfenster ==\n";
     if (card_supports_sodium()) {
         $pair = sodium_crypto_sign_keypair();
         $card = ['secret' => sodium_crypto_sign_secretkey($pair), 'pk' => sodium_crypto_sign_publickey($pair)];
-        $check('Signatur wird gegen öffentlichen Schlüssel geprüft', card_verify($card) === true);
-        $forged = $card;
         $other = sodium_crypto_sign_keypair();
-        $forged['pk'] = sodium_crypto_sign_publickey($other);
-        $check('Fremder öffentlicher Schlüssel wird abgelehnt', card_verify($forged) === false);
+        $otherPk = sodium_crypto_sign_publickey($other);
     } else {
-        $check('Sodium nicht verfügbar – Rückfallprüfung aktiv', true);
-        $check('Rückfallprüfung deterministisch', true);
+        $secret = random_bytes(32);
+        $card = ['secret' => $secret, 'pk' => hash('sha256', 'pk|' . $secret, true)];
+        $otherPk = hash('sha256', 'pk|' . random_bytes(32), true);
     }
+    $sealed = card_seal($card, 'vote');
+    $check('Umschlag öffnet mit richtigem öffentlichen Schlüssel', card_open($card['pk'], $sealed, 'vote') === true);
+    $check('Fremder öffentlicher Schlüssel wird abgelehnt', card_open($otherPk, $sealed, 'vote') === false);
+    $check('Falsche Aktion wird abgelehnt', card_open($card['pk'], $sealed, 'report') === false);
+    $tSave = $t0;
+    $warp('+11 minutes');
+    $check('Alter Umschlag verfällt (TOTP-Zeitfenster)', card_open($card['pk'], $sealed, 'vote') === false);
+    $check('Neuer Umschlag zu neuer Zeit ist anders und gültig',
+        card_seal($card, 'vote') !== $sealed && card_open($card['pk'], card_seal($card, 'vote'), 'vote') === true);
+    $t0 = $tSave;
+    Clock::setTestNow($t0);
+    $check('Identität = öffentlicher Schlüssel (kein Pseudonym)', card_identity($card) === bin2hex($card['pk']));
+
+    echo "== Geltungsbereich (amtliche Auswahl) ==\n";
+    $check('Deutschland', scope_decode('de') === ['bund', null]);
+    $check('Bundesland', scope_decode('bl:Bayern') === ['bundesland', 'Bayern']);
+    $check('Landkreis', scope_decode('kr:Bayern:Landkreis München') === ['landkreis', 'Landkreis München']);
+    $check('Unbekanntes Gebiet abgelehnt', scope_decode('kr:Bayern:Atlantis') === null && scope_decode('bl:Atlantis') === null);
+    $check('Gebietsliste vollständig geladen', count(SW_REGIONS) === 16 && array_sum(array_map('count', SW_REGIONS)) > 350);
 
     echo "== Themen: 1 pro Tag ==\n";
     $alice = cli_add_users(1, 'alice')[0];
@@ -3214,6 +3341,13 @@ function cli_selftest(): int
     $slug = (string) SW::$db->val('SELECT slug FROM categories ORDER BY id LIMIT 1');
     $check('Favorit angelegt', fav_toggle($bob, 'category', $slug) === true);
     $check('Favorit entfernt', fav_toggle($bob, 'category', $slug) === false);
+    $check('Gebiets-Favorit (Landkreis) gegen Liste geprüft', fav_toggle($bob, 'scope', 'landkreis:Ostalbkreis') === true);
+    try {
+        fav_toggle($bob, 'scope', 'landkreis:Entenhausen');
+        $check('Erfundenes Gebiet abgelehnt', false);
+    } catch (DomainException $e) {
+        $check('Erfundenes Gebiet abgelehnt', true);
+    }
 
     echo "== Jury-Größe (1 %-Regel) ==\n";
     cli_switch_db($tmpDir, 'big');

@@ -149,8 +149,10 @@ Für Stimmwerk entscheidend ist die Funktion **„dienstespezifisches Kennzeiche
 - Ein anderes Pseudonym bei jedem anderen Dienst → **keine Verkettbarkeit** über
   Dienste hinweg.
 - Stimmwerk fragt **keine** Klardaten ab (kein Name, keine Anschrift, kein
-  Geburtsdatum). Gespeichert wird ausschließlich ein zusätzlich mit einem
-  serverseitigen Geheimnis verschlüsselter Hash des Pseudonyms (HMAC-SHA-256).
+  Geburtsdatum). Es wird auch **kein eigenes Pseudonym erzeugt oder
+  zugeordnet**: Identität ist unmittelbar der öffentliche Schlüssel („on
+  the go“); Stimmen werden auf dem Server direkt für diesen Schlüssel
+  eingetragen.
 
 ### 5.2 Ablauf (Produktion)
 
@@ -176,18 +178,29 @@ Testkarte im Browser übernimmt die Rolle des Chips und hält ein echtes
 Ed25519-Schlüsselpaar (libsodium). Beim „Ausweis anhalten“ signiert der
 private Schlüssel eine Zufallsnachricht; der Server prüft die Signatur
 gegen den öffentlichen Schlüssel und leitet daraus das Pseudonym ab.
-**Im Browser wird nichts gespeichert:** Der simulierte Karten-Schlüssel
-liegt ausschließlich serverseitig in der Sitzung; einziges Cookie ist die
-Sitzungs-ID, es gibt kein localStorage. **Jede Aktion ist einmalig:**
-Jedes Formular trägt ein einmalig gültiges Token (beim Einlösen
-verbraucht — Wiederholungen laufen ins Leere), und **jede Änderung**
-(Stimme, Thema, Meldung, Jury-Stimme, Favorit, Kontolöschung) verlangt
-zusätzlich eine gültige Karten-Signatur (Transaktionsbestätigung, wie
-später mit der eID-App pro Vorgang). Am Smartphone löst der NFC-Kontakt
-die Anmeldung direkt aus (Web NFC; der Personalausweis meldet sich dabei
-als Karte, die eigentliche Prüfung bleibt serverseitig). Der Wechsel auf
-einen echten eID-Server ersetzt nur diesen Karten-Block; Pseudonym-Hash,
-Sitzungen und Regeln bleiben unverändert.
+**Zwei getrennte Vorgänge:**
+
+1. **Profil laden (initiales Anhalten):** Die statische Challenge ist der
+   öffentliche Schlüssel selbst, zeitgebunden versiegelt. Der Server öffnet
+   den Nachweis mit dem öffentlichen Schlüssel und liefert die
+   **profil.yaml** (alle eigenen Stimmen, Themen, Favoriten, Jury-Status)
+   in den Browser; der Abmelde-Knopf löscht sie dort wieder. Der Nachweis
+   ist **TOTP-artig zeitbegrenzt** (5-Minuten-Fenster, Anmeldung gilt
+   höchstens zwei Fenster) — danach ist erneutes Anhalten nötig.
+2. **Stimmabgabe und jede andere Änderung (unabhängig davon):** Die Karte
+   erstellt je Vorgang einen **versiegelten Umschlag** (kombinierte
+   Signatur über Aktion + Zeitfenster + Zufallswert); der Server
+   **öffnet ihn mit dem öffentlichen Schlüssel** und trägt die Stimme für
+   genau diesen Schlüssel ein. Derselbe Vorgang ergibt zu anderer Zeit
+   einen anderen Umschlag; alte Umschläge verfallen.
+
+Zusätzlich trägt jedes Formular ein **Einmal-Token** (beim Einlösen
+verbraucht — Wiederholungen laufen ins Leere), und im Browser liegt außer
+der Sitzungs-ID nur die bewusst geladene profil.yaml. Am Smartphone löst
+der NFC-Kontakt die Anmeldung direkt aus (Web NFC). Der Testbetrieb
+unterscheidet sich vom Echtbetrieb allein durch das Banner und die
+serverseitig simulierte Karte; der Wechsel auf einen echten eID-Server
+ersetzt nur den Karten-Block, Regeln und Abläufe bleiben identisch.
 
 ### 5.4 Grenzen und Missbrauchsszenarien
 
@@ -217,9 +230,11 @@ Sitzungen und Regeln bleiben unverändert.
   - **Ziel** — was soll konkret erreicht werden?
   - **Begründung** — warum?
   - **Kategorie** (siehe 6.3),
-  - **Ebene und Gebiet**: Kommune, Landkreis, Bundesland oder Deutschland
-    (bei Kommune/Landkreis/Bundesland mit Gebietsangabe, z. B. „Leipzig“,
-    „Landkreis Harburg“, „Bayern“).
+  - **Geltungsbereich** — eine hierarchische **Auswahl statt Freitext**,
+    wie auf Behördenseiten: Deutschland → Bundesland → Landkreis/kreisfreie
+    Stadt (eingebaute Gebietsliste mit allen 16 Ländern und rund 400
+    Kreisen; die Gemeindeebene folgt in der Ausbaustufe über das amtliche
+    Gemeindeverzeichnis, ARS/Destatis).
 - Themen sind nach Veröffentlichung **unveränderlich** (keine stille Umdeutung nach
   bereits abgegebenen Stimmen). Tippfehler-Korrekturen wären eine Ausbaustufe mit
   Versionsanzeige.

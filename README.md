@@ -24,33 +24,39 @@ machen (Rechte 755/775), neu laden. Ohne `.htaccess`-Unterstützung (z. B.
 nginx) funktioniert alles weiter über automatisch erzeugte
 `/index.php/...`-Links.
 
-## Ausweis, Bestätigung, Browser-Speicher
+## Ausweis, profil.yaml, Bestätigung
 
 - **Start:** Beim allerersten Aufruf erscheint nur die Sprachwahl über zwei
   Flaggen (Deutsch/English), danach die Seite.
-- **Anmelden:** ein Knopf – „Ausweis anhalten“. Am Smartphone startet der
-  Knopf den NFC-Leser (Web NFC): Das Anhalten der Karte löst die Anmeldung
-  direkt aus; ohne NFC-Unterstützung sendet der Knopf normal ab. Der (im
-  Testbetrieb simulierte) Karten-Chip signiert eine Zufallsnachricht mit
-  seinem privaten Schlüssel; der Server prüft die Signatur gegen den
-  öffentlichen Schlüssel und kennt nur ein daraus abgeleitetes Pseudonym.
-- **Nichts im Browser:** Es wird ausschließlich das technisch notwendige
-  Sitzungs-Cookie gesetzt – kein Karten-Cookie, kein localStorage. Der
-  simulierte Karten-Schlüssel liegt nur serverseitig in der Sitzung
-  (Sitzungsende = Testidentität endet; mit echter eID liefert die
-  physische Karte das stabile Pseudonym).
-- **Jede Aktion einmalig:** Jedes Formular trägt ein einmalig gültiges
-  Token (beim Einlösen verbraucht – kein Wiederholen, deckt CSRF ab), und
-  **jede Änderung** (Stimme, Thema, Meldung, Jury-Stimme, Favorit,
-  Löschung) verlangt zusätzlich eine gültige Karten-Signatur.
-- Echtbetrieb: Austausch des Karten-Blocks gegen die eID-Server-Anbindung
-  (BSI TR-03130); der eID-Client (AusweisApp) übernimmt dann das
-  NFC-Auslesen samt PIN, siehe Whitepaper Kapitel 5.
+- **Anmelden (Profil laden):** ein Knopf – „Ausweis anhalten“. Am
+  Smartphone startet der Knopf den NFC-Leser (Web NFC): Das Anhalten löst
+  die Anmeldung direkt aus; ohne NFC sendet der Knopf normal ab. Die
+  statische Challenge ist der öffentliche Schlüssel selbst – **kein
+  abgeleitetes Pseudonym**, die Identität ist der Schlüssel („on the go“).
+  Das Anhalten lädt die **profil.yaml** (Stimmen, Themen, Favoriten,
+  Jury-Status) in den Browser; der Abmelde-Knopf löscht sie dort wieder.
+- **Zeitfenster (TOTP-artig):** Der Anmeldenachweis gilt nur kurz
+  (5-Minuten-Fenster, höchstens zwei Fenster); danach ist erneutes
+  Anhalten nötig. Zu anderer Zeit entsteht ein anderer Nachweis.
+- **Stimmabgabe (unabhängiger Vorgang):** Jede Änderung (Stimme, Thema,
+  Meldung, Jury-Stimme, Favorit, Löschung) läuft über einen eigenen
+  **versiegelten, zeitgebundenen Umschlag**: Die Karte versiegelt die
+  Aktion, der Server öffnet mit dem öffentlichen Schlüssel und trägt das
+  Ergebnis für genau diesen Schlüssel ein. Alte Umschläge verfallen;
+  zusätzlich ist jedes Formular-Token einmalig (kein Replay, deckt CSRF ab).
+- **Geltungsbereich ohne Freitext:** Themen und Filter nutzen eine
+  hierarchische Auswahl Deutschland → Bundesland → Landkreis/kreisfreie
+  Stadt (eingebaute Liste, 16 Länder, rund 400 Kreise) – vor Echtbetrieb
+  gegen das amtliche Verzeichnis (ARS/Destatis) abgleichen.
+- **Testbetrieb = nur das Banner:** Abläufe, NFC und Kryptographie sind
+  die Produktabläufe; simuliert ist allein der Karten-Chip (serverseitig).
+  Echtbetrieb: Karten-Block gegen die eID-Server-Anbindung (BSI TR-03130)
+  tauschen; die AusweisApp übernimmt dann NFC samt PIN (Whitepaper Kap. 5).
 
 ## CLI (optional)
 
 ```bash
-php index.php selftest   # Fachregeln automatisiert prüfen (38 Prüfungen)
+php index.php selftest   # Fachregeln automatisiert prüfen (49 Prüfungen)
 php index.php cron       # Wartungslauf (sonst lazy bei Seitenaufrufen)
 php index.php seed 400   # Demo-Pseudonyme + Zufallsstimmen (Vorführungen)
 php index.php jurysim    # Demo-Jury stimmt in laufenden Prüfungen ab
@@ -63,7 +69,8 @@ php -S 127.0.0.1:8080 index.php   # lokale Demo ohne Webserver
 - CSP `default-src 'none'` ohne `unsafe-inline` (CSS/JS liefert die Datei
   selbst als eigene Routen aus), restriktive Header, HSTS bei HTTPS
 - Einmal-Token für jede POST-Anfrage (kein Replay, deckt CSRF ab);
-  Signaturbestätigung jeder Änderung; nichts im Browser gespeichert
+  zeitgebundene versiegelte Umschläge für jede Änderung; im Browser nur
+  Sitzungs-ID und die bewusst geladene profil.yaml
 - Sessions: HttpOnly, SameSite, ID-Rotation, Idle-/Absolut-Timeout
 - Kernregeln zusätzlich als DB-Constraints (1 Thema/Tag, 1 Stimme/Thema,
   1 offene Meldung/Thema, 1 Jury-Sitz/Meldung)
