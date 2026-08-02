@@ -45,6 +45,20 @@ const SW_CONFIG = [
     // dies keine offizielle Seite der Bundesregierung oder einer Behörde ist.
     'show_test_banner' => true,
 
+    // Anmeldemodus:
+    //   'demo' = Ausweise werden per CLI ausgegeben (issue-card) und in die
+    //            Allowlist aufgenommen; NUR gelistete Schlüssel können sich
+    //            anmelden. Kein Ausweis / fremder Schlüssel => abgewiesen.
+    //   'eid'  = echter eID-Server nach BSI TR-03130 (AusweisApp). Ohne
+    //            konfigurierten Server schlägt die Anmeldung bewusst FEHL
+    //            (fail-closed) – niemand kommt ohne echten Ausweis hinein.
+    'eid_mode' => 'demo',
+    // Integrationsstelle zum Aktualisieren der Allowlist (sync-keys). Standard
+    // leer: In Deutschland gibt es KEINE staatliche Liste aller
+    // Ausweis-Schlüssel; echte Prüfung läuft über die BSI-Zertifikatskette im
+    // eID-Server. Diese URL ist der Anschlusspunkt für eine eigene Trust-Liste.
+    'authorized_keys_url' => '',
+
     'timezone'     => 'Europe/Berlin',
     'default_lang' => 'de',
     'langs'        => ['de', 'en'],
@@ -672,6 +686,70 @@ function card_supports_sodium(): bool
     return function_exists('sodium_crypto_sign_keypair');
 }
 
+/* ---- Allowlist autorisierter Ausweis-Schlüssel -------------------------- *
+ * Die Allowlist (data/authorized_keys.yaml) enthält die öffentlichen Schlüssel,
+ * die zu von der Behörde ausgegebenen Ausweisen gehören. Anmelden kann sich
+ * NUR, wessen Schlüssel hier steht UND wer den passenden privaten Schlüssel
+ * besitzt (Signatur-Challenge). So kommt niemand mit fehlendem oder fremdem
+ * Ausweis hinein. Aktualisiert wird die Liste über sync-keys bzw. issue-card;
+ * im Echtbetrieb ersetzt der eID-Server (TR-03130) diese Liste durch die
+ * Prüfung gegen die staatliche Zertifikatskette (TR-03110). */
+
+function authorized_file(): string
+{
+    return SW::$dataDir . '/authorized_keys.yaml';
+}
+
+/** @return array<string,bool> Menge autorisierter Public-Keys (hex, lowercase). */
+function authorized_load(): array
+{
+    $file = authorized_file();
+    if (!is_file($file)) {
+        return [];
+    }
+    $set = [];
+    foreach (preg_split('/\r?\n/', (string) file_get_contents($file)) as $line) {
+        if (preg_match('/["\x27]?([0-9a-fA-F]{64,128})["\x27]?\s*$/', trim($line), $m) === 1
+            && strpos(trim($line), '-') === 0) {
+            $set[strtolower($m[1])] = true;
+        }
+    }
+    return $set;
+}
+
+function authorized_contains(string $pkHex): bool
+{
+    return isset(authorized_load()[strtolower($pkHex)]);
+}
+
+/** Fügt Public-Keys hinzu (idempotent) und schreibt die YAML neu. */
+function authorized_add(array $pkHexList, string $source): int
+{
+    $set = authorized_load();
+    $added = 0;
+    foreach ($pkHexList as $hex) {
+        $hex = strtolower(trim($hex));
+        if (preg_match('/^[0-9a-f]{64,128}$/', $hex) === 1 && !isset($set[$hex])) {
+            $set[$hex] = true;
+            $added++;
+        }
+    }
+    $y = "stimmwerk_authorized_keys:\n";
+    $y .= "  hinweis: \"Oeffentliche Schluessel autorisierter Ausweise. Nur diese koennen sich anmelden.\"\n";
+    $y .= "  aktualisiert: \"" . Clock::nowStr() . "\"\n";
+    $y .= "  quelle: \"" . str_replace('"', '', $source) . "\"\n";
+    $y .= "  schluessel:\n";
+    if ($set === []) {
+        $y = substr($y, 0, -1) . " []\n";
+    }
+    foreach (array_keys($set) as $hex) {
+        $y .= "    - \"" . $hex . "\"\n";
+    }
+    @file_put_contents(authorized_file(), $y, LOCK_EX);
+    @chmod(authorized_file(), 0640);
+    return $added;
+}
+
 /** Liest die simulierte Karte der laufenden Sitzung. @return array{secret:string,pk:string}|null */
 function card_load(): ?array
 {
@@ -1143,9 +1221,18 @@ function topics_list(array $filters, int $page, int $perPage, ?int $userId): arr
         'SELECT COUNT(*) FROM topics t JOIN categories c ON c.id = t.category_id' . $whereSql,
         $params
     );
-    $order = ($filters['sort'] ?? 'new') === 'top'
-        ? ' ORDER BY (votes_for + votes_against) DESC, t.created_at DESC'
-        : ' ORDER BY t.created_at DESC';
+    // Standard: Netto-Zustimmung (dafür minus dagegen) absteigend; bei
+    // Suchtreffern steht damit das Thema mit dem größten Vorsprung oben.
+    $netExpr = "((SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'for')"
+        . " - (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against'))";
+    $sortMode = $filters['sort'] ?? 'net';
+    if ($sortMode === 'new') {
+        $order = ' ORDER BY t.created_at DESC';
+    } elseif ($sortMode === 'top') {
+        $order = ' ORDER BY (votes_for + votes_against) DESC, t.created_at DESC';
+    } else {
+        $order = ' ORDER BY ' . $netExpr . ' DESC, t.created_at DESC';
+    }
     $cols = "t.*, c.slug AS category_slug, c.name_de, c.name_en,
         (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'for')     AS votes_for,
         (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against') AS votes_against";
@@ -1695,7 +1782,8 @@ const SW_DE = [
 
     'topics.filter_category' => 'Kategorie',
         'topics.filter_all' => 'Alle',
-    'topics.search' => 'Suche im Titel',
+    'topics.search' => 'Suche',
+    'topics.sort_net' => 'Größte Zustimmung',
     'topics.sort' => 'Sortierung',
     'topics.sort_new' => 'Neueste',
     'topics.sort_top' => 'Meiste Stimmen',
@@ -1771,6 +1859,8 @@ const SW_DE = [
     'topic.err_category' => 'Bitte eine Kategorie wählen.',
     'topic.err_scope' => 'Bitte einen Geltungsbereich wählen.',
 
+    'auth.eid_line' => 'Anmeldung über die AusweisApp bzw. den eID-Server.',
+    'auth.need_card' => 'Kein autorisierter Ausweis erkannt. Ein Ausweis wird über die AusweisApp oder einen Ausgabe-Link bereitgestellt.',
     'auth.title' => 'Ausweis anhalten',
     'auth.tap' => 'Ausweis anhalten',
     'auth.hold' => 'Ausweis an das Gerät halten …',
@@ -1832,6 +1922,10 @@ const SW_DE = [
     'flash.jury_already_voted' => 'In dieser Prüfung wurde bereits abgestimmt.',
     'flash.jury_voted' => 'Jury-Stimme gezählt.',
     'flash.auth_failed' => 'Anmeldung fehlgeschlagen.',
+    'flash.eid_required' => 'Anmeldung nur mit echtem Ausweis über die AusweisApp/den eID-Server.',
+    'flash.no_card' => 'Kein Ausweis vorhanden. Bitte Ausweis bereitstellen.',
+    'flash.card_not_authorized' => 'Dieser Ausweis ist nicht autorisiert.',
+    'flash.card_ready' => 'Ausweis bereit. Zum Anmelden anhalten.',
     'flash.auth_ok' => 'Angemeldet.',
     'flash.card_new' => 'Bereit für einen anderen Ausweis. Zum Anmelden anhalten.',
     'flash.logged_out' => 'Abgemeldet.',
@@ -1873,7 +1967,8 @@ const SW_EN = [
 
     'topics.filter_category' => 'Category',
         'topics.filter_all' => 'All',
-    'topics.search' => 'Search titles',
+    'topics.search' => 'Search',
+    'topics.sort_net' => 'Highest approval',
     'topics.sort' => 'Sort',
     'topics.sort_new' => 'Newest',
     'topics.sort_top' => 'Most votes',
@@ -1950,6 +2045,8 @@ const SW_EN = [
     'topic.err_category' => 'Please choose a category.',
     'topic.err_scope' => 'Please choose a jurisdiction.',
 
+    'auth.eid_line' => 'Sign-in via the AusweisApp or the eID server.',
+    'auth.need_card' => 'No authorised ID card detected. A card is provided via the AusweisApp or an issue link.',
     'auth.title' => 'Tap your ID card',
     'auth.tap' => 'Tap your ID card',
     'auth.hold' => 'Hold your ID card to the device …',
@@ -2011,6 +2108,10 @@ const SW_EN = [
     'flash.jury_already_voted' => 'Already voted in this review.',
     'flash.jury_voted' => 'Jury vote counted.',
     'flash.auth_failed' => 'Sign-in failed.',
+    'flash.eid_required' => 'Sign-in only with a real ID card via the AusweisApp/eID server.',
+    'flash.no_card' => 'No ID card present. Please provide an ID card.',
+    'flash.card_not_authorized' => 'This ID card is not authorised.',
+    'flash.card_ready' => 'ID card ready. Tap to sign in.',
     'flash.auth_ok' => 'Signed in.',
     'flash.card_new' => 'Ready for a different ID card. Tap to sign in.',
     'flash.logged_out' => 'Signed out.',
@@ -2641,7 +2742,7 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         'scope'    => $scopeDecoded === null || $scopeDecoded[1] === null ? '' : $scopeDecoded[1],
         'gebiet'   => $scopeValue,
         'q'        => query_str('q', 80),
-        'sort'     => query_str('sort', 10) === 'top' ? 'top' : 'new',
+        'sort'     => in_array(query_str('sort', 10), ['new', 'top'], true) ? query_str('sort', 10) : 'net',
     ];
     $page = query_int('page', 1, 500, 1);
     $perPage = (int) SW::$cfg['page_size'];
@@ -2753,6 +2854,7 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         . scope_picker('gebiet', $filters['gebiet'], true)
         . '</label>'
         . '<label><span>' . e(t('topics.sort')) . '</span><select name="sort">'
+        . '<option value="net"' . ($filters['sort'] === 'net' ? ' selected' : '') . '>' . e(t('topics.sort_net')) . '</option>'
         . '<option value="new"' . ($filters['sort'] === 'new' ? ' selected' : '') . '>' . e(t('topics.sort_new')) . '</option>'
         . '<option value="top"' . ($filters['sort'] === 'top' ? ' selected' : '') . '>' . e(t('topics.sort_top')) . '</option>'
         . '</select></label>'
@@ -2938,14 +3040,29 @@ function v_auth(): void
         . '<path d="M78 12a32 32 0 0 1 0 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>'
         . '<path d="M86 6a42 42 0 0 1 0 52" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>'
         . '</svg>';
+    $mode = (string) SW::$cfg['eid_mode'];
+    $card = card_load();
+    $ready = $mode !== 'eid' && $card !== null && authorized_contains(card_identity($card));
+
     $html = '<section class="card auth-card">' . $pictogram
-        . '<h1>' . e(t('auth.title')) . '</h1>'
-        . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
-        . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
-        . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>'
-        . '<form method="post" action="' . e(url('/card/new')) . '">' . csrf_field()
-        . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.other_card')) . '</button></form>'
-        . '</section>';
+        . '<h1>' . e(t('auth.title')) . '</h1>';
+    if ($mode === 'eid') {
+        // Echtbetrieb: Anmeldung ausschließlich über die AusweisApp/den
+        // eID-Server. Der Knopf startet diesen Vorgang (hier nicht konfiguriert).
+        $html .= '<p class="muted">' . e(t('auth.eid_line')) . '</p>'
+            . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
+            . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
+            . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>';
+    } elseif ($ready) {
+        // Ein autorisierter Ausweis liegt vor: anhalten bestätigt die Anmeldung.
+        $html .= '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
+            . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
+            . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>';
+    } else {
+        // Kein autorisierter Ausweis vorhanden: keine Anmeldung möglich.
+        $html .= '<p class="muted">' . e(t('auth.need_card')) . '</p>';
+    }
+    $html .= '</section>';
     render(t('auth.title'), $html);
 }
 
@@ -3219,12 +3336,22 @@ function h_tap(): void
         flash('error', 'flash.rate_limited');
         redirect('/auth');
     }
+    // Echtbetrieb: der eID-Server (AusweisApp, TR-03130) übernimmt. Ist er
+    // nicht konfiguriert, schlägt die Anmeldung bewusst fehl – niemand kommt
+    // ohne echten Ausweis hinein.
+    if ((string) SW::$cfg['eid_mode'] === 'eid') {
+        log_line('SECURITY', 'eid_not_configured', []);
+        flash('error', 'flash.eid_required');
+        redirect('/auth');
+    }
+    // Es muss ein Ausweis vorliegen (per Ausgabe-Link in die Sitzung geladen);
+    // ein Knopfdruck allein erzeugt KEINE Identität.
     $card = card_load();
     if ($card === null) {
-        $card = card_create();
+        flash('error', 'flash.no_card');
+        redirect('/auth');
     }
-    // Statische Challenge = der öffentliche Schlüssel selbst, zeitgebunden
-    // versiegelt; der Server öffnet mit dem öffentlichen Schlüssel.
+    // 1) Besitz des privaten Schlüssels beweisen (zeitgebundene Signatur).
     $identity = card_identity($card);
     $sealed = card_seal($card, 'login:' . $identity);
     if (!card_open($card['pk'], $sealed, 'login:' . $identity)) {
@@ -3232,10 +3359,42 @@ function h_tap(): void
         flash('error', 'flash.auth_failed');
         redirect('/auth');
     }
+    // 2) Schlüssel muss autorisiert (in der Allowlist) sein.
+    if (!authorized_contains($identity)) {
+        log_line('SECURITY', 'card_not_authorized', []);
+        card_forget();
+        flash('error', 'flash.card_not_authorized');
+        redirect('/auth');
+    }
     auth_login($identity);
     $_SESSION['auth_slot'] = time_slot();
     flash('success', 'flash.auth_ok');
-    redirect('/me');
+    redirect('/');
+}
+
+/** Ausgabe-Link (nur Demo): lädt einen autorisierten Ausweis in die Sitzung. */
+function h_claim(string $handle): void
+{
+    if ((string) SW::$cfg['eid_mode'] === 'eid') {
+        redirect('/auth');
+    }
+    if (preg_match('/^[a-f0-9]{16,64}$/', $handle) !== 1) {
+        flash('error', 'flash.no_card');
+        redirect('/auth');
+    }
+    $file = SW::$dataDir . '/issued/' . $handle . '.key';
+    if (!is_file($file)) {
+        flash('error', 'flash.no_card');
+        redirect('/auth');
+    }
+    $secret = base64_decode(trim((string) file_get_contents($file)), true);
+    if ($secret === false) {
+        flash('error', 'flash.no_card');
+        redirect('/auth');
+    }
+    $_SESSION['card'] = base64_encode($secret);
+    flash('info', 'flash.card_ready');
+    redirect('/auth');
 }
 
 function h_card_new(): void
@@ -3611,7 +3770,8 @@ function web_main(): void
         // Ohne gescannten Ausweis ist die Seite nicht sichtbar:
         // nur Anmeldung und Rechtliches sind offen.
         if ($user === null && $isGet
-            && !in_array($path, ['/auth', '/imprint', '/privacy'], true)) {
+            && !in_array($path, ['/auth', '/imprint', '/privacy'], true)
+            && strpos($path, '/claim/') !== 0) {
             redirect('/auth');
         }
 
@@ -3667,6 +3827,9 @@ function web_main(): void
         }
         if ($path === '/auth' && $isGet) {
             v_auth();
+        }
+        if (preg_match('#^/claim/([a-f0-9]{16,64})$#', $path, $m) === 1 && $isGet) {
+            h_claim($m[1]);
         }
         if ($path === '/tap' && $method === 'POST') {
             h_tap();
@@ -3736,6 +3899,7 @@ function cli_selftest(): int
         }
     };
     SW::$pepper = bin2hex(random_bytes(32));
+    SW::$dataDir = $tmpDir;
     if (card_supports_sodium()) {
         SW::$serverSign = sodium_crypto_sign_secretkey(sodium_crypto_sign_keypair());
     }
@@ -4006,6 +4170,35 @@ function cli_selftest(): int
     sort($j4);
     $check('Nach 3 Tagen Karenz wieder losbar (Jury 4 = frühere Jury 1)', $j4 === $j1);
 
+    echo "== Allowlist autorisierter Ausweis-Schlüssel ==\n";
+    @unlink(authorized_file());
+    $check('Leere Allowlist weist alles ab', authorized_contains(str_repeat('a', 64)) === false);
+    $goodPk = str_repeat('b', 64);
+    authorized_add([$goodPk], 'test');
+    $check('Autorisierter Schlüssel erkannt', authorized_contains($goodPk) === true);
+    $check('Nicht autorisierter Schlüssel abgewiesen', authorized_contains(str_repeat('c', 64)) === false);
+    $check('Doppeltes Hinzufügen ohne Duplikat', authorized_add([$goodPk], 'test') === 0);
+    $check('Ungültiges Format wird ignoriert', authorized_add(['xyz'], 'test') === 0 && !authorized_contains('xyz'));
+
+    echo "== Sortierung: größte Netto-Zustimmung oben ==\n";
+    cli_switch_db($tmpDir, 'sortdb');
+    $sa = cli_add_users(1, 'sa')[0];
+    $catS = (int) SW::$db->val('SELECT id FROM categories ORDER BY id LIMIT 1');
+    $lowNet = topic_create($sa, 'Radweg-Vorschlag mit knapper Mehrheit', 'Ziel des ersten Sortier-Themas hier.', 'Begründung des ersten Sortier-Themas hier.', $catS, 'bund', null, 'date', substr(Clock::addDaysStr(Clock::nowStr(), 30), 0, 10), null);
+    $sb = cli_add_users(1, 'sb')[0];
+    $highNet = topic_create($sb, 'Radweg-Vorschlag mit klarer Mehrheit', 'Ziel des zweiten Sortier-Themas hier.', 'Begründung des zweiten Sortier-Themas hier.', $catS, 'bund', null, 'date', substr(Clock::addDaysStr(Clock::nowStr(), 30), 0, 10), null);
+    $sv = cli_add_users(6, 'sv');
+    // lowNet: 1 dafür, 1 dagegen -> netto 0
+    vote_cast($sv[0], $lowNet, 'for');
+    vote_cast($sv[1], $lowNet, 'against');
+    // highNet: 3 dafür, 0 dagegen -> netto +3
+    vote_cast($sv[2], $highNet, 'for');
+    vote_cast($sv[3], $highNet, 'for');
+    vote_cast($sv[4], $highNet, 'for');
+    $listed = topics_list(['q' => 'Radweg-Vorschlag'], 1, 10, null);
+    $check('Suchtreffer nach Netto-Zustimmung: höchste zuerst',
+        $listed['rows'] !== [] && (int) $listed['rows'][0]['id'] === $highNet);
+
     echo "== Kontolöschung (DSGVO) ==\n";
     cli_switch_db($tmpDir, 'gdpr');
     $pairIds = cli_add_users(2, 'cd');
@@ -4117,8 +4310,75 @@ function cli_main(array $argv): int
         cli_jurysim();
         return 0;
     }
-    echo "Aufrufe: php index.php selftest | cron | seed [n] | jurysim\n";
+    if ($cmd === 'issue-card') {
+        $n = isset($argv[2]) && preg_match('/^\d{1,4}$/', $argv[2]) === 1 ? (int) $argv[2] : 1;
+        cli_issue_card($n);
+        return 0;
+    }
+    if ($cmd === 'sync-keys') {
+        return cli_sync_keys($argv[2] ?? '');
+    }
+    echo "Aufrufe: php index.php selftest | cron | seed [n] | jurysim | issue-card [n] | sync-keys [url]\n";
     return $cmd === 'help' ? 0 : 1;
+}
+
+/** Gibt autorisierte Test-Ausweise aus (Demo): Schlüsselpaar erzeugen, in die
+ *  Allowlist aufnehmen, Geheimnis ablegen, Ausgabe-Link nennen. */
+function cli_issue_card(int $count): void
+{
+    if (!card_supports_sodium()) {
+        fwrite(STDERR, "Abbruch: PHP-sodium erforderlich.\n");
+        return;
+    }
+    $dir = SW::$dataDir . '/issued';
+    if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
+        fwrite(STDERR, "Abbruch: issued/ nicht anlegbar.\n");
+        return;
+    }
+    for ($i = 0; $i < $count; $i++) {
+        $pair = sodium_crypto_sign_keypair();
+        $secret = sodium_crypto_sign_secretkey($pair);
+        $pkHex = bin2hex(sodium_crypto_sign_publickey($pair));
+        $handle = bin2hex(random_bytes(16));
+        authorized_add([$pkHex], 'issue-card');
+        $file = $dir . '/' . $handle . '.key';
+        file_put_contents($file, base64_encode($secret), LOCK_EX);
+        @chmod($file, 0600);
+        echo "Autorisierter Ausweis ausgegeben.\n";
+        echo "  Schluessel: " . substr($pkHex, 0, 16) . "…\n";
+        echo "  Ausgabe-Link (im Browser oeffnen): /claim/" . $handle . "\n";
+    }
+    echo "Hinweis: Nur diese Schluessel koennen sich anmelden. Link der URL der Seite voranstellen.\n";
+}
+
+/** Aktualisiert die Allowlist aus einer konfigurierten Quelle (Trust-Liste).
+ *  Erwartet einfache Zeilen/YAML mit hex-Schlüsseln. Ehrlicher Hinweis: eine
+ *  staatliche Liste aller Ausweis-Schlüssel existiert nicht; echte Prüfung
+ *  läuft über die BSI-Zertifikatskette im eID-Server (TR-03110/-03130). */
+function cli_sync_keys(string $urlArg): int
+{
+    $url = $urlArg !== '' ? $urlArg : (string) SW::$cfg['authorized_keys_url'];
+    if ($url === '') {
+        echo "Keine Quelle konfiguriert (authorized_keys_url leer).\n";
+        echo "In Deutschland gibt es keine staatliche Liste aller Ausweis-Schluessel;\n";
+        echo "echte Pruefung laeuft ueber die BSI-Zertifikatskette im eID-Server.\n";
+        echo "Diese Funktion ist der Anschlusspunkt fuer eine eigene Trust-Liste.\n";
+        return 0;
+    }
+    if (preg_match('#^https://#', $url) !== 1) {
+        fwrite(STDERR, "Abbruch: nur https-Quellen erlaubt.\n");
+        return 1;
+    }
+    $ctx = stream_context_create(['http' => ['timeout' => 15], 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true]]);
+    $body = @file_get_contents($url, false, $ctx);
+    if ($body === false) {
+        fwrite(STDERR, "Abbruch: Quelle nicht erreichbar.\n");
+        return 1;
+    }
+    preg_match_all('/[0-9a-fA-F]{64,128}/', $body, $mm);
+    $added = authorized_add($mm[0], $url);
+    printf("Allowlist aktualisiert: %d neue Schluessel aus %s\n", $added, $url);
+    return 0;
 }
 
 /* ============================== Einstieg ================================== */

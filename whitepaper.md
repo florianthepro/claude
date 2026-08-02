@@ -207,6 +207,28 @@ unterscheidet sich vom Echtbetrieb allein durch das Banner und die
 serverseitig simulierte Karte; der Wechsel auf einen echten eID-Server
 ersetzt nur den Karten-Block, Regeln und Abläufe bleiben identisch.
 
+### 5.3a Autorisierte Schlüssel (Allowlist) und ehrliche Grenzen der eID
+
+Anmelden kann sich ausschließlich, wessen **öffentlicher Schlüssel in einer
+serverseitigen Allowlist** steht (`data/authorized_keys.yaml`) und wer den
+passenden **privaten Schlüssel** besitzt (zeitgebundene Signatur-Challenge).
+Damit ist ausgeschlossen, dass ein Knopfdruck ohne Ausweis oder mit einem
+fremden/gefälschten Schlüssel Zugang gewährt (fail-closed).
+
+Ehrliche Einordnung zur oft gewünschten „Liste aller Ausweis-Schlüssel“:
+Eine solche staatliche Liste **existiert nicht** und wäre auch nicht
+wünschenswert (sie wäre ein Register der kryptographischen Identität aller
+Bürgerinnen und Bürger). Der Personalausweis weist sich stattdessen über die
+**BSI-Zertifikatskette** (TR-03110: Chip-Authentisierung gegen CVCA/DV) aus,
+geprüft durch einen zertifizierten **eID-Server** (TR-03130); das Auslesen des
+Chips erfolgt PIN-geschützt ausschließlich über die **AusweisApp** (ein Browser
+kann den Chip nicht lesen). Im Prototyp ist die Allowlist deshalb der
+Platzhalter für genau diese Vertrauensprüfung: Der Modus `eid` übergibt an den
+eID-Server/die AusweisApp; der Modus `demo` nutzt per `issue-card` ausgegebene,
+autorisierte Test-Ausweise. Die Funktion `sync-keys` ist der Anschlusspunkt für
+eine eigene Trust-Liste bzw. eID-Server-Anbindung – kein Zugriff auf ein
+Behördenregister.
+
 ### 5.4 Grenzen und Missbrauchsszenarien
 
 - **Karte ≠ Person am Gerät:** Wie bei jeder eID-Nutzung kann eine Person freiwillig

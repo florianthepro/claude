@@ -35,12 +35,22 @@ nginx) funktioniert alles weiter über automatisch erzeugte
   änderbar)“ und die Themenliste. Oben rechts steht nur „Abmelden“. Der
   Geltungsbereich wird zweistufig gewählt (Ebene → Land → Kreis), nicht als
   lange Liste. Einen Konto-Löschen-Bereich gibt es nicht mehr.
-- **Anmelden (Profil laden):** Auf der Anmeldeseite ist der NFC-Leser am
-  Smartphone automatisch scharf (Web NFC): den Personalausweis anhalten
-  genügt, die Anmeldung löst direkt aus. Der Knopf dient als Rückfall und
-  für die einmalige Browser-Berechtigung; ohne NFC sendet er normal ab. Die
-  statische Challenge ist der öffentliche Schlüssel selbst – **kein
-  abgeleitetes Pseudonym**, die Identität ist der Schlüssel („on the go“).
+- **Nur autorisierte Ausweise – kein Fake-Zugang:** Anmelden kann sich nur,
+  wessen **öffentlicher Schlüssel in der Allowlist** (`data/authorized_keys.yaml`)
+  steht UND wer den passenden privaten Schlüssel besitzt (Signatur-Challenge).
+  Ein Knopfdruck ohne Ausweis oder mit fremdem Schlüssel wird **abgewiesen**
+  (fail-closed). Die Identität ist der öffentliche Schlüssel selbst – kein
+  abgeleitetes Pseudonym.
+- **Modi (`eid_mode`):** `demo` – Ausweise werden per `php index.php issue-card`
+  ausgegeben (Schlüssel kommt in die Allowlist, Ausgabe-Link `/claim/<handle>`
+  lädt ihn in die Sitzung). `eid` – Anmeldung ausschließlich über AusweisApp/
+  eID-Server (BSI TR-03130); ohne konfigurierten Server schlägt sie bewusst
+  fehl. **Wichtig/ehrlich:** In Deutschland gibt es **keine** staatliche Liste
+  aller Ausweis-Schlüssel und keine API, die sie liefert – echte Prüfung läuft
+  über die BSI-Zertifikatskette (TR-03110) im eID-Server, und ein Perso-Chip
+  ist nur mit der AusweisApp + PIN lesbar (kein Browser kann das). `sync-keys`
+  ist der Anschlusspunkt für eine eigene Trust-Liste, kein Griff in ein
+  Behördenregister.
   Die **profil.yaml** (Stimmen, Themen, Favoriten, Jury-Status) wird bei
   **jedem Seitenaufruf frisch** vom Server angefordert und nur im Browser
   zwischengehalten. Sie wird **an den öffentlichen Ausweis-Schlüssel
@@ -83,10 +93,12 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 ## CLI (optional)
 
 ```bash
-php index.php selftest   # Fachregeln automatisiert prüfen (69 Prüfungen)
+php index.php selftest   # Fachregeln automatisiert prüfen (75 Prüfungen)
 php index.php cron       # Wartungslauf (sonst lazy bei Seitenaufrufen)
 php index.php seed 400   # Demo-Pseudonyme + Zufallsstimmen (Vorführungen)
 php index.php jurysim    # Demo-Jury stimmt in laufenden Prüfungen ab
+php index.php issue-card 3  # 3 autorisierte Demo-Ausweise ausgeben (+ Claim-Links)
+php index.php sync-keys      # Allowlist aus konfigurierter Trust-Liste aktualisieren
 php -S 127.0.0.1:8080 index.php   # lokale Demo ohne Webserver
 ```
 
