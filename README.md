@@ -26,10 +26,14 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 
 ## Ausweis, profil.yaml, Bestätigung
 
-- **Start:** Beim Sitzungsbeginn nur die Sprachwahl über zwei Flaggen
-  (Deutsch/English) – die Sprache gilt für die Sitzung und wird nirgends
-  gespeichert. Danach ist **ohne gescannten Ausweis nichts sichtbar**:
-  Alle Seiten außer Anmeldung und Rechtlichem verlangen die Anmeldung.
+- **Saubere Adressen:** Die Seite bleibt immer bei `/…` – eine direkt
+  aufgerufene `/index.php` wird dauerhaft auf den sauberen Pfad umgeleitet.
+  (Voraussetzung ist die mitgelieferte `.htaccess`-Umschreibung; für nginx
+  eine gleichwertige try_files-Regel.)
+- **Start:** Beim Sitzungsbeginn ein klares Icon und die Sprachwahl
+  Deutsch/English (Textknöpfe, **keine Flaggen**); die Sprache gilt für die
+  Sitzung und wird nirgends gespeichert. Danach ist **ohne Anmeldung nichts
+  sichtbar** außer Anmeldung und Rechtlichem.
 - **Eine Seite:** Thema einbringen und Suche öffnen je ein eigenes Fenster
   (Dialog); darunter Favoriten-Chips, die Gruppe „kürzlich abgestimmt (noch
   änderbar)“ und die Themenliste. Oben rechts steht nur „Abmelden“. Der
@@ -41,11 +45,17 @@ nginx) funktioniert alles weiter über automatisch erzeugte
   Ein Knopfdruck ohne Ausweis oder mit fremdem Schlüssel wird **abgewiesen**
   (fail-closed). Die Identität ist der öffentliche Schlüssel selbst – kein
   abgeleitetes Pseudonym.
-- **Modi (`eid_mode`):** `demo` – Ausweise werden per `php index.php issue-card`
-  ausgegeben (Schlüssel kommt in die Allowlist, Ausgabe-Link `/claim/<handle>`
-  lädt ihn in die Sitzung). `eid` – Anmeldung ausschließlich über AusweisApp/
-  eID-Server (BSI TR-03130); ohne konfigurierten Server schlägt sie bewusst
-  fehl. **Wichtig/ehrlich:** In Deutschland gibt es **keine** staatliche Liste
+- **Ausweis-Apps (AusweisApp & Nect Wallet):** Die Anmeldeseite bietet beide
+  als Anbieter an (`eid_providers` in der Konfiguration). Jeder Anbieter hat
+  eine `start`-URL: AusweisApp = eID-Server (TR-03130, erzeugt die tcTokenURL
+  und öffnet die AusweisApp), Nect = Start-URL des Nect-Ident-Flows. Nach der
+  Prüfung ruft der Anbieter `/eid/callback` zurück. Ist ein Anbieter nicht
+  eingerichtet, meldet er sauber „nicht eingerichtet“ – **niemand kommt ohne
+  echte Prüfung hinein** (fail-closed).
+- **Modi (`eid_mode`):** `demo` – autorisierte Test-Ausweise per
+  `php index.php issue-card` (Schlüssel → Allowlist, Ausgabe-Link
+  `/claim/<handle>` lädt ihn in die Sitzung). `eid` – ausschließlich über die
+  Ausweis-Apps oben. **Wichtig/ehrlich:** In Deutschland gibt es **keine** staatliche Liste
   aller Ausweis-Schlüssel und keine API, die sie liefert – echte Prüfung läuft
   über die BSI-Zertifikatskette (TR-03110) im eID-Server, und ein Perso-Chip
   ist nur mit der AusweisApp + PIN lesbar (kein Browser kann das). `sync-keys`

@@ -59,6 +59,18 @@ const SW_CONFIG = [
     // eID-Server. Diese URL ist der Anschlusspunkt für eine eigene Trust-Liste.
     'authorized_keys_url' => '',
 
+    // Anmelde-Anbieter (Ausweis-Apps). 'start' ist die vom Betreiber
+    // konfigurierte Startadresse des jeweiligen Flows:
+    //  - AusweisApp: URL des eigenen eID-Servers (TR-03130), der eine
+    //    tcTokenURL erzeugt und die AusweisApp öffnet.
+    //  - Nect: Start-URL des Nect-Ident-Flows (Nect Wallet).
+    // Leer = nicht konfiguriert; der Anbieter meldet dann sauber „nicht
+    // eingerichtet“ (fail-closed), es kommt niemand ohne echte Prüfung hinein.
+    'eid_providers' => [
+        'ausweisapp' => ['label' => 'AusweisApp', 'start' => ''],
+        'nect'       => ['label' => 'Nect Wallet', 'start' => ''],
+    ],
+
     'timezone'     => 'Europe/Berlin',
     'default_lang' => 'de',
     'langs'        => ['de', 'en'],
@@ -92,7 +104,6 @@ final class SW
     public static array $tActive = [];
     public static ?array $user = null;
     public static string $base = '';
-    public static bool $clean = false;
     public static string $path = '/';
 }
 
@@ -350,14 +361,13 @@ const SW_HTACCESS_DENY = <<<'TXT'
 </IfModule>
 TXT;
 
-/** Root-.htaccess: Routing an index.php + Kennung für saubere Pfade. */
+/** Root-.htaccess: saubere Pfade (/…) an index.php, ohne /index.php in der URL. */
 const SW_HTACCESS_ROOT = <<<'TXT'
 # Stimmwerk (automatisch erzeugt) - bei Bedarf loeschen, wird neu angelegt.
 Options -Indexes -MultiViews
 DirectoryIndex index.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    SetEnv SW_CLEAN_URLS 1
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [L]
@@ -474,11 +484,12 @@ function num(int $n): string
     return SW::$lang === 'de' ? number_format($n, 0, ',', '.') : number_format($n);
 }
 
-/** URL-Präfix: sauber (/topics) nur bei nachweislich aktiven Rewrite-Regeln,
- *  sonst überall lauffähig als /index.php/topics (PATH_INFO). */
+/** URL-Präfix. Die Anwendung erzeugt IMMER saubere Pfade (/topics, nie
+ *  /index.php/...). Voraussetzung ist die mitgelieferte .htaccess-Umschreibung
+ *  (Apache/LiteSpeed; für nginx eine gleichwertige try_files-Regel). */
 function base_path(): string
 {
-    return SW::$base . (SW::$clean ? '' : '/index.php');
+    return SW::$base;
 }
 
 function url(string $path): string
@@ -1859,8 +1870,8 @@ const SW_DE = [
     'topic.err_category' => 'Bitte eine Kategorie wählen.',
     'topic.err_scope' => 'Bitte einen Geltungsbereich wählen.',
 
-    'auth.eid_line' => 'Anmeldung über die AusweisApp bzw. den eID-Server.',
-    'auth.need_card' => 'Kein autorisierter Ausweis erkannt. Ein Ausweis wird über die AusweisApp oder einen Ausgabe-Link bereitgestellt.',
+    'auth.line' => 'Anmeldung mit dem Personalausweis über eine Ausweis-App.',
+    'auth.with' => 'Mit {app} anmelden',
     'auth.title' => 'Ausweis anhalten',
     'auth.tap' => 'Ausweis anhalten',
     'auth.hold' => 'Ausweis an das Gerät halten …',
@@ -1922,7 +1933,8 @@ const SW_DE = [
     'flash.jury_already_voted' => 'In dieser Prüfung wurde bereits abgestimmt.',
     'flash.jury_voted' => 'Jury-Stimme gezählt.',
     'flash.auth_failed' => 'Anmeldung fehlgeschlagen.',
-    'flash.eid_required' => 'Anmeldung nur mit echtem Ausweis über die AusweisApp/den eID-Server.',
+    'flash.eid_required' => 'Anmeldung nur mit echtem Ausweis über eine Ausweis-App.',
+    'flash.eid_provider_off' => 'Dieser Anbieter ist in dieser Installation noch nicht eingerichtet.',
     'flash.no_card' => 'Kein Ausweis vorhanden. Bitte Ausweis bereitstellen.',
     'flash.card_not_authorized' => 'Dieser Ausweis ist nicht autorisiert.',
     'flash.card_ready' => 'Ausweis bereit. Zum Anmelden anhalten.',
@@ -2045,8 +2057,8 @@ const SW_EN = [
     'topic.err_category' => 'Please choose a category.',
     'topic.err_scope' => 'Please choose a jurisdiction.',
 
-    'auth.eid_line' => 'Sign-in via the AusweisApp or the eID server.',
-    'auth.need_card' => 'No authorised ID card detected. A card is provided via the AusweisApp or an issue link.',
+    'auth.line' => 'Sign in with your ID card via an ID app.',
+    'auth.with' => 'Sign in with {app}',
     'auth.title' => 'Tap your ID card',
     'auth.tap' => 'Tap your ID card',
     'auth.hold' => 'Hold your ID card to the device …',
@@ -2108,7 +2120,8 @@ const SW_EN = [
     'flash.jury_already_voted' => 'Already voted in this review.',
     'flash.jury_voted' => 'Jury vote counted.',
     'flash.auth_failed' => 'Sign-in failed.',
-    'flash.eid_required' => 'Sign-in only with a real ID card via the AusweisApp/eID server.',
+    'flash.eid_required' => 'Sign-in only with a real ID card via an ID app.',
+    'flash.eid_provider_off' => 'This provider is not set up in this installation yet.',
     'flash.no_card' => 'No ID card present. Please provide an ID card.',
     'flash.card_not_authorized' => 'This ID card is not authorised.',
     'flash.card_ready' => 'ID card ready. Tap to sign in.',
@@ -2187,12 +2200,7 @@ a:hover { color: var(--accent-hover); }
 .skip-link { position: absolute; left: -999px; top: 0; background: var(--surface); color: var(--ink); padding: 0.5rem 1rem; z-index: 100; }
 .skip-link:focus { left: 0.5rem; top: 0.5rem; }
 .test-banner { background: var(--banner-bg); color: var(--banner-ink); text-align: center; font-size: 0.82rem; font-weight: 600; padding: 0.4rem 1rem; }
-/* Schwarz-Rot-Gold: die einzige Farblinie der Seite */
-.flagline { display: flex; height: 4px; }
-.flagline span { flex: 1; }
-.flagline .f1 { background: #000000; }
-.flagline .f2 { background: #dd0000; }
-.flagline .f3 { background: #ffcc00; }
+
 .site-header { background: var(--surface); border-bottom: 1px solid var(--border); }
 .header-inner { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1.1rem; padding-top: 0.65rem; padding-bottom: 0.65rem; }
 .brand { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 1.05rem; }
@@ -2207,16 +2215,19 @@ a:hover { color: var(--accent-hover); }
 .lang-form { display: inline-flex; border: 1px solid var(--border); }
 .lang-btn { border: 0; background: var(--surface); color: var(--muted); font: inherit; font-size: 0.8rem; font-weight: 600; padding: 0.28rem 0.5rem; cursor: pointer; }
 .lang-btn.is-active { background: var(--accent); color: var(--accent-ink); }
-/* Sprachwahl beim ersten Aufruf: nur Flaggen */
-.start-gate { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.6rem; padding: 2rem 1rem; }
-.start-brand { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
-.start-flags { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
-.flag-btn { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 1.1rem 1.6rem; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer; }
-.flag-btn:hover { border-color: var(--ink); }
-.flag { width: 5.4rem; height: auto; display: block; border: 1px solid var(--border); }
+/* Sprachwahl beim Sitzungsbeginn: Icon + zwei Textknöpfe, keine Flaggen */
+.start-gate { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.1rem; padding: 2rem 1rem; }
+.start-mark { color: var(--ink); }
+.brand-icon { width: 4rem; height: 4rem; display: block; }
+.start-brand { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
+.start-langs { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; margin-top: 0.4rem; }
 /* Symbolhafter Anmelde-Einstieg */
 .tap-icon { width: 7.5rem; height: auto; color: var(--ink); margin: 0.4rem auto 0.2rem; display: block; }
 .tap-status { font-weight: 650; }
+.auth-icon { width: 3.4rem; height: 3.4rem; color: var(--ink); margin: 0.2rem auto 0.4rem; display: block; }
+.provider-list { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.6rem 0; }
+.provider-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.hr-soft { border: 0; border-top: 1px solid var(--border); margin: 0.9rem 0 0.6rem; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; border: 1px solid transparent; border-radius: 2px;
   font: inherit; font-weight: 600; font-size: 0.92rem; padding: 0.45rem 0.95rem; cursor: pointer; text-decoration: none;
   transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease; }
@@ -2502,12 +2513,19 @@ JS;
 
 const SW_ICON = <<<'SVG'
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <rect x="0" y="0" width="24" height="24" rx="3" fill="#111111"/>
-  <rect x="3" y="16.2" width="18" height="1.6" fill="#dd0000"/>
-  <rect x="3" y="18.6" width="18" height="1.6" fill="#ffcc00"/>
-  <path d="M6.5 10l3.4 3.2 7.6-7.4" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="0.5" y="0.5" width="23" height="23" rx="5" fill="#111111"/>
+  <path d="M6.5 12.3l3.6 3.5 7.4-7.6" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 SVG;
+
+/** Größeres, monochromes Marken-Icon (Häkchen im Feld) für Start/Anmeldung. */
+function brand_icon(string $class): string
+{
+    return '<svg class="' . e($class) . '" viewBox="0 0 48 48" aria-hidden="true" focusable="false">'
+        . '<rect x="2" y="2" width="44" height="44" rx="10" fill="none" stroke="currentColor" stroke-width="3"/>'
+        . '<path d="M14 25l7 7 14-15" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'
+        . '</svg>';
+}
 
 function serve_asset(string $kind): void
 {
@@ -2579,7 +2597,7 @@ function v_layout(string $title, string $content): string
             . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.logout')) . '</button></form>';
     }
     $html .= '</div></div></header>'
-        . '<div class="flagline" aria-hidden="true"><span class="f1"></span><span class="f2"></span><span class="f3"></span></div>';
+        ;
 
     $flashes = take_flashes();
     if ($flashes !== []) {
@@ -3045,40 +3063,68 @@ function v_auth(): void
     $ready = $mode !== 'eid' && $card !== null && authorized_contains(card_identity($card));
 
     $html = '<section class="card auth-card">' . $pictogram
-        . '<h1>' . e(t('auth.title')) . '</h1>';
-    if ($mode === 'eid') {
-        // Echtbetrieb: Anmeldung ausschließlich über die AusweisApp/den
-        // eID-Server. Der Knopf startet diesen Vorgang (hier nicht konfiguriert).
-        $html .= '<p class="muted">' . e(t('auth.eid_line')) . '</p>'
+        . '<h1>' . e(t('auth.title')) . '</h1>'
+        . '<p class="muted">' . e(t('auth.line')) . '</p>';
+
+    // Anmelde-Anbieter (Ausweis-Apps): AusweisApp und Nect Wallet.
+    $html .= '<div class="provider-list">';
+    foreach ((array) SW::$cfg['eid_providers'] as $key => $prov) {
+        $html .= '<a class="btn btn-primary provider-btn" href="' . e(url('/eid/start?provider=' . rawurlencode($key))) . '">'
+            . e(t('auth.with', ['app' => (string) $prov['label']])) . '</a>';
+    }
+    $html .= '</div>';
+
+    if ($ready) {
+        // Demo: ein autorisierter Ausweis liegt vor – anhalten bestätigt.
+        $html .= '<hr class="hr-soft">'
             . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
-            . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
+            . '<button type="submit" class="btn btn-outline btn-big">' . e(t('auth.tap')) . '</button></form>'
             . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>';
-    } elseif ($ready) {
-        // Ein autorisierter Ausweis liegt vor: anhalten bestätigt die Anmeldung.
-        $html .= '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
-            . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
-            . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>';
-    } else {
-        // Kein autorisierter Ausweis vorhanden: keine Anmeldung möglich.
-        $html .= '<p class="muted">' . e(t('auth.need_card')) . '</p>';
     }
     $html .= '</section>';
     render(t('auth.title'), $html);
 }
 
-/** Sprachwahl beim allerersten Aufruf: zwei Flaggen, sonst nichts. */
+/** Startet den Anmelde-Flow eines Anbieters (AusweisApp / Nect). Ist der
+ *  Anbieter nicht konfiguriert, schlägt es sauber fehl (fail-closed). */
+function h_eid_start(): void
+{
+    $key = query_str('provider', 30);
+    $providers = (array) SW::$cfg['eid_providers'];
+    if (!isset($providers[$key])) {
+        flash('error', 'flash.eid_required');
+        redirect('/auth');
+    }
+    $start = (string) ($providers[$key]['start'] ?? '');
+    if ($start === '' || preg_match('#^https://#', $start) !== 1) {
+        // Anbieter vorhanden, aber (noch) nicht eingerichtet.
+        flash('error', 'flash.eid_provider_off');
+        redirect('/auth');
+    }
+    // Konfiguriert: an den echten Flow des Anbieters übergeben. Dieser prüft
+    // den Ausweis (eID-Server/Nect) und ruft anschließend /eid/callback auf.
+    $callback = ($_SERVER['REQUEST_SCHEME'] ?? (sw_is_https() ? 'https' : 'http'))
+        . '://' . ($_SERVER['HTTP_HOST'] ?? SW::$cfg['domain']) . base_path() . '/eid/callback';
+    $sep = strpos($start, '?') === false ? '?' : '&';
+    header('Location: ' . $start . $sep . 'redirect=' . rawurlencode($callback), true, 303);
+    exit;
+}
+
+/** Rückkanal des Anbieters. Vertraut wird NUR einem serverseitig geprüften
+ *  Ergebnis; ohne eingerichteten Anbieter/Prüfung passiert nichts. */
+function h_eid_callback(): void
+{
+    // In der Ausbaustufe verifiziert dieser Endpunkt die signierte Zusicherung
+    // des eID-Servers/Nect (Server-zu-Server bzw. signierter Rücksprung) und
+    // entnimmt ihr den geprüften öffentlichen Schlüssel. Ohne diese
+    // Verifikation wird niemand angemeldet.
+    flash('error', 'flash.eid_required');
+    redirect('/auth');
+}
+
+/** Sprachwahl beim Sitzungsbeginn: klares Icon, zwei Textknöpfe – ohne Flaggen. */
 function v_start(): void
 {
-    $flagDe = '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
-        . '<rect width="60" height="12" y="0" fill="#000000"/>'
-        . '<rect width="60" height="12" y="12" fill="#dd0000"/>'
-        . '<rect width="60" height="12" y="24" fill="#ffcc00"/></svg>';
-    $flagEn = '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
-        . '<rect width="60" height="36" fill="#012169"/>'
-        . '<path d="M0 0L60 36M60 0L0 36" stroke="#ffffff" stroke-width="7"/>'
-        . '<path d="M0 0L60 36M60 0L0 36" stroke="#c8102e" stroke-width="3"/>'
-        . '<path d="M30 0V36M0 18H60" stroke="#ffffff" stroke-width="12"/>'
-        . '<path d="M30 0V36M0 18H60" stroke="#c8102e" stroke-width="7"/></svg>';
     http_response_code(200);
     $banner = empty(SW::$cfg['show_test_banner'])
         ? ''
@@ -3091,14 +3137,15 @@ function v_start(): void
         . '<link rel="icon" type="image/svg+xml" href="' . e(url('/a/icon.svg')) . '">'
         . '</head><body>' . $banner
         . '<main class="start-gate">'
+        . '<div class="start-mark">' . brand_icon('brand-icon') . '</div>'
         . '<p class="start-brand">' . e((string) SW::$cfg['app_name']) . '</p>'
-        . '<div class="start-flags">'
+        . '<div class="start-langs">'
         . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
         . '<input type="hidden" name="return" value="/">'
-        . '<button type="submit" name="lang" value="de" class="flag-btn" lang="de">' . $flagDe . '<span>Deutsch</span></button></form>'
+        . '<button type="submit" name="lang" value="de" class="btn btn-outline" lang="de">Deutsch</button></form>'
         . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
         . '<input type="hidden" name="return" value="/">'
-        . '<button type="submit" name="lang" value="en" class="flag-btn" lang="en">' . $flagEn . '<span>English</span></button></form>'
+        . '<button type="submit" name="lang" value="en" class="btn btn-outline" lang="en">English</button></form>'
         . '</div></main></body></html>';
     exit;
 }
@@ -3683,14 +3730,14 @@ function web_main(): void
         $base = '';
     }
     SW::$base = $base;
-    SW::$clean = (($_SERVER['SW_CLEAN_URLS'] ?? $_SERVER['REDIRECT_SW_CLEAN_URLS'] ?? '') === '1');
 
     // Interner Pfad: PATH_INFO (/index.php/topics) oder REQUEST_URI ohne Basis.
+    $rawPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
     $pathInfo = (string) ($_SERVER['PATH_INFO'] ?? '');
     if ($pathInfo !== '' && $pathInfo[0] === '/') {
         $path = $pathInfo;
     } else {
-        $path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
+        $path = $rawPath;
         if (SW::$base !== '' && strpos($path, SW::$base) === 0) {
             $path = substr($path, strlen(SW::$base));
         }
@@ -3700,6 +3747,16 @@ function web_main(): void
     }
     SW::$path = $path === '' ? '/' : $path;
     $path = SW::$path;
+
+    // Kanonisch immer sauber: eine direkt aufgerufene /index.php[/…] wird
+    // (bei GET) dauerhaft auf den sauberen Pfad umgeleitet, damit die Adresse
+    // bei /… bleibt und nie /index.php zeigt.
+    $method0 = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (($method0 === 'GET' || $method0 === 'HEAD') && strpos($rawPath, '/index.php') !== false) {
+        $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
+        header('Location: ' . (base_path() . $path) . ($qs !== '' ? '?' . $qs : ''), true, 301);
+        exit;
+    }
 
     // Statische Eigen-Assets: ohne Session, mit Cache.
     if (preg_match('#^/a/(app\.css|app\.js|icon\.svg)$#', $path, $m) === 1) {
@@ -3771,7 +3828,8 @@ function web_main(): void
         // nur Anmeldung und Rechtliches sind offen.
         if ($user === null && $isGet
             && !in_array($path, ['/auth', '/imprint', '/privacy'], true)
-            && strpos($path, '/claim/') !== 0) {
+            && strpos($path, '/claim/') !== 0
+            && strpos($path, '/eid/') !== 0) {
             redirect('/auth');
         }
 
@@ -3830,6 +3888,12 @@ function web_main(): void
         }
         if (preg_match('#^/claim/([a-f0-9]{16,64})$#', $path, $m) === 1 && $isGet) {
             h_claim($m[1]);
+        }
+        if ($path === '/eid/start' && $isGet) {
+            h_eid_start();
+        }
+        if ($path === '/eid/callback' && $isGet) {
+            h_eid_callback();
         }
         if ($path === '/tap' && $method === 'POST') {
             h_tap();
