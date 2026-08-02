@@ -30,9 +30,11 @@ nginx) funktioniert alles weiter über automatisch erzeugte
   (Deutsch/English) – die Sprache gilt für die Sitzung und wird nirgends
   gespeichert. Danach ist **ohne gescannten Ausweis nichts sichtbar**:
   Alle Seiten außer Anmeldung und Rechtlichem verlangen die Anmeldung.
-- **Eine Seite:** Thema einbringen (aufklappbar), Themen wählen (Filter,
-  Favoriten-Chips, Liste) und die eigene Übersicht sind eine einzige
-  Hauptseite; oben rechts steht nur „Abmelden“.
+- **Eine Seite:** Thema einbringen und Suche öffnen je ein eigenes Fenster
+  (Dialog); darunter Favoriten-Chips, die Gruppe „kürzlich abgestimmt (noch
+  änderbar)“ und die Themenliste. Oben rechts steht nur „Abmelden“. Der
+  Geltungsbereich wird zweistufig gewählt (Ebene → Land → Kreis), nicht als
+  lange Liste. Einen Konto-Löschen-Bereich gibt es nicht mehr.
 - **Anmelden (Profil laden):** Auf der Anmeldeseite ist der NFC-Leser am
   Smartphone automatisch scharf (Web NFC): den Personalausweis anhalten
   genügt, die Anmeldung löst direkt aus. Der Knopf dient als Rückfall und
@@ -41,17 +43,25 @@ nginx) funktioniert alles weiter über automatisch erzeugte
   abgeleitetes Pseudonym**, die Identität ist der Schlüssel („on the go“).
   Die **profil.yaml** (Stimmen, Themen, Favoriten, Jury-Status) wird bei
   **jedem Seitenaufruf frisch** vom Server angefordert und nur im Browser
-  zwischengehalten – die Seite zeigt weder Schlüssel noch Beitrittsdatum;
-  „Abmelden“ löscht die zwischengehaltene Datei.
+  zwischengehalten. Sie wird **an den öffentlichen Ausweis-Schlüssel
+  verschlüsselt** (nur mit dem Ausweis lesbar) und mit einem **Server-Schlüssel
+  signiert** (Manipulation erkennbar; öffentlicher Prüfschlüssel unter
+  `/server.pub`). „Abmelden“ löscht die zwischengehaltene Datei.
 - **Zeitfenster (TOTP-artig):** Der Anmeldenachweis gilt nur kurz
   (5-Minuten-Fenster, höchstens zwei Fenster); danach ist erneutes
   Anhalten nötig. Zu anderer Zeit entsteht ein anderer Nachweis.
-- **Stimmabgabe (unabhängiger Vorgang):** Jede Änderung (Stimme, Thema,
-  Meldung, Jury-Stimme, Favorit, Löschung) läuft über einen eigenen
-  **versiegelten, zeitgebundenen Umschlag**: Die Karte versiegelt die
+- **Stimmabgabe (unabhängiger Vorgang):** Jede Änderung läuft über einen
+  eigenen **versiegelten, zeitgebundenen Umschlag**: Die Karte versiegelt die
   Aktion, der Server öffnet mit dem öffentlichen Schlüssel und trägt das
-  Ergebnis für genau diesen Schlüssel ein. Alte Umschläge verfallen;
-  zusätzlich ist jedes Formular-Token einmalig (kein Replay, deckt CSRF ab).
+  Ergebnis ein. Alte Umschläge verfallen; jedes Formular-Token ist einmalig.
+- **Stimmen anonym & unverkettbar:** Die Stimmen-Tabelle enthält **keinen
+  Ausweis-Bezug** – nur einen HMAC aus Thema + öffentlichem Schlüssel mit
+  Server-Geheimnis. Ohne dieses Geheimnis lässt sich nicht rückschließen,
+  welcher Ausweis was gewählt hat; Doppelstimmen bleiben ausgeschlossen.
+- **Eigene Stimme 24 h änderbar:** Danach ist sie fest. Themen enden nach
+  **Datum** oder bei erreichter **Stimmenzahl/Prozent-Zustimmung**; danach
+  ist keine Abstimmung mehr möglich. Verfasser können ihr Thema **bearbeiten
+  und löschen**.
 - **Melden nur bei Gesetzesverstoß:** Der einzige Meldegrund ist der
   Verstoß gegen ein Gesetz. Beim Melden führt ein Suchfeld (Schlagwort
   oder Paragraphennummer) zum eingebauten Gesetzesregister; der gewählte
@@ -73,7 +83,7 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 ## CLI (optional)
 
 ```bash
-php index.php selftest   # Fachregeln automatisiert prüfen (53 Prüfungen)
+php index.php selftest   # Fachregeln automatisiert prüfen (69 Prüfungen)
 php index.php cron       # Wartungslauf (sonst lazy bei Seitenaufrufen)
 php index.php seed 400   # Demo-Pseudonyme + Zufallsstimmen (Vorführungen)
 php index.php jurysim    # Demo-Jury stimmt in laufenden Prüfungen ab
@@ -86,8 +96,9 @@ php -S 127.0.0.1:8080 index.php   # lokale Demo ohne Webserver
 - CSP `default-src 'none'` ohne `unsafe-inline` (CSS/JS liefert die Datei
   selbst als eigene Routen aus), restriktive Header, HSTS bei HTTPS
 - Einmal-Token für jede POST-Anfrage (kein Replay, deckt CSRF ab);
-  zeitgebundene versiegelte Umschläge für jede Änderung; im Browser nur
-  Sitzungs-ID und die bewusst geladene profil.yaml
+  zeitgebundene versiegelte Umschläge für jede Änderung; Profil an den
+  öffentlichen Schlüssel verschlüsselt und servergegengezeichnet
+- Stimmen ohne Ausweis-Bezug gespeichert (HMAC-Marker) – nicht rückverfolgbar
 - Sessions: HttpOnly, SameSite, ID-Rotation, Idle-/Absolut-Timeout
 - Kernregeln zusätzlich als DB-Constraints (1 Thema/Tag, 1 Stimme/Thema,
   1 offene Meldung/Thema, 1 Jury-Sitz/Meldung)

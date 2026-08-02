@@ -72,6 +72,7 @@ final class SW
     public static ?Db $db = null;
     public static string $dataDir = '';
     public static string $pepper = '';
+    public static string $serverSign = '';
     public static string $lang = 'de';
     /** @var array<string,string> */
     public static array $tActive = [];
@@ -177,7 +178,10 @@ CREATE TABLE IF NOT EXISTS topics (
     category_id  INTEGER NOT NULL REFERENCES categories(id),
     scope_level  TEXT    NOT NULL CHECK (scope_level IN ('kommune','landkreis','bundesland','bund')),
     scope_name   TEXT,
-    status       TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','removed')),
+    status       TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','closed','removed')),
+    end_mode     TEXT    NOT NULL DEFAULT 'date' CHECK (end_mode IN ('date','count')),
+    end_date     TEXT,
+    end_target   INTEGER,
     created_at   TEXT    NOT NULL,
     created_date TEXT    NOT NULL,
     UNIQUE (author_id, created_date)
@@ -185,15 +189,18 @@ CREATE TABLE IF NOT EXISTS topics (
 CREATE INDEX IF NOT EXISTS ix_topics_status_created ON topics(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS ix_topics_category       ON topics(category_id);
 CREATE INDEX IF NOT EXISTS ix_topics_scope          ON topics(scope_level, scope_name);
+-- Stimmen sind bewusst NICHT mit dem Ausweis verknüpft: voter_tag ist ein
+-- HMAC aus Thema + öffentlichem Schlüssel mit Server-Geheimnis. Ohne das
+-- Geheimnis lässt sich nicht rückschließen, welcher Ausweis was gewählt hat;
+-- Doppelstimmen bleiben trotzdem ausgeschlossen (Primärschlüssel).
 CREATE TABLE IF NOT EXISTS votes (
     topic_id   INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
-    user_id    INTEGER NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+    voter_tag  TEXT    NOT NULL,
     choice     TEXT    NOT NULL CHECK (choice IN ('for','against')),
     created_at TEXT    NOT NULL,
     updated_at TEXT    NOT NULL,
-    PRIMARY KEY (topic_id, user_id)
+    PRIMARY KEY (topic_id, voter_tag)
 );
-CREATE INDEX IF NOT EXISTS ix_votes_user ON votes(user_id);
 CREATE TABLE IF NOT EXISTS favorites (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     kind       TEXT    NOT NULL CHECK (kind IN ('category','scope')),
@@ -203,7 +210,7 @@ CREATE TABLE IF NOT EXISTS favorites (
 );
 CREATE TABLE IF NOT EXISTS reports (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    topic_id         INTEGER NOT NULL REFERENCES topics(id),
+    topic_id         INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
     reporter_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
     criteria         TEXT    NOT NULL,
     freetext         TEXT,
@@ -403,6 +410,20 @@ function sw_setup(): void
         throw new RuntimeException('Geheimnis-Datei beschädigt.');
     }
     SW::$pepper = $pepper;
+
+    // Server-Signaturschlüssel (Ed25519): signiert das ausgelieferte Profil,
+    // damit Manipulation erkennbar ist. Öffentlicher Teil ist abrufbar.
+    if (card_supports_sodium()) {
+        $srvFile = SW::$dataDir . '/server_sign.key';
+        if (!is_file($srvFile)) {
+            $pair = sodium_crypto_sign_keypair();
+            if (file_put_contents($srvFile, base64_encode(sodium_crypto_sign_secretkey($pair)), LOCK_EX) === false) {
+                throw new RuntimeException('Server-Signaturschlüssel nicht schreibbar.');
+            }
+            @chmod($srvFile, 0600);
+        }
+        SW::$serverSign = base64_decode(trim((string) file_get_contents($srvFile)), true) ?: '';
+    }
 
     $dbPath = getenv('STIMMWERK_DB') ?: SW::$dataDir . '/stimmwerk.sqlite';
     SW::$db = new Db($dbPath);
@@ -916,19 +937,21 @@ function fav_to_gebiet(string $ref): ?string
     return null;
 }
 
-/** Hierarchisches Auswahlfeld (eine Liste, wie im Behördenfinder). */
-function scope_select(string $name, string $selected, bool $withAll): string
+/** Geltungsbereich-Auswahl. Baseline (ohne JS): ein gruppiertes Auswahlfeld.
+ *  Mit JS ersetzt app.js es durch eine kompakte zweistufige Auswahl
+ *  (Ebene → Land → Kreis), damit keine lange Liste nötig ist. */
+function scope_picker(string $name, string $selected, bool $withAll): string
 {
-    $html = '<select name="' . e($name) . '">';
+    $html = '<select name="' . e($name) . '" data-scope-native>';
     if ($withAll) {
         $html .= '<option value="">' . e(t('topics.filter_all')) . '</option>';
     }
     $html .= '<option value="de"' . ($selected === 'de' ? ' selected' : '') . '>' . e(t('scope.bund')) . '</option>';
     foreach (SW_REGIONS as $land => $kreise) {
-        $html .= '<optgroup label="' . e($land) . '">';
         $value = 'bl:' . $land;
-        $html .= '<option value="' . e($value) . '"' . ($selected === $value ? ' selected' : '') . '>'
-            . e($land) . ' (' . e(t('scope.bundesland')) . ')</option>';
+        $html .= '<optgroup label="' . e($land) . '">'
+            . '<option value="' . e($value) . '"' . ($selected === $value ? ' selected' : '') . '>'
+            . e($land) . ' — ' . e(t('scope.whole')) . '</option>';
         foreach ($kreise as $kreis) {
             $value = 'kr:' . $land . ':' . $kreis;
             $html .= '<option value="' . e($value) . '"' . ($selected === $value ? ' selected' : '') . '>'
@@ -1003,7 +1026,7 @@ function topic_has_posted_today(int $userId): bool
 }
 
 /** @throws DomainException mit Übersetzungsschlüssel */
-function topic_create(int $userId, string $title, string $goal, string $reasoning, int $categoryId, string $scopeLevel, ?string $scopeName): int
+function topic_create(int $userId, string $title, string $goal, string $reasoning, int $categoryId, string $scopeLevel, ?string $scopeName, string $endMode, ?string $endDate, ?int $endTarget): int
 {
     if (topic_has_posted_today($userId)) {
         throw new DomainException('flash.topic_daily_limit');
@@ -1011,15 +1034,80 @@ function topic_create(int $userId, string $title, string $goal, string $reasonin
     try {
         SW::$db->run(
             'INSERT INTO topics (author_id, title, goal, reasoning, category_id,
-                                 scope_level, scope_name, created_at, created_date)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                                 scope_level, scope_name, end_mode, end_date, end_target,
+                                 created_at, created_date)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [$userId, $title, $goal, $reasoning, $categoryId,
-             $scopeLevel, $scopeName, Clock::nowStr(), Clock::localDate()]
+             $scopeLevel, $scopeName, $endMode, $endDate, $endTarget,
+             Clock::nowStr(), Clock::localDate()]
         );
     } catch (PDOException $e) {
         throw new DomainException('flash.topic_daily_limit');
     }
     return SW::$db->lastId();
+}
+
+/** Bearbeiten durch den Autor. @throws DomainException */
+function topic_update(int $topicId, int $userId, string $title, string $goal, string $reasoning, int $categoryId, string $scopeLevel, ?string $scopeName, string $endMode, ?string $endDate, ?int $endTarget): void
+{
+    $topic = SW::$db->one('SELECT * FROM topics WHERE id = ?', [$topicId]);
+    if ($topic === null || (int) $topic['author_id'] !== $userId || $topic['status'] === 'removed') {
+        throw new DomainException('flash.not_author');
+    }
+    SW::$db->run(
+        'UPDATE topics SET title = ?, goal = ?, reasoning = ?, category_id = ?,
+                           scope_level = ?, scope_name = ?, end_mode = ?, end_date = ?, end_target = ?
+         WHERE id = ?',
+        [$title, $goal, $reasoning, $categoryId, $scopeLevel, $scopeName,
+         $endMode, $endDate, $endTarget, $topicId]
+    );
+}
+
+/** Löschen durch den Autor (Stimmen und Meldungen fallen mit). @throws DomainException */
+function topic_delete(int $topicId, int $userId): void
+{
+    $topic = SW::$db->one('SELECT author_id FROM topics WHERE id = ?', [$topicId]);
+    if ($topic === null || (int) $topic['author_id'] !== $userId) {
+        throw new DomainException('flash.not_author');
+    }
+    SW::$db->run('DELETE FROM topics WHERE id = ?', [$topicId]);
+}
+
+/** Ende-Angaben aus dem Formular lesen und prüfen.
+ *  @return array{0:string,1:?string,2:?int}|null [mode, date, target] */
+function parse_topic_end(): ?array
+{
+    $mode = post_str('end_mode', 10);
+    if ($mode === 'date') {
+        $date = post_str('end_date', 10);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1) {
+            return null;
+        }
+        $today = Clock::localDate();
+        $max = substr(Clock::addDaysStr(Clock::nowStr(), 365), 0, 10);
+        if ($date <= $today || $date > $max) {
+            return null;
+        }
+        return ['date', $date, null];
+    }
+    if ($mode === 'count' || $mode === 'percent') {
+        $value = post_int('end_value');
+        if ($value === null || $value < 1) {
+            return null;
+        }
+        if ($mode === 'percent') {
+            if ($value > 100) {
+                return null;
+            }
+            $users = (int) SW::$db->val('SELECT COUNT(*) FROM users WHERE is_system = 0');
+            $value = max(10, (int) ceil($users * $value / 100));
+        }
+        if ($value > 100000000) {
+            return null;
+        }
+        return ['count', null, max(10, $value)];
+    }
+    return null;
 }
 
 const SW_TOPIC_SELECT = "
@@ -1032,7 +1120,7 @@ const SW_TOPIC_SELECT = "
 /** @return array{rows:array,total:int} */
 function topics_list(array $filters, int $page, int $perPage, ?int $userId): array
 {
-    $where = ["t.status = 'active'"];
+    $where = ["t.status IN ('active','closed')"];
     $params = [];
     if (!empty($filters['category'])) {
         $where[] = 'c.slug = :cat';
@@ -1061,14 +1149,17 @@ function topics_list(array $filters, int $page, int $perPage, ?int $userId): arr
     $cols = "t.*, c.slug AS category_slug, c.name_de, c.name_en,
         (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'for')     AS votes_for,
         (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against') AS votes_against";
-    if ($userId !== null) {
-        $cols .= ', (SELECT choice FROM votes mv WHERE mv.topic_id = t.id AND mv.user_id = :uid) AS my_choice';
-        $params[':uid'] = $userId;
-    }
     $select = 'SELECT ' . $cols . ' FROM topics t JOIN categories c ON c.id = t.category_id';
     $params[':limit'] = $perPage;
     $params[':offset'] = max(0, ($page - 1) * $perPage);
     $rows = SW::$db->all($select . $whereSql . $order . ' LIMIT :limit OFFSET :offset', $params);
+    if ($userId !== null) {
+        $pk = user_pk($userId);
+        foreach ($rows as $i => $row) {
+            $tag = vote_tag((int) $row['id'], $pk);
+            $rows[$i]['my_choice'] = SW::$db->val('SELECT choice FROM votes WHERE topic_id = ? AND voter_tag = ?', [(int) $row['id'], $tag]);
+        }
+    }
     return ['rows' => $rows, 'total' => $total];
 }
 
@@ -1079,8 +1170,20 @@ function topic_find(int $id): ?array
 
 function topic_user_vote(int $topicId, int $userId): ?string
 {
-    $v = SW::$db->val('SELECT choice FROM votes WHERE topic_id = ? AND user_id = ?', [$topicId, $userId]);
-    return $v === null ? null : (string) $v;
+    $row = topic_user_vote_row($topicId, $userId);
+    return $row === null ? null : (string) $row['choice'];
+}
+
+/** @return array{choice:string,created_at:string,locked:bool}|null */
+function topic_user_vote_row(int $topicId, int $userId): ?array
+{
+    $tag = vote_tag($topicId, user_pk($userId));
+    $row = SW::$db->one('SELECT choice, created_at FROM votes WHERE topic_id = ? AND voter_tag = ?', [$topicId, $tag]);
+    if ($row === null) {
+        return null;
+    }
+    $row['locked'] = Clock::nowStr() >= Clock::addHoursStr((string) $row['created_at'], SW_VOTE_CHANGE_HOURS);
+    return $row;
 }
 
 function topics_by_author(int $userId): array
@@ -1088,20 +1191,23 @@ function topics_by_author(int $userId): array
     return SW::$db->all(SW_TOPIC_SELECT . ' WHERE t.author_id = ? ORDER BY t.created_at DESC', [$userId]);
 }
 
+/** Eigene Stimmen per Tag-Sondierung – die Stimmen-Tabelle selbst kennt
+ *  keinen Ausweis-Bezug. */
 function topics_voted_by(int $userId): array
 {
-    return SW::$db->all(
-        "SELECT t.id, t.title, t.status, c.name_de, c.name_en,
-                v.choice AS my_choice, v.updated_at AS voted_at,
-                (SELECT COUNT(*) FROM votes x WHERE x.topic_id = t.id AND x.choice = 'for')     AS votes_for,
-                (SELECT COUNT(*) FROM votes x WHERE x.topic_id = t.id AND x.choice = 'against') AS votes_against
-         FROM votes v
-         JOIN topics t     ON t.id = v.topic_id
-         JOIN categories c ON c.id = t.category_id
-         WHERE v.user_id = ?
-         ORDER BY v.updated_at DESC",
-        [$userId]
-    );
+    $pk = user_pk($userId);
+    $out = [];
+    foreach (SW::$db->all('SELECT id, title, status FROM topics ORDER BY id DESC') as $topic) {
+        $tag = vote_tag((int) $topic['id'], $pk);
+        $vote = SW::$db->one('SELECT choice, created_at FROM votes WHERE topic_id = ? AND voter_tag = ?', [(int) $topic['id'], $tag]);
+        if ($vote !== null) {
+            $topic['my_choice'] = (string) $vote['choice'];
+            $topic['voted_at'] = (string) $vote['created_at'];
+            $topic['locked'] = Clock::nowStr() >= Clock::addHoursStr((string) $vote['created_at'], SW_VOTE_CHANGE_HOURS);
+            $out[] = $topic;
+        }
+    }
+    return $out;
 }
 
 function site_stats(): array
@@ -1115,26 +1221,70 @@ function site_stats(): array
 
 /* ============================== Stimmen & Favoriten ======================= */
 
+const SW_VOTE_CHANGE_HOURS = 24; // danach ist die eigene Stimme fest
+
+/** Entkoppelter Stimm-Marker: HMAC aus Thema + öffentlichem Schlüssel. */
+function vote_tag(int $topicId, string $pkHex): string
+{
+    return sw_hmac('vote|' . $topicId . '|' . $pkHex);
+}
+
+function user_pk(int $userId): string
+{
+    return (string) SW::$db->val('SELECT pseudonym_hash FROM users WHERE id = ?', [$userId]);
+}
+
+/** Schließt ein Thema, sobald Enddatum überschritten oder Zielzahl erreicht. */
+function topic_close_if_due(array $topic): string
+{
+    if ($topic['status'] !== 'active') {
+        return (string) $topic['status'];
+    }
+    $close = false;
+    if ($topic['end_mode'] === 'date' && $topic['end_date'] !== null && Clock::localDate() > (string) $topic['end_date']) {
+        $close = true;
+    }
+    if ($topic['end_mode'] === 'count' && $topic['end_target'] !== null) {
+        $total = (int) SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ?', [(int) $topic['id']]);
+        if ($total >= (int) $topic['end_target']) {
+            $close = true;
+        }
+    }
+    if ($close) {
+        SW::$db->run("UPDATE topics SET status = 'closed' WHERE id = ? AND status = 'active'", [(int) $topic['id']]);
+        return 'closed';
+    }
+    return 'active';
+}
+
 /** @throws DomainException */
 function vote_cast(int $userId, int $topicId, string $choice): void
 {
     if (!in_array($choice, ['for', 'against', 'none'], true)) {
         throw new DomainException('flash.invalid_input');
     }
-    $status = SW::$db->val('SELECT status FROM topics WHERE id = ?', [$topicId]);
-    if ($status !== 'active') {
+    $topic = SW::$db->one('SELECT * FROM topics WHERE id = ?', [$topicId]);
+    if ($topic === null || topic_close_if_due($topic) !== 'active') {
         throw new DomainException('flash.topic_not_votable');
     }
+    $tag = vote_tag($topicId, user_pk($userId));
+    $existing = SW::$db->one('SELECT choice, created_at FROM votes WHERE topic_id = ? AND voter_tag = ?', [$topicId, $tag]);
+    if ($existing !== null && Clock::nowStr() >= Clock::addHoursStr((string) $existing['created_at'], SW_VOTE_CHANGE_HOURS)) {
+        throw new DomainException('flash.vote_locked');
+    }
     if ($choice === 'none') {
-        SW::$db->run('DELETE FROM votes WHERE topic_id = ? AND user_id = ?', [$topicId, $userId]);
+        SW::$db->run('DELETE FROM votes WHERE topic_id = ? AND voter_tag = ?', [$topicId, $tag]);
         return;
     }
     $now = Clock::nowStr();
     SW::$db->run(
-        'INSERT INTO votes (topic_id, user_id, choice, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(topic_id, user_id) DO UPDATE SET choice = excluded.choice, updated_at = excluded.updated_at',
-        [$topicId, $userId, $choice, $now, $now]
+        'INSERT INTO votes (topic_id, voter_tag, choice, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(topic_id, voter_tag) DO UPDATE SET choice = excluded.choice, updated_at = excluded.updated_at',
+        [$topicId, $tag, $choice, $now, $now]
     );
+    if ($existing === null) {
+        topic_close_if_due(array_merge($topic, ['status' => 'active']));
+    }
 }
 
 function fav_valid(string $kind, string $ref): bool
@@ -1485,6 +1635,11 @@ function jury_cast(int $reportId, int $userId, string $vote): void
 function maintenance_tick(): void
 {
     SW::$db->run(
+        "UPDATE topics SET status = 'closed'
+         WHERE status = 'active' AND end_mode = 'date' AND end_date IS NOT NULL AND end_date < ?",
+        [Clock::localDate()]
+    );
+    SW::$db->run(
         "UPDATE reports SET status = 'voting' WHERE status = 'pending' AND voting_starts_at <= ?",
         [Clock::nowStr()]
     );
@@ -1511,8 +1666,9 @@ function maintenance_tick_throttled(): void
     maintenance_tick();
 }
 
-/** Kontolöschung (DSGVO): Stimmen/Favoriten/Jury-Sitze weg; Beiträge werden
- *  dauerhaft vom Pseudonym entkoppelt (System-Konto bzw. NULL). */
+/** Kontolöschung (DSGVO, nur Backend/CLI): Favoriten und Jury-Sitze werden
+ *  gelöscht, Beiträge entkoppelt. Stimmen sind bereits konstruktiv anonym
+ *  (kein Ausweis-Bezug in der Tabelle) und bleiben als Zählwerte erhalten. */
 function account_delete(int $userId): void
 {
     SW::$db->tx(function () use ($userId): void {
@@ -1576,9 +1732,32 @@ const SW_DE = [
     'vote.bar_aria' => 'Abstimmungsergebnis',
 
     'topic.new_title' => 'Thema einbringen',
-    'topic.new_intro' => 'Ein Thema pro Tag; nach Veröffentlichung unveränderlich.',
     'topic.posted_today' => 'Heute bereits ein Thema eingebracht. Das nächste ist ab 00:00 Uhr möglich.',
     'topic.next_in' => 'Nächstes Thema in',
+    'common.close' => 'Schließen',
+    'topics.clear' => 'Filter zurücksetzen',
+    'scope.whole' => 'gesamt',
+    'scope.pick_land' => 'Bundesland wählen …',
+    'scope.pick_kreis' => 'Landkreis/Stadt wählen …',
+    'topic.f_end' => 'Ende der Abstimmung',
+    'topic.end_date' => 'nach Datum',
+    'topic.end_count' => 'bei Stimmenzahl',
+    'topic.end_percent' => 'bei Zustimmung in %',
+    'topic.end_date_label' => 'Enddatum',
+    'topic.end_value_label' => 'Zielwert',
+    'topic.end_percent_hint' => '% der registrierten Ausweise, die dafür oder dagegen stimmen.',
+    'topic.err_end' => 'Bitte ein gültiges Ende angeben (Datum in der Zukunft oder Zielzahl).',
+    'topic.ends_on' => 'Läuft bis {date}',
+    'topic.ends_count' => '{have} von {target} Stimmen',
+    'topic.ended' => 'beendet',
+    'topic.vote_closed' => 'Die Abstimmung ist beendet.',
+    'topic.edit' => 'Thema bearbeiten',
+    'topic.save' => 'Änderungen speichern',
+    'topic.delete' => 'Thema löschen',
+    'topic.delete_confirm' => 'Dieses Thema und alle zugehörigen Stimmen werden gelöscht.',
+    'home.recent_votes' => 'Kürzlich abgestimmt (noch änderbar)',
+    'vote.changeable_until' => 'änderbar bis {date}',
+    'vote.locked_note' => 'nach 24 Stunden fest',
     'topic.f_title' => 'Titel',
     'topic.f_goal' => 'Ziel',
     'topic.f_reasoning' => 'Begründung',
@@ -1598,10 +1777,6 @@ const SW_DE = [
     'auth.other_card' => 'Anderen Ausweis verwenden',
 
     'me.jury_upcoming' => 'Ausgelost; Abstimmung ab {date}, 00:00 Uhr.',
-    'me.delete_title' => 'Konto und Daten löschen',
-    'me.delete_text' => 'Stimmen, Favoriten und offene Jury-Sitze werden gelöscht. Beiträge bleiben, werden aber dauerhaft vom Pseudonym entkoppelt.',
-    'me.delete_confirm' => 'Ja, endgültig löschen',
-    'me.delete_button' => 'Konto löschen',
 
     'jury.title' => 'Bürger-Jury',
     'jury.intro' => 'Per Los ausgewählt. Bitte anhand der Kriterien bewerten; Enthaltung zulässig.',
@@ -1647,6 +1822,10 @@ const SW_DE = [
     'flash.report_daily_limit' => 'Tageslimit für Meldungen erreicht.',
     'flash.report_too_few_users' => 'Für eine Jury sind derzeit zu wenige Teilnehmende registriert.',
     'flash.report_no_law' => 'Bitte das verletzte Gesetz auswählen.',
+    'flash.not_author' => 'Nur der Verfasser kann dieses Thema ändern.',
+    'flash.topic_updated' => 'Thema aktualisiert.',
+    'flash.topic_deleted' => 'Thema gelöscht.',
+    'flash.vote_locked' => 'Diese Stimme ist nach 24 Stunden nicht mehr änderbar.',
     'flash.report_created' => 'Meldung aufgenommen. Die Jury ist ausgelost; Abstimmung ab 00:00 Uhr.',
     'flash.jury_not_open' => 'Diese Abstimmung ist nicht (mehr) offen.',
     'flash.jury_not_member' => 'Keine Berechtigung für diese Jury.',
@@ -1656,8 +1835,6 @@ const SW_DE = [
     'flash.auth_ok' => 'Angemeldet.',
     'flash.card_new' => 'Bereit für einen anderen Ausweis. Zum Anmelden anhalten.',
     'flash.logged_out' => 'Abgemeldet.',
-    'flash.delete_not_confirmed' => 'Bitte die Löschung bestätigen.',
-    'flash.account_deleted' => 'Konto gelöscht.',
 
     'error.not_found_title' => 'Seite nicht gefunden',
     'error.not_found' => 'Die angeforderte Seite existiert nicht oder wurde entfernt.',
@@ -1733,7 +1910,31 @@ const SW_EN = [
     'vote.bar_aria' => 'Voting result',
 
     'topic.new_title' => 'Raise a topic',
-    'topic.new_intro' => 'One topic per day; unchangeable after publication.',
+    'common.close' => 'Close',
+    'common.back_home' => 'Back to start page',
+    'topics.clear' => 'Reset filters',
+    'scope.whole' => 'whole',
+    'scope.pick_land' => 'Choose federal state …',
+    'scope.pick_kreis' => 'Choose district/city …',
+    'topic.f_end' => 'End of voting',
+    'topic.end_date' => 'by date',
+    'topic.end_count' => 'at vote count',
+    'topic.end_percent' => 'at approval in %',
+    'topic.end_date_label' => 'End date',
+    'topic.end_value_label' => 'Target value',
+    'topic.end_percent_hint' => '% of registered ID cards voting for or against.',
+    'topic.err_end' => 'Please set a valid end (future date or target count).',
+    'topic.ends_on' => 'Runs until {date}',
+    'topic.ends_count' => '{have} of {target} votes',
+    'topic.ended' => 'ended',
+    'topic.vote_closed' => 'Voting has ended.',
+    'topic.edit' => 'Edit topic',
+    'topic.save' => 'Save changes',
+    'topic.delete' => 'Delete topic',
+    'topic.delete_confirm' => 'This topic and all its votes will be deleted.',
+    'home.recent_votes' => 'Recently voted (still changeable)',
+    'vote.changeable_until' => 'changeable until {date}',
+    'vote.locked_note' => 'fixed after 24 hours',
     'topic.posted_today' => 'You already raised a topic today. The next one is possible from midnight.',
     'topic.next_in' => 'Next topic in',
     'topic.f_title' => 'Title',
@@ -1755,10 +1956,6 @@ const SW_EN = [
     'auth.other_card' => 'Use a different ID card',
 
     'me.jury_upcoming' => 'Drawn; voting starts {date}, midnight.',
-    'me.delete_title' => 'Delete account and data',
-    'me.delete_text' => 'Votes, favourites and open jury seats are deleted. Contributions remain but are permanently unlinked from your pseudonym.',
-    'me.delete_confirm' => 'Yes, delete permanently',
-    'me.delete_button' => 'Delete account',
 
     'jury.title' => 'Citizen jury',
     'jury.intro' => 'Drawn by lot. Please assess against the criteria; abstaining is allowed.',
@@ -1804,6 +2001,10 @@ const SW_EN = [
     'flash.report_daily_limit' => 'Daily report limit reached.',
     'flash.report_too_few_users' => 'Too few participants are registered for a jury at the moment.',
     'flash.report_no_law' => 'Please select the violated law.',
+    'flash.not_author' => 'Only the author can change this topic.',
+    'flash.topic_updated' => 'Topic updated.',
+    'flash.topic_deleted' => 'Topic deleted.',
+    'flash.vote_locked' => 'This vote can no longer be changed after 24 hours.',
     'flash.report_created' => 'Report received. The jury has been drawn; voting starts at midnight.',
     'flash.jury_not_open' => 'This vote is not (or no longer) open.',
     'flash.jury_not_member' => 'No authorisation for this jury.',
@@ -1813,8 +2014,6 @@ const SW_EN = [
     'flash.auth_ok' => 'Signed in.',
     'flash.card_new' => 'Ready for a different ID card. Tap to sign in.',
     'flash.logged_out' => 'Signed out.',
-    'flash.delete_not_confirmed' => 'Please confirm the deletion.',
-    'flash.account_deleted' => 'Account deleted.',
 
     'error.not_found_title' => 'Page not found',
     'error.not_found' => 'The requested page does not exist or has been removed.',
@@ -2006,8 +2205,22 @@ input:focus, textarea:focus, select:focus { border-color: var(--ink); outline: n
 .prose { max-width: 46rem; }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 650; margin-left: 0.4rem; }
 .law-quote { font-size: 0.88rem; color: var(--muted); display: block; margin-top: 0.2rem; }
-.form-details summary { font-weight: 650; cursor: pointer; }
-.form-details[open] summary { margin-bottom: 0.6rem; }
+.action-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.4rem 0 0.9rem; }
+.recent-votes { margin-bottom: 1rem; }
+.recent-votes h2 { margin-top: 0.4rem; }
+/* Modal als :target - funktioniert ohne JavaScript */
+.modal { position: fixed; inset: 0; z-index: 200; display: none; }
+.modal:target { display: flex; align-items: flex-start; justify-content: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
+.modal-box { position: relative; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; width: min(38rem, 94vw); max-height: 92vh; overflow-y: auto; margin: 3vh 0; padding: 1rem 1.2rem 1.3rem; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--border); margin: -0.2rem 0 0.8rem; padding-bottom: 0.5rem; }
+.modal-head h2 { margin: 0; }
+.modal-close { font-size: 1.5rem; line-height: 1; text-decoration: none; color: var(--muted); }
+.modal-close:hover { color: var(--ink); }
+.scope-picker { display: flex; flex-direction: column; gap: 0.4rem; }
+.end-fields { border: 1px solid var(--border); border-radius: 2px; padding: 0.7rem 0.9rem; display: flex; flex-direction: column; gap: 0.55rem; }
+.end-fields legend { font-weight: 650; padding: 0 0.3rem; font-size: 0.9rem; }
+.end-fields label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
 .site-footer { border-top: 1px solid var(--border); background: var(--surface); font-size: 0.83rem; color: var(--muted); }
 .footer-inner { display: flex; justify-content: space-between; gap: 0.5rem 1.5rem; flex-wrap: wrap; padding-top: 0.8rem; padding-bottom: 0.8rem; }
 .footer-nav { display: flex; gap: 1rem; }
@@ -2046,6 +2259,82 @@ const SW_JS = <<<'JS'
       update();
       setInterval(update, 1000);
     }
+
+    /* Geltungsbereich: gruppiertes Auswahlfeld -> zweistufig (Ebene/Land/Kreis).
+       Ohne JS bleibt die gruppierte Liste - voll funktionsfaehig. */
+    document.querySelectorAll('select[data-scope-native]').forEach(function (native) {
+      var current = native.value;
+      var level = 'de', land = '', kreis = '';
+      if (current.indexOf('bl:') === 0) { level = 'bundesland'; land = current.slice(3); }
+      else if (current.indexOf('kr:') === 0) { level = 'landkreis'; var r = current.slice(3).split(':'); land = r[0]; kreis = r.slice(1).join(':'); }
+      else if (current === '') { level = native.querySelector('option[value=""]') ? 'all' : 'de'; }
+      var lands = {}, order = [];
+      native.querySelectorAll('optgroup').forEach(function (g) {
+        var name = g.label; order.push(name); lands[name] = [];
+        g.querySelectorAll('option').forEach(function (o) {
+          if (o.value.indexOf('kr:') === 0) { lands[name].push(o.textContent); }
+        });
+      });
+      var wrap = document.createElement('div');
+      wrap.className = 'scope-picker';
+      var hasAll = !!native.querySelector('option[value=""]');
+      var selLevel = document.createElement('select');
+      if (hasAll) { selLevel.add(new Option(native.querySelector('option[value=""]').textContent, 'all')); }
+      selLevel.add(new Option(native.querySelector('option[value="de"]').textContent, 'de'));
+      selLevel.add(new Option('Bundesland', 'bundesland'));
+      selLevel.add(new Option('Landkreis / Stadt', 'landkreis'));
+      selLevel.value = level;
+      var selLand = document.createElement('select');
+      selLand.add(new Option('—', ''));
+      order.forEach(function (n) { selLand.add(new Option(n, n)); });
+      if (land) { selLand.value = land; }
+      var selKreis = document.createElement('select');
+      var fillKreis = function () {
+        selKreis.innerHTML = '';
+        selKreis.add(new Option('—', ''));
+        (lands[selLand.value] || []).forEach(function (k) { selKreis.add(new Option(k, k)); });
+        if (kreis) { selKreis.value = kreis; }
+      };
+      fillKreis();
+      var sync = function () {
+        var v = 'de';
+        if (selLevel.value === 'all') { v = ''; }
+        else if (selLevel.value === 'de') { v = 'de'; }
+        else if (selLevel.value === 'bundesland') { v = selLand.value ? 'bl:' + selLand.value : ''; }
+        else if (selLevel.value === 'landkreis') { v = (selLand.value && selKreis.value) ? 'kr:' + selLand.value + ':' + selKreis.value : ''; }
+        native.value = v;
+        selLand.hidden = !(selLevel.value === 'bundesland' || selLevel.value === 'landkreis');
+        selKreis.hidden = selLevel.value !== 'landkreis';
+      };
+      selLevel.addEventListener('change', sync);
+      selLand.addEventListener('change', function () { kreis = ''; fillKreis(); sync(); });
+      selKreis.addEventListener('change', sync);
+      native.style.display = 'none';
+      native.parentNode.insertBefore(wrap, native);
+      wrap.appendChild(selLevel); wrap.appendChild(selLand); wrap.appendChild(selKreis);
+      sync();
+    });
+
+    /* Ende-Felder je nach Modus zeigen */
+    document.querySelectorAll('[data-end-fields]').forEach(function (fs) {
+      var mode = fs.querySelector('[data-end-mode]');
+      var apply = function () {
+        fs.querySelectorAll('[data-end-when]').forEach(function (el) {
+          el.hidden = el.getAttribute('data-end-when').split(' ').indexOf(mode.value) === -1;
+        });
+        fs.querySelectorAll('[data-end-hint]').forEach(function (el) {
+          el.hidden = el.getAttribute('data-end-hint') !== mode.value;
+        });
+      };
+      mode.addEventListener('change', apply); apply();
+    });
+
+    /* Fenster (:target-Modal) per Escape schliessen */
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && location.hash && document.querySelector(location.hash + '.modal')) {
+        location.hash = '';
+      }
+    });
 
     /* profil.yaml: bei jedem Seitenaufruf frisch angefordert und nur im
        Browser gehalten; der Abmelde-Knopf loescht sie wieder. */
@@ -2260,8 +2549,33 @@ function p_votebar(int $for, int $against): string
     return $html;
 }
 
-/** Formularteil "Thema einbringen" (in der Hauptseite eingebettet). */
-function topic_form_html(array $errors, array $old): string
+/** Ende-Auswahl im Themenformular: nach Datum ODER nach erreichter
+ *  Stimmenzahl/Prozent. Kompakt, mit JS werden die passenden Felder gezeigt. */
+function topic_end_fields(array $old): string
+{
+    $mode = in_array($old['end_mode'] ?? '', ['date', 'count', 'percent'], true) ? $old['end_mode'] : 'date';
+    $defaultDate = substr(Clock::addDaysStr(Clock::nowStr(), 30), 0, 10);
+    $date = ($old['end_date'] ?? '') !== '' ? (string) $old['end_date'] : $defaultDate;
+    $value = ($old['end_value'] ?? '') !== '' ? (string) $old['end_value'] : '';
+    $minDate = substr(Clock::addDaysStr(Clock::nowStr(), 1), 0, 10);
+    $maxDate = substr(Clock::addDaysStr(Clock::nowStr(), 365), 0, 10);
+    $html = '<fieldset class="end-fields" data-end-fields><legend>' . e(t('topic.f_end')) . '</legend>'
+        . '<select name="end_mode" data-end-mode>'
+        . '<option value="date"' . ($mode === 'date' ? ' selected' : '') . '>' . e(t('topic.end_date')) . '</option>'
+        . '<option value="count"' . ($mode === 'count' ? ' selected' : '') . '>' . e(t('topic.end_count')) . '</option>'
+        . '<option value="percent"' . ($mode === 'percent' ? ' selected' : '') . '>' . e(t('topic.end_percent')) . '</option>'
+        . '</select>'
+        . '<label data-end-when="date"><span>' . e(t('topic.end_date_label')) . '</span>'
+        . '<input type="date" name="end_date" value="' . e($date) . '" min="' . e($minDate) . '" max="' . e($maxDate) . '"></label>'
+        . '<label data-end-when="count percent"><span>' . e(t('topic.end_value_label')) . '</span>'
+        . '<input type="number" name="end_value" min="1" max="100000000" value="' . e($value) . '" inputmode="numeric"></label>'
+        . '<small class="muted" data-end-hint="percent">' . e(t('topic.end_percent_hint')) . '</small>'
+        . '</fieldset>';
+    return $html;
+}
+
+/** Themenformular (Neu und Bearbeiten). */
+function topic_form_html(array $errors, array $old, string $action, string $submitKey): string
 {
     $html = '';
     if ($errors !== []) {
@@ -2271,7 +2585,7 @@ function topic_form_html(array $errors, array $old): string
         }
         $html .= '</ul></div>';
     }
-    $html .= '<form class="form-stack" method="post" action="' . e(url('/topics')) . '">' . csrf_field()
+    $html .= '<form class="form-stack" method="post" action="' . e(url($action)) . '">' . csrf_field()
         . '<label><span>' . e(t('topic.f_title')) . '</span>'
         . '<input type="text" name="title" required minlength="' . SW_TITLE_MIN . '" maxlength="' . SW_TITLE_MAX . '" value="' . e((string) $old['title']) . '"></label>'
         . '<label><span>' . e(t('topic.f_goal')) . '</span>'
@@ -2286,59 +2600,36 @@ function topic_form_html(array $errors, array $old): string
     }
     $html .= '</select></label>'
         . '<label><span>' . e(t('topic.f_scope')) . '</span>'
-        . scope_select('scope', (string) $old['scope'], false)
+        . scope_picker('scope', ($old['scope'] ?? 'de') !== '' ? (string) $old['scope'] : 'de', false)
         . '</label></div>'
-        . '<div><button type="submit" class="btn btn-primary">' . e(t('topic.submit')) . '</button></div></form>';
+        . topic_end_fields($old)
+        . '<div><button type="submit" class="btn btn-primary">' . e(t($submitKey)) . '</button></div></form>';
     return $html;
 }
 
-/** Die eine Hauptseite: Thema einbringen, Themen wählen, eigene Übersicht. */
+/** Modal per :target (funktioniert ohne JavaScript). */
+function modal(string $id, string $title, string $inner): string
+{
+    return '<div class="modal" id="' . e($id) . '" role="dialog" aria-modal="true" aria-label="' . e($title) . '">'
+        . '<a class="modal-backdrop" href="#" aria-label="' . e(t('common.close')) . '"></a>'
+        . '<div class="modal-box"><div class="modal-head"><h2>' . e($title) . '</h2>'
+        . '<a class="modal-close" href="#" aria-label="' . e(t('common.close')) . '">&times;</a></div>'
+        . '<div class="modal-body">' . $inner . '</div></div></div>';
+}
+
+/** Die eine Hauptseite: Thema einbringen, Themen wählen, kürzliche Stimmen. */
 function v_main(array $formErrors = [], ?array $formOld = null): void
 {
     $user = require_user();
     $userId = (int) $user['id'];
-
-    // Übersicht: Jury-Status (das Gate führt bei offener Aufgabe ohnehin hierhin)
     $html = '';
+
     $upcoming = jury_upcoming_for($userId);
     if ($upcoming !== null) {
         $html .= '<div class="flash">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))])) . '</div>';
     }
 
-    // Thema einbringen (eingeklappt; bei Fehlern oder Tageslimit offen)
-    $old = $formOld ?? ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0, 'scope' => 'de'];
-    $openForm = $formErrors !== [] || $formOld !== null;
-    $html .= '<details class="card form-details"' . ($openForm ? ' open' : '') . '><summary>' . e(t('topic.new_title')) . '</summary>';
-    if (topic_has_posted_today($userId)) {
-        $html .= '<p class="muted">' . e(t('topic.posted_today'))
-            . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></p>';
-    } else {
-        $html .= '<p class="muted">' . e(t('topic.new_intro')) . '</p>' . topic_form_html($formErrors, $old);
-    }
-    $html .= '</details>';
-
-    // Favoriten-Schnellfilter
-    $chips = '';
-    foreach (fav_list($userId) as $favorite) {
-        if ($favorite['kind'] === 'category') {
-            $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
-            $href = url('/') . '?category=' . rawurlencode((string) $favorite['ref']);
-        } else {
-            $gebiet = fav_to_gebiet((string) $favorite['ref']);
-            if ($gebiet === null) {
-                continue;
-            }
-            $parts = explode(':', (string) $favorite['ref'], 2);
-            $label = $parts[0] === 'bund' || !isset($parts[1]) ? t('scope.bund') : $parts[1];
-            $href = url('/') . '?gebiet=' . rawurlencode($gebiet);
-        }
-        $chips .= '<a class="btn btn-ghost btn-sm" href="' . e($href) . '">★ ' . e($label) . '</a>';
-    }
-    if ($chips !== '') {
-        $html .= '<div class="fav-chips">' . $chips . '</div>';
-    }
-
-    // Themenliste mit Filtern
+    // Filterwerte
     $scopeValue = query_str('gebiet', 160);
     $scopeDecoded = $scopeValue === '' ? null : scope_decode($scopeValue);
     if ($scopeDecoded === null) {
@@ -2357,24 +2648,57 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
     $result = topics_list($filters, $page, $perPage, $userId);
     $pages = max(1, (int) ceil($result['total'] / $perPage));
 
-    $html .= '<form class="filter-bar" method="get" action="' . e(url('/')) . '">'
-        . '<label><span>' . e(t('topics.filter_category')) . '</span><select name="category">'
-        . '<option value="">' . e(t('topics.filter_all')) . '</option>';
-    foreach (categories() as $category) {
-        $sel = $filters['category'] === $category['slug'] ? ' selected' : '';
-        $html .= '<option value="' . e((string) $category['slug']) . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
+    // Aktionsleiste: zwei Knöpfe öffnen je ein eigenes Fenster
+    $html .= '<div class="action-bar">'
+        . '<a class="btn btn-primary" href="#modal-new">' . e(t('topic.new_title')) . '</a>'
+        . '<a class="btn btn-outline" href="#modal-search">' . e(t('topics.search')) . '</a>';
+    if ($filters['q'] !== '' || $filters['category'] !== '' || $filters['gebiet'] !== '') {
+        $html .= '<a class="btn btn-ghost" href="' . e(url('/')) . '">' . e(t('topics.clear')) . '</a>';
     }
-    $html .= '</select></label>'
-        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
-        . scope_select('gebiet', $filters['gebiet'], true)
-        . '</label>'
-        . '<label><span>' . e(t('topics.search')) . '</span><input type="search" name="q" maxlength="80" value="' . e($filters['q']) . '"></label>'
-        . '<label><span>' . e(t('topics.sort')) . '</span><select name="sort">'
-        . '<option value="new"' . ($filters['sort'] === 'new' ? ' selected' : '') . '>' . e(t('topics.sort_new')) . '</option>'
-        . '<option value="top"' . ($filters['sort'] === 'top' ? ' selected' : '') . '>' . e(t('topics.sort_top')) . '</option>'
-        . '</select></label>'
-        . '<button type="submit" class="btn btn-outline">' . e(t('topics.apply')) . '</button></form>';
+    $html .= '</div>';
 
+    // Favoriten-Schnellfilter
+    $chips = '';
+    foreach (fav_list($userId) as $favorite) {
+        if ($favorite['kind'] === 'category') {
+            $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
+            $href = url('/') . '?category=' . rawurlencode((string) $favorite['ref']);
+        } else {
+            $gebiet = fav_to_gebiet((string) $favorite['ref']);
+            if ($gebiet === null) {
+                continue;
+            }
+            $parts = explode(':', (string) $favorite['ref'], 2);
+            $label = $parts[0] === 'bund' || !isset($parts[1]) ? t('scope.bund') : $parts[1];
+            $href = url('/') . '?gebiet=' . rawurlencode($gebiet);
+        }
+        $chips .= '<a class="btn btn-ghost btn-sm" href="' . e($href) . '">&#9733; ' . e($label) . '</a>';
+    }
+    if ($chips !== '') {
+        $html .= '<div class="fav-chips">' . $chips . '</div>';
+    }
+
+    // Kürzliche eigene Stimmen (noch änderbar) als eigene Gruppe
+    $recent = [];
+    foreach (topics_voted_by($userId) as $row) {
+        if ($row['status'] !== 'removed' && empty($row['locked'])) {
+            $recent[] = $row;
+        }
+    }
+    if ($recent !== []) {
+        $html .= '<section class="recent-votes"><h2>' . e(t('home.recent_votes')) . '</h2><ul class="row-list">';
+        foreach ($recent as $row) {
+            $until = Clock::addHoursStr((string) $row['voted_at'], SW_VOTE_CHANGE_HOURS);
+            $html .= '<li class="row-item"><div class="row-main">'
+                . '<a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a></div>'
+                . '<div class="row-side"><span class="dot ' . ($row['my_choice'] === 'for' ? 'dot-for' : 'dot-against') . '" aria-hidden="true"></span>'
+                . e(t($row['my_choice'] === 'for' ? 'vote.for' : 'vote.against'))
+                . ' <span class="muted">· ' . e(t('vote.changeable_until', ['date' => Clock::displayLocal($until, t('common.datetime_format'))])) . '</span></div></li>';
+        }
+        $html .= '</ul></section>';
+    }
+
+    // Themenliste
     if ($result['rows'] === []) {
         $html .= '<p class="muted">' . e(t('topics.none')) . '</p>';
     } else {
@@ -2404,17 +2728,55 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         $html .= '</nav>';
     }
 
-    // Konto löschen (eingeklappt, am Ende)
-    $html .= '<details class="card danger-zone form-details"><summary>' . e(t('me.delete_title')) . '</summary>'
-        . '<p class="muted">' . e(t('me.delete_text')) . '</p>'
-        . '<form method="post" action="' . e(url('/account/delete')) . '" class="form-stack">' . csrf_field()
-        . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required><span>' . e(t('me.delete_confirm')) . '</span></label>'
-        . '<div><button type="submit" class="btn btn-danger">' . e(t('me.delete_button')) . '</button></div></form></details>';
+    // Fenster: Thema einbringen
+    $old = $formOld ?? ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0, 'scope' => 'de',
+                        'end_mode' => 'date', 'end_date' => '', 'end_value' => ''];
+    if (topic_has_posted_today($userId)) {
+        $newInner = '<p class="muted">' . e(t('topic.posted_today'))
+            . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></p>';
+    } else {
+        $newInner = topic_form_html($formErrors, $old, '/topics', 'topic.submit');
+    }
+    $html .= modal('modal-new', t('topic.new_title'), $newInner);
+
+    // Fenster: Suche/Filter
+    $searchInner = '<form class="form-stack" method="get" action="' . e(url('/')) . '">'
+        . '<label><span>' . e(t('topics.search')) . '</span><input type="search" name="q" maxlength="80" value="' . e($filters['q']) . '"></label>'
+        . '<label><span>' . e(t('topics.filter_category')) . '</span><select name="category">'
+        . '<option value="">' . e(t('topics.filter_all')) . '</option>';
+    foreach (categories() as $category) {
+        $sel = $filters['category'] === $category['slug'] ? ' selected' : '';
+        $searchInner .= '<option value="' . e((string) $category['slug']) . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
+    }
+    $searchInner .= '</select></label>'
+        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
+        . scope_picker('gebiet', $filters['gebiet'], true)
+        . '</label>'
+        . '<label><span>' . e(t('topics.sort')) . '</span><select name="sort">'
+        . '<option value="new"' . ($filters['sort'] === 'new' ? ' selected' : '') . '>' . e(t('topics.sort_new')) . '</option>'
+        . '<option value="top"' . ($filters['sort'] === 'top' ? ' selected' : '') . '>' . e(t('topics.sort_top')) . '</option>'
+        . '</select></label>'
+        . '<div><button type="submit" class="btn btn-primary">' . e(t('topics.apply')) . '</button></div></form>';
+    $html .= modal('modal-search', t('topics.search'), $searchInner);
 
     render(t('app.tagline'), $html);
 }
 
-
+/** Wie lange läuft die Abstimmung noch? Text je Ende-Modus. */
+function topic_end_text(array $topic): string
+{
+    if ($topic['status'] === 'closed') {
+        return t('topic.ended');
+    }
+    if ($topic['end_mode'] === 'date' && $topic['end_date'] !== null) {
+        return t('topic.ends_on', ['date' => Clock::displayLocal((string) $topic['end_date'] . ' 00:00:00', t('common.date_format'))]);
+    }
+    if ($topic['end_mode'] === 'count' && $topic['end_target'] !== null) {
+        $total = (int) $topic['votes_for'] + (int) $topic['votes_against'];
+        return t('topic.ends_count', ['have' => num($total), 'target' => num((int) $topic['end_target'])]);
+    }
+    return '';
+}
 
 function v_topic(int $id): void
 {
@@ -2422,23 +2784,31 @@ function v_topic(int $id): void
     if ($topic === null) {
         v_error_404();
     }
+    topic_close_if_due($topic);
+    $topic = topic_find($id);
     if ($topic['status'] === 'removed') {
         $html = '<article class="card"><h1>' . e(t('topic.removed_title')) . '</h1>'
             . '<p class="muted">' . e(t('topic.removed_text')) . '</p>'
-            . '<p><a class="btn btn-outline btn-sm" href="' . e(url('/topics')) . '">' . e(t('nav.topics')) . '</a></p></article>';
+            . '<p><a class="btn btn-outline btn-sm" href="' . e(url('/')) . '">' . e(t('common.back_home')) . '</a></p></article>';
         render(t('topic.removed_title'), $html);
     }
     $user = auth_user();
     $userId = $user === null ? null : (int) $user['id'];
-    $myVote = $userId === null ? null : topic_user_vote($id, $userId);
+    $voteRow = $userId === null ? null : topic_user_vote_row($id, $userId);
+    $myVote = $voteRow === null ? null : (string) $voteRow['choice'];
+    $isAuthor = $userId !== null && (int) $topic['author_id'] === $userId;
     $openReport = report_open_for($id);
+    $closed = $topic['status'] !== 'active';
     $scopeRef = $topic['scope_level'] === 'bund' ? 'bund' : $topic['scope_level'] . ':' . (string) $topic['scope_name'];
 
     $html = '<article class="topic-detail"><div class="topic-card-meta">'
         . '<span class="badge">' . e(cat_name($topic)) . '</span>'
-        . '<span class="badge">' . e(scope_text($topic)) . '</span></div>'
+        . '<span class="badge">' . e(scope_text($topic)) . '</span>'
+        . ($closed ? '<span class="badge badge-danger">' . e(t('topic.ended')) . '</span>' : '')
+        . '</div>'
         . '<h1>' . e((string) $topic['title']) . '</h1>'
-        . '<p class="muted">' . e(t('topic.created', ['date' => Clock::displayLocal((string) $topic['created_at'], t('common.date_format'))])) . '</p>'
+        . '<p class="muted">' . e(t('topic.created', ['date' => Clock::displayLocal((string) $topic['created_at'], t('common.date_format'))]))
+        . ' · ' . e(topic_end_text($topic)) . '</p>'
         . '<section class="card"><h2 class="field-label">' . e(t('topic.goal_label')) . '</h2>'
         . '<p>' . nl2br(e((string) $topic['goal'])) . '</p>'
         . '<h2 class="field-label">' . e(t('topic.reasoning_label')) . '</h2>'
@@ -2452,6 +2822,14 @@ function v_topic(int $id): void
     }
     if ($user === null) {
         $html .= '<p><a class="btn btn-primary" href="' . e(url('/auth')) . '">' . e(t('vote.login_hint')) . '</a></p>';
+    } elseif ($closed) {
+        $html .= '<p class="muted">' . e(t('topic.vote_closed')) . '</p>';
+        if ($myVote !== null) {
+            $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')])) . '</p>';
+        }
+    } elseif ($voteRow !== null && $voteRow['locked']) {
+        $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')]))
+            . ' · ' . e(t('vote.locked_note')) . '</p>';
     } else {
         $html .= '<form class="vote-actions" method="post" action="' . e(url('/vote')) . '">' . csrf_field()
             . '<input type="hidden" name="topic_id" value="' . (int) $topic['id'] . '">'
@@ -2461,8 +2839,10 @@ function v_topic(int $id): void
             $html .= '<button type="submit" name="choice" value="none" class="btn btn-ghost">' . e(t('vote.withdraw')) . '</button>';
         }
         $html .= '</form>';
-        if ($myVote !== null) {
-            $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')])) . '</p>';
+        if ($myVote !== null && $voteRow !== null) {
+            $until = Clock::addHoursStr((string) $voteRow['created_at'], SW_VOTE_CHANGE_HOURS);
+            $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')]))
+                . ' · ' . e(t('vote.changeable_until', ['date' => Clock::displayLocal($until, t('common.datetime_format'))])) . '</p>';
         }
     }
     $html .= '</section><section class="topic-tools">';
@@ -2480,13 +2860,66 @@ function v_topic(int $id): void
             . '<input type="hidden" name="return" value="/topic/' . (int) $topic['id'] . '">'
             . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t($isScopeFav ? 'topic.fav_scope_remove' : 'topic.fav_scope_add')) . '</button></form>';
     }
+    if ($isAuthor) {
+        $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topic/' . (int) $topic['id'] . '/edit')) . '">' . e(t('topic.edit')) . '</a>'
+            . '<a class="link-quiet" href="#modal-del">' . e(t('topic.delete')) . '</a>';
+    }
     if ($openReport !== null) {
         $html .= '<span class="muted">' . e(t('topic.report_open')) . '</span>';
-    } elseif ($user !== null) {
+    } elseif ($user !== null && !$isAuthor && !$closed) {
         $html .= '<a class="link-quiet" href="' . e(url('/report/' . (int) $topic['id'])) . '">' . e(t('topic.report_link')) . '</a>';
     }
     $html .= '</section></article>';
+
+    if ($isAuthor) {
+        $delInner = '<p class="muted">' . e(t('topic.delete_confirm')) . '</p>'
+            . '<form method="post" action="' . e(url('/topic/' . (int) $topic['id'] . '/delete')) . '">' . csrf_field()
+            . '<div class="btn-row"><button type="submit" class="btn btn-danger">' . e(t('topic.delete')) . '</button>'
+            . '<a class="btn btn-ghost" href="#">' . e(t('common.close')) . '</a></div></form>';
+        $html .= modal('modal-del', t('topic.delete'), $delInner);
+    }
     render((string) $topic['title'], $html);
+}
+
+/** Bearbeiten-Seite (nur Autor). */
+function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
+{
+    $user = require_user();
+    $topic = topic_find($id);
+    if ($topic === null) {
+        v_error_404();
+    }
+    if ((int) $topic['author_id'] !== (int) $user['id'] || $topic['status'] === 'removed') {
+        flash('error', 'flash.not_author');
+        redirect('/topic/' . $id);
+    }
+    if ($old === null) {
+        $scopeVal = $topic['scope_level'] === 'bund' ? 'de'
+            : ($topic['scope_level'] === 'bundesland' ? 'bl:' . $topic['scope_name'] : 'kr:');
+        // Land für Kreis rekonstruieren
+        if ($topic['scope_level'] === 'landkreis') {
+            foreach (SW_REGIONS as $land => $kreise) {
+                if (in_array((string) $topic['scope_name'], $kreise, true)) {
+                    $scopeVal = 'kr:' . $land . ':' . $topic['scope_name'];
+                    break;
+                }
+            }
+        }
+        $old = [
+            'title' => (string) $topic['title'],
+            'goal' => (string) $topic['goal'],
+            'reasoning' => (string) $topic['reasoning'],
+            'category_id' => (int) $topic['category_id'],
+            'scope' => $scopeVal,
+            'end_mode' => (string) $topic['end_mode'],
+            'end_date' => (string) ($topic['end_date'] ?? ''),
+            'end_value' => $topic['end_mode'] === 'count' ? (string) ($topic['end_target'] ?? '') : '',
+        ];
+    }
+    $html = '<h1>' . e(t('topic.edit')) . '</h1>'
+        . '<div class="card">' . topic_form_html($errors, $old, '/topic/' . $id . '/edit', 'topic.save')
+        . '<p><a class="link-quiet" href="' . e(url('/topic/' . $id)) . '">' . e(t('report.cancel')) . '</a></p></div>';
+    render(t('topic.edit'), $html);
 }
 
 function v_auth(): void
@@ -2634,6 +3067,43 @@ function profile_yaml(array $user): string
         $y .= "      status: " . yq((string) $report['status']) . "\n";
     }
     return $y;
+}
+
+/** Öffentlicher Server-Signaturschlüssel (hex) oder '' ohne sodium. */
+function server_sign_pk_hex(): string
+{
+    if (!card_supports_sodium() || SW::$serverSign === '') {
+        return '';
+    }
+    return bin2hex(sodium_crypto_sign_publickey_from_secretkey(SW::$serverSign));
+}
+
+/**
+ * Versiegeltes Profil: an den öffentlichen Ausweis-Schlüssel VERSCHLÜSSELT
+ * (nur der Karteninhaber kann es öffnen) und mit dem Server-Schlüssel
+ * SIGNIERT (Manipulation ist erkennbar). Enthält keine Zuordnung, wer wie
+ * gestimmt hat – die Stimmen selbst sind bereits entkoppelt gespeichert.
+ */
+function profile_sealed(array $user): string
+{
+    $plain = profile_yaml($user);
+    $pkHex = (string) $user['pseudonym_hash'];
+    if (!card_supports_sodium() || SW::$serverSign === '' || strlen(@hex2bin($pkHex) ?: '') !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
+        // Rückfall ohne sodium: Klartext + HMAC-Integritätssiegel.
+        $sig = sw_hmac('profil|' . $plain);
+        return $plain . "# integritaet(hmac-sha256): " . $sig . "\n";
+    }
+    $edPk = hex2bin($pkHex);
+    $curvePk = sodium_crypto_sign_ed25519_pk_to_curve25519($edPk);
+    $cipher = sodium_crypto_box_seal($plain, $curvePk);          // an Public Key verschlüsselt
+    $sig = sodium_crypto_sign_detached($cipher, SW::$serverSign); // Server-Signatur
+    $out = "stimmwerk_versiegeltes_profil:\n";
+    $out .= "  hinweis: " . yq('An oeffentlichen Ausweis-Schluessel verschluesselt; nur mit dem Ausweis lesbar.') . "\n";
+    $out .= "  verschluesselt_fuer: " . yq($pkHex) . "\n";
+    $out .= "  server_schluessel: " . yq(server_sign_pk_hex()) . "\n";
+    $out .= "  chiffre_b64: " . yq(base64_encode($cipher)) . "\n";
+    $out .= "  server_signatur_b64: " . yq(base64_encode($sig)) . "\n";
+    return $out;
 }
 
 function v_jury(): void
@@ -2826,12 +3296,44 @@ function h_topic_create(): void
         flash('error', 'flash.rate_limited');
         redirect('/topics/new');
     }
+    [$errors, $old, $scope, $end] = topic_form_read();
+    if ($errors !== []) {
+        v_main($errors, $old);
+    }
+    try {
+        $topicId = topic_create(
+            $userId,
+            $old['title'],
+            $old['goal'],
+            $old['reasoning'],
+            (int) $old['category_id'],
+            $scope[0],
+            $scope[1],
+            $end[0],
+            $end[1],
+            $end[2]
+        );
+    } catch (DomainException $e) {
+        v_main([$e->getMessage()], $old);
+        return;
+    }
+    flash('success', 'flash.topic_created');
+    redirect('/topic/' . $topicId);
+}
+
+/** Gemeinsames Einlesen/Prüfen des Themenformulars (Neu und Bearbeiten).
+ *  @return array{0:list<string>,1:array,2:?array,3:?array} */
+function topic_form_read(): array
+{
     $old = [
         'title'       => post_str('title', SW_TITLE_MAX),
         'goal'        => post_str('goal', SW_GOAL_MAX, true),
         'reasoning'   => post_str('reasoning', SW_REASONING_MAX, true),
         'category_id' => post_int('category_id') ?? 0,
         'scope'       => post_str('scope', 160),
+        'end_mode'    => post_str('end_mode', 10),
+        'end_date'    => post_str('end_date', 10),
+        'end_value'   => post_str('end_value', 10),
     ];
     $errors = [];
     if (mb_strlen($old['title']) < SW_TITLE_MIN) {
@@ -2853,25 +3355,57 @@ function h_topic_create(): void
     if ($scope === null) {
         $errors[] = 'topic.err_scope';
     }
+    $end = parse_topic_end();
+    if ($end === null) {
+        $errors[] = 'topic.err_end';
+    }
+    return [$errors, $old, $scope, $end];
+}
+
+/** Bearbeiten (nur Autor). */
+function h_topic_edit(int $topicId): void
+{
+    $user = require_user();
+    require_card($user);
+    [$errors, $old, $scope, $end] = topic_form_read();
     if ($errors !== []) {
-        v_main($errors, $old);
+        v_topic_edit($topicId, $errors, $old);
     }
     try {
-        $topicId = topic_create(
-            $userId,
+        topic_update(
+            $topicId,
+            (int) $user['id'],
             $old['title'],
             $old['goal'],
             $old['reasoning'],
             (int) $old['category_id'],
             $scope[0],
-            $scope[1]
+            $scope[1],
+            $end[0],
+            $end[1],
+            $end[2]
         );
     } catch (DomainException $e) {
-        v_main([$e->getMessage()], $old);
-        return;
+        flash('error', $e->getMessage());
+        redirect('/topic/' . $topicId);
     }
-    flash('success', 'flash.topic_created');
+    flash('success', 'flash.topic_updated');
     redirect('/topic/' . $topicId);
+}
+
+/** Löschen (nur Autor). */
+function h_topic_delete(int $topicId): void
+{
+    $user = require_user();
+    require_card($user);
+    try {
+        topic_delete($topicId, (int) $user['id']);
+    } catch (DomainException $e) {
+        flash('error', $e->getMessage());
+        redirect('/topic/' . $topicId);
+    }
+    flash('success', 'flash.topic_deleted');
+    redirect('/');
 }
 
 function h_favorite(): void
@@ -2946,20 +3480,6 @@ function h_jury_vote(): void
     redirect('/jury');
 }
 
-function h_account_delete(): void
-{
-    $user = require_user();
-    require_card($user);
-    if (post_str('confirm', 10) !== 'yes') {
-        flash('error', 'flash.delete_not_confirmed');
-        redirect('/me');
-    }
-    account_delete((int) $user['id']);
-    auth_logout();
-    flash('success', 'flash.account_deleted');
-    redirect('/');
-}
-
 /* ============================== Web-Hauptlauf ============================= */
 
 function send_security_headers(): void
@@ -3032,6 +3552,12 @@ function web_main(): void
         echo "User-agent: *\nDisallow: /\n";
         exit;
     }
+    // Öffentlicher Server-Signaturschlüssel: ohne Sitzung/Sprache abrufbar.
+    if ($path === '/server.pub') {
+        header('Content-Type: text/plain; charset=utf-8');
+        echo server_sign_pk_hex() . "\n";
+        exit;
+    }
 
     send_security_headers();
     session_boot();
@@ -3101,6 +3627,15 @@ function web_main(): void
         if (preg_match('#^/topic/(\d{1,10})$#', $path, $m) === 1 && $isGet) {
             v_topic((int) $m[1]);
         }
+        if (preg_match('#^/topic/(\d{1,10})/edit$#', $path, $m) === 1 && $isGet) {
+            v_topic_edit((int) $m[1]);
+        }
+        if (preg_match('#^/topic/(\d{1,10})/edit$#', $path, $m) === 1 && $method === 'POST') {
+            h_topic_edit((int) $m[1]);
+        }
+        if (preg_match('#^/topic/(\d{1,10})/delete$#', $path, $m) === 1 && $method === 'POST') {
+            h_topic_delete((int) $m[1]);
+        }
         if ($path === '/vote' && $method === 'POST') {
             h_vote();
         }
@@ -3123,14 +3658,12 @@ function web_main(): void
             $u = require_user();
             header('Content-Type: text/yaml; charset=utf-8');
             header('Content-Disposition: attachment; filename="profil.yaml"');
-            echo profile_yaml($u);
+            echo profile_sealed($u);
             exit;
         }
+
         if ($path === '/lang' && $method === 'POST') {
             h_lang();
-        }
-        if ($path === '/account/delete' && $method === 'POST') {
-            h_account_delete();
         }
         if ($path === '/auth' && $isGet) {
             v_auth();
@@ -3183,7 +3716,8 @@ function cli_add_users(int $count, string $prefix): array
 function cli_make_topic(int $authorId, string $title): int
 {
     $categoryId = (int) SW::$db->val('SELECT id FROM categories ORDER BY id LIMIT 1');
-    return topic_create($authorId, $title, 'Ein Ziel für den Selbsttest dieses Themas.', 'Eine Begründung für den Selbsttest dieses Themas.', $categoryId, 'bund', null);
+    $endDate = substr(Clock::addDaysStr(Clock::nowStr(), 30), 0, 10);
+    return topic_create($authorId, $title, 'Ein Ziel für den Selbsttest dieses Themas.', 'Eine Begründung für den Selbsttest dieses Themas.', $categoryId, 'bund', null, 'date', $endDate, null);
 }
 
 function cli_selftest(): int
@@ -3201,6 +3735,10 @@ function cli_selftest(): int
             echo "FAIL  {$description}\n";
         }
     };
+    SW::$pepper = bin2hex(random_bytes(32));
+    if (card_supports_sodium()) {
+        SW::$serverSign = sodium_crypto_sign_secretkey(sodium_crypto_sign_keypair());
+    }
     $t0 = new DateTimeImmutable('2026-03-02 12:00:00', new DateTimeZone('Europe/Berlin'));
     Clock::setTestNow($t0);
     $warp = static function (string $modify) use (&$t0): void {
@@ -3237,6 +3775,94 @@ function cli_selftest(): int
     $t0 = $tSave;
     Clock::setTestNow($t0);
     $check('Identität = öffentlicher Schlüssel (kein Pseudonym)', card_identity($card) === bin2hex($card['pk']));
+
+    echo "== Stimmen entkoppelt & 24h-Sperre ==\n";
+    $vt1 = cli_add_users(1, 'vt')[0];
+    $vtTopic = cli_make_topic($vt1, 'Thema für Stimmtests');
+    vote_cast($vt1, $vtTopic, 'for');
+    $check('Stimmen-Tabelle ohne Ausweis-Bezug (kein user_id)',
+        SW::$db->val("SELECT COUNT(*) FROM pragma_table_info('votes') WHERE name = 'user_id'") == 0);
+    $tag = vote_tag($vtTopic, user_pk($vt1));
+    $check('Stimme unter HMAC-Marker gespeichert (nicht Klar-ID)',
+        SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ? AND voter_tag = ?', [$vtTopic, $tag]) == 1);
+    vote_cast($vt1, $vtTopic, 'against');
+    $check('Änderung innerhalb 24 h möglich', topic_user_vote($vtTopic, $vt1) === 'against');
+    $warp('+25 hours');
+    try {
+        vote_cast($vt1, $vtTopic, 'for');
+        $check('Änderung nach 24 h gesperrt', false);
+    } catch (DomainException $e) {
+        $check('Änderung nach 24 h gesperrt', $e->getMessage() === 'flash.vote_locked');
+    }
+    $warp('-25 hours');
+
+    echo "== Themen-Ende (Datum/Anzahl) & Autor-Rechte ==\n";
+    $au = cli_add_users(1, 'au')[0];
+    $catId = (int) SW::$db->val('SELECT id FROM categories ORDER BY id LIMIT 1');
+    $countTopic = topic_create($au, 'Thema endet bei 2 Stimmen', 'Ziel für den Anzahl-Test hier.', 'Begründung für den Anzahl-Test hier.', $catId, 'bund', null, 'count', null, 2);
+    $c1 = cli_add_users(1, 'c1')[0];
+    $c2 = cli_add_users(1, 'c2')[0];
+    vote_cast($c1, $countTopic, 'for');
+    $check('Thema bei Zielzahl noch offen (1/2)', SW::$db->val('SELECT status FROM topics WHERE id = ?', [$countTopic]) === 'active');
+    vote_cast($c2, $countTopic, 'against');
+    $check('Thema schließt bei Erreichen der Zielzahl (2/2)', SW::$db->val('SELECT status FROM topics WHERE id = ?', [$countTopic]) === 'closed');
+    try {
+        vote_cast($au, $countTopic, 'for');
+        $check('Keine Stimme nach Schließung', false);
+    } catch (DomainException $e) {
+        $check('Keine Stimme nach Schließung', $e->getMessage() === 'flash.topic_not_votable');
+    }
+    $warp('+1 day');
+    $dateTopic = topic_create($au, 'Thema endet gestern', 'Ziel für den Datum-Test hier.', 'Begründung für den Datum-Test hier.', $catId, 'bund', null, 'date', substr(Clock::nowStr(), 0, 10), null);
+    $warp('+2 days');
+    maintenance_tick();
+    $check('Datumsende schließt Thema', SW::$db->val('SELECT status FROM topics WHERE id = ?', [$dateTopic]) === 'closed');
+    $warp('-3 days');
+    $au2 = cli_add_users(1, 'au2')[0];
+    $ownTopic = cli_make_topic($au2, 'Thema zum Bearbeiten und Löschen');
+    topic_update($ownTopic, $au2, 'Neuer Titel nach Bearbeitung', 'Neues Ziel nach Bearbeitung hier.', 'Neue Begründung nach Bearbeitung hier.', $catId, 'bund', null, 'date', substr(Clock::addDaysStr(Clock::nowStr(), 10), 0, 10), null);
+    $check('Autor kann bearbeiten', SW::$db->val('SELECT title FROM topics WHERE id = ?', [$ownTopic]) === 'Neuer Titel nach Bearbeitung');
+    try {
+        topic_update($ownTopic, $c1, 'Fremd', 'Fremdziel hier bitte.', 'Fremdbegründung hier bitte.', $catId, 'bund', null, 'date', substr(Clock::addDaysStr(Clock::nowStr(), 10), 0, 10), null);
+        $check('Nicht-Autor kann nicht bearbeiten', false);
+    } catch (DomainException $e) {
+        $check('Nicht-Autor kann nicht bearbeiten', $e->getMessage() === 'flash.not_author');
+    }
+    vote_cast($c1, $ownTopic, 'for');
+    topic_delete($ownTopic, $au2);
+    $check('Autor kann löschen (Thema weg)', SW::$db->val('SELECT COUNT(*) FROM topics WHERE id = ?', [$ownTopic]) == 0);
+    $check('Stimmen des gelöschten Themas entfernt', SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ?', [$ownTopic]) == 0);
+
+    echo "== Profil: verschlüsselt an Public Key + Server-Signatur ==\n";
+    if (card_supports_sodium()) {
+        $pair = sodium_crypto_sign_keypair();
+        $pkHex = bin2hex(sodium_crypto_sign_publickey($pair));
+        SW::$db->run('INSERT INTO users (pseudonym_hash, lang, created_at) VALUES (?, ?, ?)', [$pkHex, 'de', Clock::nowStr()]);
+        $pu = SW::$db->one('SELECT * FROM users WHERE pseudonym_hash = ?', [$pkHex]);
+        $sealed = profile_sealed($pu);
+        $check('Ausgeliefertes Profil enthält keinen Klartext-Schlüssel im Inhalt',
+            strpos($sealed, 'stimmwerk_versiegeltes_profil') === 0);
+        // Chiffre extrahieren und mit dem privaten Schlüssel entschlüsseln
+        preg_match('/chiffre_b64: "([^"]+)"/', $sealed, $cm);
+        preg_match('/server_signatur_b64: "([^"]+)"/', $sealed, $sm);
+        $cipher = base64_decode($cm[1]);
+        $sig = base64_decode($sm[1]);
+        $serverPk = hex2bin(server_sign_pk_hex());
+        $check('Server-Signatur bestätigt (keine Manipulation)',
+            sodium_crypto_sign_verify_detached($sig, $cipher, $serverPk) === true);
+        $check('Manipulierte Chiffre fällt bei Signaturprüfung durch',
+            sodium_crypto_sign_verify_detached($sig, $cipher . 'x', $serverPk) === false);
+        $curveSk = sodium_crypto_sign_ed25519_sk_to_curve25519(sodium_crypto_sign_secretkey($pair));
+        $curvePk = sodium_crypto_sign_ed25519_pk_to_curve25519(sodium_crypto_sign_publickey($pair));
+        $keypair = sodium_crypto_box_keypair_from_secretkey_and_publickey($curveSk, $curvePk);
+        $plain = sodium_crypto_box_seal_open($cipher, $keypair);
+        $check('Nur mit dem Ausweis-Schlüssel entschlüsselbar', is_string($plain) && strpos($plain, 'stimmwerk_profil') === 0);
+    } else {
+        $check('Profil-Versiegelung übersprungen (kein sodium)', true);
+        $check('Profil-Versiegelung übersprungen (kein sodium)', true);
+        $check('Profil-Versiegelung übersprungen (kein sodium)', true);
+        $check('Profil-Versiegelung übersprungen (kein sodium)', true);
+    }
 
     echo "== Meldegrund: Gesetzesverstoß ==\n";
     $check('Suche nach Schlagwort findet Volksverhetzung', isset(law_search('hetze')['stgb-130-1']));
@@ -3389,9 +4015,11 @@ function cli_selftest(): int
     $daveTopic = cli_make_topic($dave, 'Thema von Dave bleibt bestehen');
     vote_cast($carol, $daveTopic, 'for');
     fav_toggle($carol, 'scope', 'bundesland:Bayern');
+    $carolTag = vote_tag($daveTopic, user_pk($carol));
     account_delete($carol);
     $check('Nutzer gelöscht', (int) SW::$db->val('SELECT COUNT(*) FROM users WHERE id = ?', [$carol]) === 0);
-    $check('Stimmen gelöscht', (int) SW::$db->val('SELECT COUNT(*) FROM votes WHERE user_id = ?', [$carol]) === 0);
+    $check('Stimme bleibt anonym erhalten (nicht mehr zuordenbar)',
+        (int) SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ? AND voter_tag = ?', [$daveTopic, $carolTag]) === 1);
     $check('Favoriten gelöscht', (int) SW::$db->val('SELECT COUNT(*) FROM favorites WHERE user_id = ?', [$carol]) === 0);
     $systemId = (int) SW::$db->val('SELECT id FROM users WHERE is_system = 1');
     $check('Thema entkoppelt (System-Konto)', (int) SW::$db->val('SELECT author_id FROM topics WHERE id = ?', [$carolTopic]) === $systemId);

@@ -34,10 +34,12 @@ mit deutschem Personalausweis kann:
 
 Die Identität wird ausschließlich über die **eID-Funktion des Personalausweises**
 nachgewiesen: Der Chip beweist kryptographisch die Echtheit der Karte (privater
-Schlüssel im Chip, geprüft gegen die staatliche Zertifikatskette), die Plattform
-erhält nur ein **dienstspezifisches Pseudonym** — keinen Namen, keine Adresse, kein
-Geburtsdatum. Eine Karte = ein Konto. Das verhindert Mehrfachkonten und Bot-Armeen,
-ohne dass die Plattform weiß, *wer* jemand ist.
+Schlüssel im Chip). Die Plattform kennt als Identität nur den **öffentlichen
+Schlüssel** — keinen Namen, keine Adresse, kein Geburtsdatum, kein abgeleitetes
+Pseudonym. Eine Karte = ein Konto. Das persönliche Profil wird an diesen
+öffentlichen Schlüssel **verschlüsselt** und vom Server **signiert**
+(manipulationssicher); die Stimmen werden **unverkettbar** gespeichert, sodass
+niemand rückschließen kann, wer wie gestimmt hat.
 
 Die Plattform ist bewusst **schlicht und amtlich-neutral** gestaltet, funktioniert
 gleichwertig auf Smartphone und PC, passt sich hellem und dunklem Systemdesign an und
@@ -244,11 +246,18 @@ ersetzt nur den Karten-Block, Regeln und Abläufe bleiben identisch.
 
 ### 6.2 Abstimmen
 
-- Pro Thema und Pseudonym genau eine Stimme: **dafür** oder **dagegen**.
-- **Neutral = nicht abstimmen.** Enthaltung wird nicht als eigene Stimmart gezählt;
-  wer neutral ist, gibt schlicht keine Stimme ab.
-- Die eigene Stimme kann geändert oder zurückgezogen werden (das Stimmungsbild soll
-  die aktuelle Meinung abbilden).
+- Pro Thema und Ausweis genau eine Stimme: **dafür** oder **dagegen**.
+- **Neutral = nicht abstimmen.** Enthaltung wird nicht als eigene Stimmart gezählt.
+- Die eigene Stimme ist **24 Stunden lang** änderbar oder zurückziehbar; danach
+  ist sie fest (in „Meine Übersicht“ als eigene Gruppe „kürzlich abgestimmt,
+  noch änderbar“ sichtbar).
+- **Stimmen sind unverkettbar gespeichert:** In der Datenbank steht kein
+  Ausweis-Bezug, sondern nur ein HMAC aus Thema + öffentlichem Schlüssel mit
+  serverseitigem Geheimnis. Doppelstimmen sind ausgeschlossen, doch ohne das
+  Geheimnis lässt sich nicht rückschließen, welcher Ausweis wie gestimmt hat.
+- **Abstimmungsende je Thema:** nach **Datum** oder bei Erreichen einer
+  **Ziel-Stimmenzahl bzw. Prozent-Zustimmung**. Danach ist das Thema beendet;
+  Verfasser können ihr Thema **bearbeiten und löschen**.
 - Ergebnisse sind live sichtbar (Anzahl dafür/dagegen, Anteil, Balkendarstellung mit
   Textbeschriftung).
 
