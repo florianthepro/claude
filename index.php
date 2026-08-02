@@ -573,23 +573,32 @@ function take_flashes(): array
     return is_array($flashes) ? $flashes : [];
 }
 
-function csrf_token(): string
-{
-    if (empty($_SESSION['csrf']) || !is_string($_SESSION['csrf'])) {
-        $_SESSION['csrf'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['csrf'];
-}
-
+/**
+ * Einmal-Token: Jedes Formular trägt ein eigenes, einmalig gültiges Token
+ * (serverseitig in der Sitzung geführt, beim Einlösen verbraucht).
+ * Das deckt CSRF ab UND verhindert jede Wiederholung einer Aktion –
+ * jede Aktion ist genau einmal gültig.
+ */
 function csrf_field(): string
 {
-    return '<input type="hidden" name="_csrf" value="' . e(csrf_token()) . '">';
+    $token = bin2hex(random_bytes(16));
+    $list = isset($_SESSION['ot']) && is_array($_SESSION['ot']) ? $_SESSION['ot'] : [];
+    $list[$token] = time();
+    if (count($list) > 40) {
+        $list = array_slice($list, -40, null, true);
+    }
+    $_SESSION['ot'] = $list;
+    return '<input type="hidden" name="_csrf" value="' . e($token) . '">';
 }
 
 function csrf_ok(): bool
 {
     $sent = $_POST['_csrf'] ?? '';
-    return is_string($sent) && !empty($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], $sent);
+    if (!is_string($sent) || !isset($_SESSION['ot']) || !is_array($_SESSION['ot']) || !isset($_SESSION['ot'][$sent])) {
+        return false;
+    }
+    unset($_SESSION['ot'][$sent]); // einmalig: verbraucht ist verbraucht
+    return true;
 }
 
 /** Festfenster-Ratenbegrenzung je Schlüssel; keine Klar-IP-Speicherung. */
@@ -629,23 +638,24 @@ function ip_key(): string
 /* Der echte Ausweis-Chip hält einen privaten Schlüssel, der die Karte nie
    verlässt; der Server prüft Signaturen gegen den öffentlichen Schlüssel
    (Zertifikatskette des Staates, BSI TR-03110/-03130). Im Testbetrieb
-   übernimmt eine im Browser hinterlegte Testkarte die Rolle des Chips:
-   ein echtes Ed25519-Schlüsselpaar (libsodium); jede Anmeldung und jede
-   Änderung wird durch Signatur + Prüfung gegen den öffentlichen Schlüssel
-   bestätigt. Produktion: Austausch dieses Blocks gegen eID-Server-Anbindung. */
-
-const SW_CARD_COOKIE = 'sw_card';
+   simuliert der Server den Chip mit einem echten Ed25519-Schlüsselpaar
+   (libsodium), das ausschließlich serverseitig in der Sitzung liegt –
+   im Browser wird NICHTS gespeichert (einziges Cookie: die Sitzungs-ID).
+   Jede Anmeldung und jede Änderung wird durch Signatur + Prüfung gegen den
+   öffentlichen Schlüssel bestätigt. Am Smartphone löst der NFC-Kontakt den
+   Vorgang direkt aus (Web NFC, mit Rückfall auf Knopfdruck). Produktion:
+   Austausch dieses Blocks gegen die eID-Server-Anbindung (TR-03130). */
 
 function card_supports_sodium(): bool
 {
     return function_exists('sodium_crypto_sign_keypair');
 }
 
-/** Liest die Testkarte aus dem Browser-Cookie. @return array{secret:string,pk:string}|null */
+/** Liest die simulierte Karte der laufenden Sitzung. @return array{secret:string,pk:string}|null */
 function card_load(): ?array
 {
-    $raw = $_COOKIE[SW_CARD_COOKIE] ?? '';
-    if (!is_string($raw) || $raw === '' || strlen($raw) > 256) {
+    $raw = $_SESSION['card'] ?? '';
+    if (!is_string($raw) || $raw === '') {
         return null;
     }
     $secret = base64_decode($raw, true);
@@ -664,7 +674,7 @@ function card_load(): ?array
     return ['secret' => $secret, 'pk' => hash('sha256', 'pk|' . $secret, true)];
 }
 
-/** Erzeugt eine neue Testkarte und hinterlegt sie im Browser. */
+/** Erzeugt eine neue simulierte Karte – nur serverseitig in der Sitzung. */
 function card_create(): array
 {
     if (card_supports_sodium()) {
@@ -675,19 +685,13 @@ function card_create(): array
         $secret = random_bytes(32);
         $pk = hash('sha256', 'pk|' . $secret, true);
     }
-    setcookie(SW_CARD_COOKIE, base64_encode($secret), [
-        'expires'  => time() + 31536000,
-        'path'     => '/',
-        'secure'   => sw_is_https(),
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
+    $_SESSION['card'] = base64_encode($secret);
     return ['secret' => $secret, 'pk' => $pk];
 }
 
 function card_forget(): void
 {
-    setcookie(SW_CARD_COOKIE, '', ['expires' => time() - 3600, 'path' => '/']);
+    unset($_SESSION['card']);
 }
 
 /** Challenge–Response: Karte signiert Zufallsnachricht, Server prüft gegen
@@ -1313,10 +1317,6 @@ const SW_DE = [
     'nav.jury' => 'Jury',
     'auth.login' => 'Ausweis anhalten',
     'auth.logout' => 'Abmelden',
-    'theme.label' => 'Darstellung umschalten',
-    'theme.auto' => 'Automatisch',
-    'theme.light' => 'Hell',
-    'theme.dark' => 'Dunkel',
     'lang.switch' => 'Sprache',
     'common.date_format' => 'd.m.Y',
     'common.datetime_format' => 'd.m.Y, H:i',
@@ -1405,7 +1405,8 @@ const SW_DE = [
     'auth.title' => 'Ausweis anhalten',
     'auth.line' => 'Der Ausweis bestätigt sich über seinen Schlüssel. Die Seite erhält nur ein Pseudonym – keinen Namen.',
     'auth.tap' => 'Ausweis anhalten',
-    'auth.mock_note' => 'Testbetrieb: simulierte Karte in diesem Browser.',
+    'auth.mock_note' => 'Testbetrieb: simulierte Karte nur für diese Sitzung – im Browser wird nichts gespeichert.',
+    'auth.hold' => 'Ausweis an das Gerät halten …',
     'auth.new_card' => 'Neue Testkarte',
 
     'me.title' => 'Meine Übersicht',
@@ -1516,7 +1517,7 @@ const SW_DE = [
     'privacy.h' => 'Datenschutz',
     'privacy.p1' => 'Es werden weder Name noch Anschrift, Geburtsdatum oder E-Mail-Adresse verarbeitet.',
     'privacy.p2' => 'Beim Anhalten des Ausweises erhält die Seite nur einen öffentlichen Schlüssel und speichert davon ausschließlich ein Pseudonym (Hash mit serverseitigem Geheimnis).',
-    'privacy.p3' => 'Genau ein technisch notwendiges Sitzungs-Cookie sowie im Testbetrieb ein Testkarten-Cookie. Keine Tracker, keine Drittinhalte.',
+    'privacy.p3' => 'Genau ein technisch notwendiges Sitzungs-Cookie. Darüber hinaus wird nichts im Browser gespeichert – keine weiteren Cookies, kein localStorage, keine Tracker, keine Drittinhalte.',
     'privacy.p4' => 'Zur Missbrauchsabwehr werden kurzlebige, gehashte Kennungen für Ratenbegrenzungen verarbeitet und automatisch gelöscht.',
     'privacy.p5' => 'Das Konto kann jederzeit in „Meine Übersicht“ gelöscht werden.',
 ];
@@ -1531,10 +1532,6 @@ const SW_EN = [
     'nav.jury' => 'Jury',
     'auth.login' => 'Tap your ID card',
     'auth.logout' => 'Sign out',
-    'theme.label' => 'Toggle appearance',
-    'theme.auto' => 'Automatic',
-    'theme.light' => 'Light',
-    'theme.dark' => 'Dark',
     'lang.switch' => 'Language',
     'common.date_format' => 'Y-m-d',
     'common.datetime_format' => 'Y-m-d, H:i',
@@ -1623,7 +1620,8 @@ const SW_EN = [
     'auth.title' => 'Tap your ID card',
     'auth.line' => 'The card proves itself with its key. The site only receives a pseudonym – never your name.',
     'auth.tap' => 'Tap your ID card',
-    'auth.mock_note' => 'Test operation: simulated card in this browser.',
+    'auth.mock_note' => 'Test operation: simulated card for this session only – nothing is stored in the browser.',
+    'auth.hold' => 'Hold your ID card to the device …',
     'auth.new_card' => 'New test card',
 
     'me.title' => 'My overview',
@@ -1734,7 +1732,7 @@ const SW_EN = [
     'privacy.h' => 'Privacy',
     'privacy.p1' => 'Neither name, address, date of birth nor e-mail address are processed.',
     'privacy.p2' => 'When tapping the ID card, the site only receives a public key and stores nothing but a pseudonym derived from it (hash with a server-side secret).',
-    'privacy.p3' => 'Exactly one technically necessary session cookie, plus a test-card cookie in test operation. No trackers, no third-party content.',
+    'privacy.p3' => 'Exactly one technically necessary session cookie. Beyond that, nothing is stored in the browser – no further cookies, no localStorage, no trackers, no third-party content.',
     'privacy.p4' => 'To prevent abuse, short-lived hashed identifiers are processed for rate limiting and deleted automatically.',
     'privacy.p5' => 'The account can be deleted at any time in “My overview”.',
 ];
@@ -1743,11 +1741,12 @@ const SW_EN = [
 
 const SW_CSS = <<<'CSS'
 /* Stimmwerk - monochrom, schlicht, amtlich. Schwarz-Rot-Gold als einzige
-   Farblinie. Hell/Dunkel per Systemeinstellung + manuellem Umschalter.
-   Dafuer/Dagegen wird ueber Helligkeit unterschieden und traegt immer
-   Textbeschriftung - Bedeutung haengt nie an Farbe allein. */
+   Farblinie. Hell/Dunkel folgt ausschliesslich der Systemeinstellung -
+   es wird nichts im Browser gespeichert. Dafuer/Dagegen wird ueber
+   Helligkeit unterschieden und traegt immer Textbeschriftung -
+   Bedeutung haengt nie an Farbe allein. */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --page: #ffffff; --surface: #ffffff; --field: #fafafa;
   --ink: #111111; --muted: #5f646b; --border: #d9d9d9;
   --accent: #111111; --accent-hover: #3a3a3a; --accent-ink: #ffffff;
@@ -1758,8 +1757,7 @@ const SW_CSS = <<<'CSS'
   --focus: #111111;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
+  :root {
     --page: #131416; --surface: #17191c; --field: #1d2023;
     --ink: #ededed; --muted: #9aa0a6; --border: #34373b;
     --accent: #ededed; --accent-hover: #ffffff; --accent-ink: #131416;
@@ -1769,17 +1767,6 @@ const SW_CSS = <<<'CSS'
     --flash-bg: #1f2226; --flash-ink: #c9cdd1; --flash-error-ink: #d98a87;
     --focus: #ededed;
   }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page: #131416; --surface: #17191c; --field: #1d2023;
-  --ink: #ededed; --muted: #9aa0a6; --border: #34373b;
-  --accent: #ededed; --accent-hover: #ffffff; --accent-ink: #131416;
-  --vote-for: #ededed; --vote-against: #6d7378; --bar-track: #26282b;
-  --danger: #d98a87;
-  --banner-bg: #ededed; --banner-ink: #131416;
-  --flash-bg: #1f2226; --flash-ink: #c9cdd1; --flash-error-ink: #d98a87;
-  --focus: #ededed;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -1819,8 +1806,16 @@ a:hover { color: var(--accent-hover); }
 .lang-form { display: inline-flex; border: 1px solid var(--border); }
 .lang-btn { border: 0; background: var(--surface); color: var(--muted); font: inherit; font-size: 0.8rem; font-weight: 600; padding: 0.28rem 0.5rem; cursor: pointer; }
 .lang-btn.is-active { background: var(--accent); color: var(--accent-ink); }
-.theme-btn { border: 1px solid var(--border); background: var(--surface); color: var(--muted); font: inherit; font-size: 0.8rem; padding: 0.28rem 0.5rem; cursor: pointer; }
-.theme-btn:hover { color: var(--ink); }
+/* Sprachwahl beim ersten Aufruf: nur Flaggen */
+.start-gate { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.6rem; padding: 2rem 1rem; }
+.start-brand { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
+.start-flags { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
+.flag-btn { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 1.1rem 1.6rem; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer; }
+.flag-btn:hover { border-color: var(--ink); }
+.flag { width: 5.4rem; height: auto; display: block; border: 1px solid var(--border); }
+/* Symbolhafter Anmelde-Einstieg */
+.tap-icon { width: 7.5rem; height: auto; color: var(--ink); margin: 0.4rem auto 0.2rem; display: block; }
+.tap-status { font-weight: 650; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; border: 1px solid transparent; border-radius: 2px;
   font: inherit; font-weight: 600; font-size: 0.92rem; padding: 0.45rem 0.95rem; cursor: pointer; text-decoration: none;
   transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease; }
@@ -1928,40 +1923,13 @@ CSS;
 
 const SW_JS = <<<'JS'
 /* Progressive Verbesserungen - alles laeuft auch ohne JavaScript.
-   Hier nur: Theme-Umschalter und Countdown bis Mitternacht. */
+   Es wird NICHTS im Browser gespeichert (kein localStorage, keine Cookies
+   aus Skripten). Hier nur: Countdown bis Mitternacht und - am Smartphone -
+   das direkte Ausloesen der Anmeldung per NFC-Kontakt (Web NFC). */
 (function () {
   'use strict';
-  try {
-    var stored = localStorage.getItem('sw-theme');
-    if (stored === 'light' || stored === 'dark') {
-      document.documentElement.setAttribute('data-theme', stored);
-    }
-  } catch (e) {}
   var init = function () {
-    var toggle = document.getElementById('theme-toggle');
-    if (toggle) {
-      var readTheme = function () {
-        try {
-          var s = localStorage.getItem('sw-theme');
-          return s === 'light' || s === 'dark' ? s : 'auto';
-        } catch (e) { return 'auto'; }
-      };
-      var applyTheme = function (mode) {
-        if (mode === 'auto') { document.documentElement.removeAttribute('data-theme'); }
-        else { document.documentElement.setAttribute('data-theme', mode); }
-        try {
-          if (mode === 'auto') { localStorage.removeItem('sw-theme'); }
-          else { localStorage.setItem('sw-theme', mode); }
-        } catch (e) {}
-        toggle.textContent = toggle.getAttribute('data-l-' + mode) || mode;
-      };
-      toggle.hidden = false;
-      applyTheme(readTheme());
-      toggle.addEventListener('click', function () {
-        var order = ['auto', 'light', 'dark'];
-        applyTheme(order[(order.indexOf(readTheme()) + 1) % order.length]);
-      });
-    }
+    /* Countdown (z. B. bis zum naechsten moeglichen Thema um 00:00) */
     var nodes = document.querySelectorAll('[data-countdown-to]');
     if (nodes.length > 0) {
       var pad = function (n) { return n < 10 ? '0' + n : String(n); };
@@ -1975,6 +1943,32 @@ const SW_JS = <<<'JS'
       };
       update();
       setInterval(update, 1000);
+    }
+
+    /* NFC direkt vom Handy: Knopf startet den Leser; das Anhalten der Karte
+       loest die Anmeldung aus. Der Personalausweis ist kein NDEF-Tag, daher
+       zaehlt auch "readingerror" als Kontakt. Ohne Web NFC (iOS, Desktop)
+       oder nach 15 s sendet der Knopf normal ab. */
+    var tapForm = document.getElementById('tap-form');
+    if (tapForm && 'NDEFReader' in window) {
+      tapForm.addEventListener('submit', function (ev) {
+        if (tapForm.getAttribute('data-armed') === '1') { return; }
+        ev.preventDefault();
+        tapForm.setAttribute('data-armed', '1');
+        var status = document.getElementById('tap-status');
+        if (status) { status.hidden = false; }
+        var done = false;
+        var go = function () {
+          if (!done) { done = true; tapForm.submit(); }
+        };
+        try {
+          var reader = new NDEFReader();
+          reader.addEventListener('reading', go);
+          reader.addEventListener('readingerror', go);
+          reader.scan().catch(go);
+          setTimeout(go, 15000);
+        } catch (e) { go(); }
+      });
     }
   };
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); }
@@ -2067,9 +2061,7 @@ function v_layout(string $title, string $content): string
         . '<input type="hidden" name="return" value="' . e($returnValue) . '">'
         . '<button type="submit" name="lang" value="de" class="lang-btn ' . (SW::$lang === 'de' ? 'is-active' : '') . '" aria-pressed="' . (SW::$lang === 'de' ? 'true' : 'false') . '">DE</button>'
         . '<button type="submit" name="lang" value="en" class="lang-btn ' . (SW::$lang === 'en' ? 'is-active' : '') . '" aria-pressed="' . (SW::$lang === 'en' ? 'true' : 'false') . '">EN</button>'
-        . '</form>'
-        . '<button type="button" id="theme-toggle" class="theme-btn" hidden aria-label="' . e(t('theme.label'))
-        . '" data-l-auto="' . e(t('theme.auto')) . '" data-l-light="' . e(t('theme.light')) . '" data-l-dark="' . e(t('theme.dark')) . '"></button>';
+        . '</form>';
     if ($user === null) {
         $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
     } else {
@@ -2394,15 +2386,65 @@ function v_auth(): void
     if (auth_user() !== null) {
         redirect('/me');
     }
-    $html = '<section class="card auth-card"><h1>' . e(t('auth.title')) . '</h1>'
+    // Symbolhafter Einstieg: Ausweis-Piktogramm mit NFC-Wellen, ein Satz,
+    // ein Knopf. Am Smartphone startet der Knopf den NFC-Leser (Web NFC);
+    // das Anhalten der Karte löst die Anmeldung direkt aus.
+    $pictogram = '<svg class="tap-icon" viewBox="0 0 96 64" aria-hidden="true" focusable="false">'
+        . '<rect x="4" y="10" width="56" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="3"/>'
+        . '<rect x="11" y="19" width="14" height="11" rx="2" fill="currentColor"/>'
+        . '<line x1="11" y1="38" x2="46" y2="38" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>'
+        . '<path d="M70 18a22 22 0 0 1 0 28" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>'
+        . '<path d="M78 12a32 32 0 0 1 0 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>'
+        . '<path d="M86 6a42 42 0 0 1 0 52" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>'
+        . '</svg>';
+    $html = '<section class="card auth-card">' . $pictogram
+        . '<h1>' . e(t('auth.title')) . '</h1>'
         . '<p class="muted">' . e(t('auth.line')) . '</p>'
-        . '<form method="post" action="' . e(url('/tap')) . '">' . csrf_field()
+        . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
         . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
+        . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>'
         . '<p class="muted">' . e(t('auth.mock_note')) . '</p>'
         . '<form method="post" action="' . e(url('/card/new')) . '">' . csrf_field()
         . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.new_card')) . '</button></form>'
         . '</section>';
     render(t('auth.title'), $html);
+}
+
+/** Sprachwahl beim allerersten Aufruf: zwei Flaggen, sonst nichts. */
+function v_start(): void
+{
+    $flagDe = '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
+        . '<rect width="60" height="12" y="0" fill="#000000"/>'
+        . '<rect width="60" height="12" y="12" fill="#dd0000"/>'
+        . '<rect width="60" height="12" y="24" fill="#ffcc00"/></svg>';
+    $flagEn = '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
+        . '<rect width="60" height="36" fill="#012169"/>'
+        . '<path d="M0 0L60 36M60 0L0 36" stroke="#ffffff" stroke-width="7"/>'
+        . '<path d="M0 0L60 36M60 0L0 36" stroke="#c8102e" stroke-width="3"/>'
+        . '<path d="M30 0V36M0 18H60" stroke="#ffffff" stroke-width="12"/>'
+        . '<path d="M30 0V36M0 18H60" stroke="#c8102e" stroke-width="7"/></svg>';
+    http_response_code(200);
+    $banner = empty(SW::$cfg['show_test_banner'])
+        ? ''
+        : '<div class="test-banner" role="note">' . e(SW_DE['banner.test']) . ' / ' . e(SW_EN['banner.test']) . '</div>';
+    echo '<!DOCTYPE html><html lang="de"><head>'
+        . '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        . '<meta name="referrer" content="no-referrer">'
+        . '<title>' . e((string) SW::$cfg['app_name']) . '</title>'
+        . '<link rel="stylesheet" href="' . e(url('/a/app.css')) . '">'
+        . '<link rel="icon" type="image/svg+xml" href="' . e(url('/a/icon.svg')) . '">'
+        . '</head><body>' . $banner
+        . '<main class="start-gate">'
+        . '<p class="start-brand">' . e((string) SW::$cfg['app_name']) . '</p>'
+        . '<div class="start-flags">'
+        . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
+        . '<input type="hidden" name="return" value="/">'
+        . '<button type="submit" name="lang" value="de" class="flag-btn" lang="de">' . $flagDe . '<span>Deutsch</span></button></form>'
+        . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
+        . '<input type="hidden" name="return" value="/">'
+        . '<button type="submit" name="lang" value="en" class="flag-btn" lang="en">' . $flagEn . '<span>English</span></button></form>'
+        . '</div></main></body></html>';
+    exit;
 }
 
 function v_error_404(): void
@@ -2977,6 +3019,19 @@ function web_main(): void
 
         if (!in_array($method, ['GET', 'HEAD', 'POST'], true)) {
             v_error(405, 'error.method');
+        }
+
+        // Allererster Aufruf: Sprachwahl über Flaggen, danach die Seite.
+        $langChosen = is_string($_SESSION['lang'] ?? null) || $user !== null;
+        if (!$langChosen && ($method === 'GET' || $method === 'HEAD')
+            && !in_array($path, ['/start', '/imprint', '/privacy'], true)) {
+            redirect('/start');
+        }
+        if ($path === '/start' && ($method === 'GET' || $method === 'HEAD')) {
+            if ($langChosen) {
+                redirect('/');
+            }
+            v_start();
         }
         // Zentrale CSRF-Prüfung: ausnahmslos jede POST-Anfrage.
         if ($method === 'POST' && !csrf_ok()) {

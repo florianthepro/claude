@@ -24,20 +24,28 @@ machen (Rechte 755/775), neu laden. Ohne `.htaccess`-Unterstützung (z. B.
 nginx) funktioniert alles weiter über automatisch erzeugte
 `/index.php/...`-Links.
 
-## Ausweis & Bestätigung
+## Ausweis, Bestätigung, Browser-Speicher
 
-- **Anmelden:** ein Knopf – „Ausweis anhalten“. Der (im Testbetrieb
-  simulierte) Karten-Chip signiert eine Zufallsnachricht mit seinem privaten
-  Schlüssel; der Server prüft die Signatur gegen den öffentlichen Schlüssel
-  und kennt nur ein daraus abgeleitetes Pseudonym.
-- **Jede Änderung** (Stimme, Thema, Meldung, Jury-Stimme, Favorit, Löschung)
-  verlangt die Karte erneut – ohne gültigen Karten-Schlüssel wird die
-  Änderung abgelehnt.
-- Testbetrieb: Die simulierte Karte liegt in diesem Browser (Cookie,
-  echtes Ed25519-Schlüsselpaar). „Neue Testkarte“ erzeugt eine weitere
-  Identität, z. B. für Vorführungen mit mehreren Rollen.
+- **Start:** Beim allerersten Aufruf erscheint nur die Sprachwahl über zwei
+  Flaggen (Deutsch/English), danach die Seite.
+- **Anmelden:** ein Knopf – „Ausweis anhalten“. Am Smartphone startet der
+  Knopf den NFC-Leser (Web NFC): Das Anhalten der Karte löst die Anmeldung
+  direkt aus; ohne NFC-Unterstützung sendet der Knopf normal ab. Der (im
+  Testbetrieb simulierte) Karten-Chip signiert eine Zufallsnachricht mit
+  seinem privaten Schlüssel; der Server prüft die Signatur gegen den
+  öffentlichen Schlüssel und kennt nur ein daraus abgeleitetes Pseudonym.
+- **Nichts im Browser:** Es wird ausschließlich das technisch notwendige
+  Sitzungs-Cookie gesetzt – kein Karten-Cookie, kein localStorage. Der
+  simulierte Karten-Schlüssel liegt nur serverseitig in der Sitzung
+  (Sitzungsende = Testidentität endet; mit echter eID liefert die
+  physische Karte das stabile Pseudonym).
+- **Jede Aktion einmalig:** Jedes Formular trägt ein einmalig gültiges
+  Token (beim Einlösen verbraucht – kein Wiederholen, deckt CSRF ab), und
+  **jede Änderung** (Stimme, Thema, Meldung, Jury-Stimme, Favorit,
+  Löschung) verlangt zusätzlich eine gültige Karten-Signatur.
 - Echtbetrieb: Austausch des Karten-Blocks gegen die eID-Server-Anbindung
-  (BSI TR-03130), siehe Whitepaper Kapitel 5.
+  (BSI TR-03130); der eID-Client (AusweisApp) übernimmt dann das
+  NFC-Auslesen samt PIN, siehe Whitepaper Kapitel 5.
 
 ## CLI (optional)
 
@@ -54,7 +62,8 @@ php -S 127.0.0.1:8080 index.php   # lokale Demo ohne Webserver
 - Ausschließlich Prepared Statements; durchgängiges Output-Escaping
 - CSP `default-src 'none'` ohne `unsafe-inline` (CSS/JS liefert die Datei
   selbst als eigene Routen aus), restriktive Header, HSTS bei HTTPS
-- Zentrale CSRF-Prüfung jeder POST-Anfrage; Signaturbestätigung jeder Änderung
+- Einmal-Token für jede POST-Anfrage (kein Replay, deckt CSRF ab);
+  Signaturbestätigung jeder Änderung; nichts im Browser gespeichert
 - Sessions: HttpOnly, SameSite, ID-Rotation, Idle-/Absolut-Timeout
 - Kernregeln zusätzlich als DB-Constraints (1 Thema/Tag, 1 Stimme/Thema,
   1 offene Meldung/Thema, 1 Jury-Sitz/Meldung)

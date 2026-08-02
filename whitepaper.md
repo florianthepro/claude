@@ -71,16 +71,20 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
    bleibt destruktiven Aktionen (Löschen) vorbehalten.
 2. **Keine KI-Hinweistexte** auf der Seite. Die Seite spricht als Produkt, nüchtern
    und in Sie-Form.
-3. **Hell/Dunkel automatisch:** Das Design folgt der Systemeinstellung
-   (`prefers-color-scheme`) und lässt sich zusätzlich manuell umschalten.
-4. **Responsiv:** eine Codebasis für Smartphone, Tablet, PC und Terminals; alle
-   Funktionen sind ohne JavaScript nutzbar (JavaScript verbessert nur Details wie
-   Countdown und Theme-Umschalter).
-5. **Testbetrieb-Banner:** Solange die Konfigurationsvariable
+3. **Hell/Dunkel automatisch:** Das Design folgt ausschließlich der
+   Systemeinstellung (`prefers-color-scheme`) — es wird bewusst nichts im
+   Browser gespeichert, auch keine Design-Präferenz.
+4. **Symbolhafter Einstieg:** Beim ersten Aufruf nur die Sprachwahl über
+   zwei Flaggen (Deutsch/English); die Anmeldung führt ein Ausweis-Piktogramm
+   mit NFC-Wellen an, Text bleibt minimal.
+5. **Responsiv:** eine Codebasis für Smartphone, Tablet, PC und Terminals; alle
+   Funktionen sind ohne JavaScript nutzbar (JavaScript verbessert nur Details:
+   Countdown und NFC-Auslösung am Smartphone).
+6. **Testbetrieb-Banner:** Solange die Konfigurationsvariable
    `show_test_banner` auf `true` steht (Auslieferungszustand), zeigt jede Seite oben
    ein deutliches Banner: *„Testbetrieb — keine offizielle Seite der
    Bundesregierung oder einer Behörde.“*
-6. **Barrierearmut:** semantisches HTML, Tastaturbedienung, ausreichende Kontraste
+7. **Barrierearmut:** semantisches HTML, Tastaturbedienung, ausreichende Kontraste
    (geprüft, auch bei Farbfehlsichtigkeit: Abstimmungsbalken tragen immer
    Textbeschriftung, Bedeutung hängt nie an Farbe allein). Vollständige
    BITV-Konformität ist Ziel der Ausbaustufe.
@@ -172,12 +176,18 @@ Testkarte im Browser übernimmt die Rolle des Chips und hält ein echtes
 Ed25519-Schlüsselpaar (libsodium). Beim „Ausweis anhalten“ signiert der
 private Schlüssel eine Zufallsnachricht; der Server prüft die Signatur
 gegen den öffentlichen Schlüssel und leitet daraus das Pseudonym ab.
-**Jede Änderung** (Stimme, Thema, Meldung, Jury-Stimme, Favorit,
-Kontolöschung) verlangt die Karte erneut — ohne gültigen Karten-Schlüssel
-wird die Änderung serverseitig abgelehnt (Transaktionsbestätigung, wie
-später mit der eID-App pro Vorgang). Der Wechsel auf einen echten
-eID-Server ersetzt nur diesen Karten-Block; Pseudonym-Hash, Sitzungen und
-Regeln bleiben unverändert.
+**Im Browser wird nichts gespeichert:** Der simulierte Karten-Schlüssel
+liegt ausschließlich serverseitig in der Sitzung; einziges Cookie ist die
+Sitzungs-ID, es gibt kein localStorage. **Jede Aktion ist einmalig:**
+Jedes Formular trägt ein einmalig gültiges Token (beim Einlösen
+verbraucht — Wiederholungen laufen ins Leere), und **jede Änderung**
+(Stimme, Thema, Meldung, Jury-Stimme, Favorit, Kontolöschung) verlangt
+zusätzlich eine gültige Karten-Signatur (Transaktionsbestätigung, wie
+später mit der eID-App pro Vorgang). Am Smartphone löst der NFC-Kontakt
+die Anmeldung direkt aus (Web NFC; der Personalausweis meldet sich dabei
+als Karte, die eigentliche Prüfung bleibt serverseitig). Der Wechsel auf
+einen echten eID-Server ersetzt nur diesen Karten-Block; Pseudonym-Hash,
+Sitzungen und Regeln bleiben unverändert.
 
 ### 5.4 Grenzen und Missbrauchsszenarien
 
@@ -370,7 +380,7 @@ konservativ gebaut: wenig Code, wenig Abhängigkeiten, restriktive Standardwerte
 | CSP | `default-src 'none'` + explizite Freigaben nur für eigene Skripte/Styles/Bilder; `frame-ancestors 'none'`, `base-uri 'none'`, `form-action 'self'` |
 | Clickjacking | `X-Frame-Options: DENY` + CSP frame-ancestors |
 | Weitere Header | `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, restriktive `Permissions-Policy`, COOP/CORP; HSTS im HTTPS-Betrieb |
-| CSRF | Sitzungsgebundene Token auf **jedem** POST-Formular, Vergleich mit `hash_equals` |
+| CSRF/Replay | **Einmal-Token** auf jedem POST-Formular: beim Einlösen verbraucht — jede Aktion ist genau einmal gültig |
 | Sessions | HttpOnly, SameSite, Secure (bei HTTPS), ID-Rotation bei An-/Abmeldung, Inaktivitäts- (30 min) und absolutes Timeout (8 h) — wichtig für öffentliche Terminals |
 | Identität | Nur HMAC-SHA-256-Pseudonym-Hashes; Server-Pepper wird beim ersten Start kryptographisch erzeugt und liegt außerhalb des Webroots (0600) |
 | Zufall | Jury-Losverfahren mit CSPRNG (`random_int`, Fisher-Yates), nicht mit SQL-`RANDOM()` |
