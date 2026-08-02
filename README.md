@@ -28,9 +28,10 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 
 - **Start:** Beim allerersten Aufruf erscheint nur die Sprachwahl über zwei
   Flaggen (Deutsch/English), danach die Seite.
-- **Anmelden (Profil laden):** ein Knopf – „Ausweis anhalten“. Am
-  Smartphone startet der Knopf den NFC-Leser (Web NFC): Das Anhalten löst
-  die Anmeldung direkt aus; ohne NFC sendet der Knopf normal ab. Die
+- **Anmelden (Profil laden):** Auf der Anmeldeseite ist der NFC-Leser am
+  Smartphone automatisch scharf (Web NFC): den Personalausweis anhalten
+  genügt, die Anmeldung löst direkt aus. Der Knopf dient als Rückfall und
+  für die einmalige Browser-Berechtigung; ohne NFC sendet er normal ab. Die
   statische Challenge ist der öffentliche Schlüssel selbst – **kein
   abgeleitetes Pseudonym**, die Identität ist der Schlüssel („on the go“).
   Das Anhalten lädt die **profil.yaml** (Stimmen, Themen, Favoriten,
@@ -48,8 +49,11 @@ nginx) funktioniert alles weiter über automatisch erzeugte
   hierarchische Auswahl Deutschland → Bundesland → Landkreis/kreisfreie
   Stadt (eingebaute Liste, 16 Länder, rund 400 Kreise) – vor Echtbetrieb
   gegen das amtliche Verzeichnis (ARS/Destatis) abgleichen.
-- **Testbetrieb = nur das Banner:** Abläufe, NFC und Kryptographie sind
-  die Produktabläufe; simuliert ist allein der Karten-Chip (serverseitig).
+- **Testbetrieb = nur das Banner:** Abläufe, NFC-Auslösung und
+  Kryptographie sind bereits die aktiven Produktabläufe – auch mit echtem
+  Personalausweis als NFC-Auslöser; serverseitig simuliert ist allein die
+  Chip-Signatur (das PIN-geschützte Auslesen des Chips kann kein Browser,
+  das übernimmt im Echtbetrieb die AusweisApp).
   Echtbetrieb: Karten-Block gegen die eID-Server-Anbindung (BSI TR-03130)
   tauschen; die AusweisApp übernimmt dann NFC samt PIN (Whitepaper Kap. 5).
 

@@ -196,8 +196,10 @@ gegen den öffentlichen Schlüssel und leitet daraus das Pseudonym ab.
 
 Zusätzlich trägt jedes Formular ein **Einmal-Token** (beim Einlösen
 verbraucht — Wiederholungen laufen ins Leere), und im Browser liegt außer
-der Sitzungs-ID nur die bewusst geladene profil.yaml. Am Smartphone löst
-der NFC-Kontakt die Anmeldung direkt aus (Web NFC). Der Testbetrieb
+der Sitzungs-ID nur die bewusst geladene profil.yaml. Am Smartphone ist
+der NFC-Leser auf der Anmeldeseite automatisch scharf: Das Anhalten des
+(echten) Personalausweises löst die Anmeldung direkt aus (Web NFC; der
+Knopf bleibt Rückfall und Berechtigungsgeste). Der Testbetrieb
 unterscheidet sich vom Echtbetrieb allein durch das Banner und die
 serverseitig simulierte Karte; der Wechsel auf einen echten eID-Server
 ersetzt nur den Karten-Block, Regeln und Abläufe bleiben identisch.

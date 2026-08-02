@@ -892,6 +892,30 @@ function scope_decode(string $value): ?array
     return null;
 }
 
+/** Gebiets-Favorit ('bund' | 'bundesland:X' | 'landkreis:Y') als
+ *  Filterwert der Themenliste ('de' | 'bl:X' | 'kr:Land:Y'). */
+function fav_to_gebiet(string $ref): ?string
+{
+    if ($ref === 'bund') {
+        return 'de';
+    }
+    $parts = explode(':', $ref, 2);
+    if (count($parts) !== 2) {
+        return null;
+    }
+    if ($parts[0] === 'bundesland' && isset(SW_REGIONS[$parts[1]])) {
+        return 'bl:' . $parts[1];
+    }
+    if ($parts[0] === 'landkreis') {
+        foreach (SW_REGIONS as $land => $kreise) {
+            if (in_array($parts[1], $kreise, true)) {
+                return 'kr:' . $land . ':' . $parts[1];
+            }
+        }
+    }
+    return null;
+}
+
 /** Hierarchisches Auswahlfeld (eine Liste, wie im Behördenfinder). */
 function scope_select(string $name, string $selected, bool $withAll): string
 {
@@ -1455,8 +1479,7 @@ const SW_DE = [
     'common.back_home' => 'Zur Startseite',
 
     'home.title' => 'Digitale Bürgerbeteiligung',
-    'home.intro' => 'Themen einbringen und abstimmen – mit dem Personalausweis, ohne Konto und ohne Klarnamen.',
-    'home.locked' => 'Stimmen, Favoriten und Jury-Aufgaben werden nach dem Anhalten des Ausweises sichtbar.',
+    'home.locked' => 'Stimmen, Favoriten und Jury: nach dem Anhalten sichtbar.',
     'home.personal' => 'Mein Bereich',
     'home.p_votes' => 'Abgegebene Stimmen',
     'home.p_favorites' => 'Favoriten',
@@ -1464,9 +1487,6 @@ const SW_DE = [
     'home.p_jury_open' => 'Jury-Stimme erforderlich',
     'home.p_jury_upcoming' => 'Ausgelost, Beginn {date}, 00:00 Uhr',
     'home.p_jury_none' => 'keine Aufgabe',
-    'home.stat_topics' => 'Aktive Themen',
-    'home.stat_votes' => 'Abgegebene Stimmen',
-    'home.stat_users' => 'Registrierte Ausweise',
     'home.latest' => 'Neueste Themen',
     'home.all_topics' => 'Alle Themen',
 
@@ -1509,12 +1529,10 @@ const SW_DE = [
     'vote.total' => '{n} Stimmen abgegeben',
     'vote.none_yet' => 'Noch keine Stimmen.',
     'vote.login_hint' => 'Zum Abstimmen Ausweis anhalten',
-    'vote.neutral_hint' => 'Enthaltung = keine Stimme abgeben.',
     'vote.bar_aria' => 'Abstimmungsergebnis',
-    'vote.signed' => 'Jede Änderung wird mit dem Ausweis-Schlüssel bestätigt.',
 
     'topic.new_title' => 'Thema einbringen',
-    'topic.new_intro' => 'Ein Thema pro Person und Tag. Nach Veröffentlichung nicht mehr änderbar.',
+    'topic.new_intro' => 'Ein Thema pro Tag; nach Veröffentlichung unveränderlich.',
     'topic.posted_today' => 'Heute bereits ein Thema eingebracht. Das nächste ist ab 00:00 Uhr möglich.',
     'topic.next_in' => 'Nächstes Thema in',
     'topic.f_title' => 'Titel',
@@ -1531,7 +1549,6 @@ const SW_DE = [
     'topic.err_scope' => 'Bitte einen Geltungsbereich wählen.',
 
     'auth.title' => 'Ausweis anhalten',
-    'auth.line' => 'Der Ausweis meldet sich mit seinem öffentlichen Schlüssel an – zeitlich begrenzt, ohne Namen. Das Anhalten lädt Ihre profil.yaml.',
     'auth.tap' => 'Ausweis anhalten',
     'auth.hold' => 'Ausweis an das Gerät halten …',
     'auth.other_card' => 'Anderen Ausweis verwenden',
@@ -1561,15 +1578,14 @@ const SW_DE = [
     'me.cooldown' => 'Jury-Karenz bis {date}.',
     'me.profile' => 'Profil (profil.yaml)',
     'me.download' => 'profil.yaml herunterladen',
-    'me.logout_note' => 'Abmelden löscht die profil.yaml aus dem Browser.',
     'me.delete_title' => 'Konto und Daten löschen',
     'me.delete_text' => 'Stimmen, Favoriten und offene Jury-Sitze werden gelöscht. Beiträge bleiben, werden aber dauerhaft vom Pseudonym entkoppelt.',
     'me.delete_confirm' => 'Ja, endgültig löschen',
     'me.delete_button' => 'Konto löschen',
 
     'jury.title' => 'Bürger-Jury',
-    'jury.intro' => 'Sie wurden per Los ausgewählt. Bitte bewerten Sie den gemeldeten Inhalt anhand der Kriterien; Enthaltung ist zulässig.',
-    'jury.blocked' => 'Bis zur Stimmabgabe sind die übrigen Funktionen gesperrt – oder abwarten, bis die Prüfung endet.',
+    'jury.intro' => 'Per Los ausgewählt. Bitte anhand der Kriterien bewerten; Enthaltung zulässig.',
+    'jury.blocked' => 'Bis zur Stimmabgabe sind die übrigen Funktionen gesperrt.',
     'jury.none' => 'Keine Jury-Aufgabe.',
     'jury.upcoming' => 'Ausgelost; Abstimmung ab {date}, 00:00 Uhr. Bis dahin ist nichts zu tun.',
     'jury.reported' => 'Gemeldeter Inhalt',
@@ -1586,7 +1602,7 @@ const SW_DE = [
     'report.intro' => 'Nur mutmaßlich rechtswidrige Inhalte melden – politische Meinungen sind kein Meldegrund.',
     'report.criteria' => 'Kriterien (mindestens eines)',
     'report.freetext' => 'Ergänzung (optional)',
-    'report.process' => 'Es entscheidet eine ausgeloste Bürger-Jury (1 %): Abstimmung ab 00:00 Uhr, 24 Stunden, Quorum 0,5 %.',
+    'report.process' => 'Es entscheidet eine ausgeloste Bürger-Jury (1 %; ab 00:00 Uhr, 24 h, Quorum 0,5 %).',
     'report.submit' => 'Meldung abschicken',
     'report.cancel' => 'Abbrechen',
 
@@ -1669,8 +1685,7 @@ const SW_EN = [
     'common.back_home' => 'Back to start page',
 
     'home.title' => 'Digital citizen participation',
-    'home.intro' => 'Raise topics and vote – with the German ID card, without an account and without real names.',
-    'home.locked' => 'Votes, favourites and jury tasks become visible after tapping your ID card.',
+    'home.locked' => 'Votes, favourites and jury: visible after tapping.',
     'home.personal' => 'My area',
     'home.p_votes' => 'Votes cast',
     'home.p_favorites' => 'Favourites',
@@ -1678,9 +1693,6 @@ const SW_EN = [
     'home.p_jury_open' => 'Jury vote required',
     'home.p_jury_upcoming' => 'Drawn, starts {date}, midnight',
     'home.p_jury_none' => 'no task',
-    'home.stat_topics' => 'Active topics',
-    'home.stat_votes' => 'Votes cast',
-    'home.stat_users' => 'Registered ID cards',
     'home.latest' => 'Latest topics',
     'home.all_topics' => 'All topics',
 
@@ -1723,12 +1735,10 @@ const SW_EN = [
     'vote.total' => '{n} votes cast',
     'vote.none_yet' => 'No votes yet.',
     'vote.login_hint' => 'Tap your ID card to vote',
-    'vote.neutral_hint' => 'Abstaining = casting no vote.',
     'vote.bar_aria' => 'Voting result',
-    'vote.signed' => 'Every change is confirmed with the ID card key.',
 
     'topic.new_title' => 'Raise a topic',
-    'topic.new_intro' => 'One topic per person per day. Cannot be edited after publication.',
+    'topic.new_intro' => 'One topic per day; unchangeable after publication.',
     'topic.posted_today' => 'You already raised a topic today. The next one is possible from midnight.',
     'topic.next_in' => 'Next topic in',
     'topic.f_title' => 'Title',
@@ -1745,7 +1755,6 @@ const SW_EN = [
     'topic.err_scope' => 'Please choose a jurisdiction.',
 
     'auth.title' => 'Tap your ID card',
-    'auth.line' => 'The card signs in with its public key – time-limited, without a name. Tapping loads your profil.yaml.',
     'auth.tap' => 'Tap your ID card',
     'auth.hold' => 'Hold your ID card to the device …',
     'auth.other_card' => 'Use a different ID card',
@@ -1775,15 +1784,14 @@ const SW_EN = [
     'me.cooldown' => 'Jury cooldown until {date}.',
     'me.profile' => 'Profile (profil.yaml)',
     'me.download' => 'Download profil.yaml',
-    'me.logout_note' => 'Signing out deletes the profil.yaml from the browser.',
     'me.delete_title' => 'Delete account and data',
     'me.delete_text' => 'Votes, favourites and open jury seats are deleted. Contributions remain but are permanently unlinked from your pseudonym.',
     'me.delete_confirm' => 'Yes, delete permanently',
     'me.delete_button' => 'Delete account',
 
     'jury.title' => 'Citizen jury',
-    'jury.intro' => 'You were drawn by lot. Please assess the reported content against the criteria; abstaining is allowed.',
-    'jury.blocked' => 'Until you vote, the other functions are locked – or wait until the review ends.',
+    'jury.intro' => 'Drawn by lot. Please assess against the criteria; abstaining is allowed.',
+    'jury.blocked' => 'Until you vote, the other functions are locked.',
     'jury.none' => 'No jury task.',
     'jury.upcoming' => 'Drawn; voting starts {date}, midnight. Nothing to do until then.',
     'jury.reported' => 'Reported content',
@@ -1800,7 +1808,7 @@ const SW_EN = [
     'report.intro' => 'Report presumably illegal content only – political opinions are not a reason to report.',
     'report.criteria' => 'Criteria (at least one)',
     'report.freetext' => 'Note (optional)',
-    'report.process' => 'A randomly drawn citizen jury (1%) decides: voting from midnight, 24 hours, 0.5% quorum.',
+    'report.process' => 'A drawn citizen jury decides (1%; from midnight, 24 h, 0.5% quorum).',
     'report.submit' => 'Submit report',
     'report.cancel' => 'Cancel',
 
@@ -1975,10 +1983,9 @@ a:hover { color: var(--accent-hover); }
 .personal-list li:last-child { border-bottom: 0; }
 .personal-list li > span:first-child { color: var(--muted); }
 .duty-link { font-weight: 650; }
-.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin: 1.2rem 0; }
-.stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 0.75rem 1rem; display: flex; flex-direction: column; }
-.stat-value { font-size: 1.45rem; font-weight: 700; }
-.stat-label { color: var(--muted); font-size: 0.82rem; }
+.id-chip { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); border: 1px solid var(--border); border-radius: 2px; padding: 0.28rem 0.5rem; text-decoration: none; }
+.id-chip:hover { color: var(--ink); border-color: var(--ink); }
+.fav-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.8rem; }
 .page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; }
 .filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 0.7rem 0.9rem; margin: 0.7rem 0 1rem; }
 .filter-bar label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.82rem; color: var(--muted); }
@@ -2045,7 +2052,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--ink); outline: n
 @media (max-width: 640px) {
   h1 { font-size: 1.3rem; }
   .topic-grid { grid-template-columns: 1fr; }
-  .stat-row { grid-template-columns: 1fr; }
   .header-inner { gap: 0.45rem 0.9rem; }
   .header-controls { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
@@ -2095,21 +2101,31 @@ const SW_JS = <<<'JS'
        oder nach 15 s sendet der Knopf normal ab. */
     var tapForm = document.getElementById('tap-form');
     if (tapForm && 'NDEFReader' in window) {
+      var status = document.getElementById('tap-status');
+      var done = false;
+      var go = function () {
+        if (!done) { done = true; tapForm.submit(); }
+      };
+      var startScan = function () {
+        var reader = new NDEFReader();
+        reader.addEventListener('reading', go);
+        reader.addEventListener('readingerror', go);
+        return reader.scan();
+      };
+      /* Leser sofort scharf: Perso anhalten genuegt. Verlangt der Browser
+         erst eine Nutzergeste (Berechtigung), uebernimmt der Knopf. */
+      try {
+        startScan().then(function () {
+          if (status) { status.hidden = false; }
+        }).catch(function () { /* Knopf-Fallback */ });
+      } catch (e) { /* Knopf-Fallback */ }
       tapForm.addEventListener('submit', function (ev) {
         if (tapForm.getAttribute('data-armed') === '1') { return; }
         ev.preventDefault();
         tapForm.setAttribute('data-armed', '1');
-        var status = document.getElementById('tap-status');
         if (status) { status.hidden = false; }
-        var done = false;
-        var go = function () {
-          if (!done) { done = true; tapForm.submit(); }
-        };
         try {
-          var reader = new NDEFReader();
-          reader.addEventListener('reading', go);
-          reader.addEventListener('readingerror', go);
-          reader.scan().catch(go);
+          startScan().catch(go);
           setTimeout(go, 15000);
         } catch (e) { go(); }
       });
@@ -2209,7 +2225,8 @@ function v_layout(string $title, string $content): string
     if ($user === null) {
         $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
     } else {
-        $html .= '<form method="post" action="' . e(url('/logout')) . '" class="js-logout">' . csrf_field()
+        $html .= '<a class="id-chip" href="' . e(url('/me')) . '" title="' . e(t('me.title')) . '">' . e(short_id($user)) . '</a>'
+            . '<form method="post" action="' . e(url('/logout')) . '" class="js-logout">' . csrf_field()
             . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t('auth.logout')) . '</button></form>';
     }
     $html .= '</div></div></header>'
@@ -2287,10 +2304,8 @@ function p_votebar(int $for, int $against): string
 function v_home(): void
 {
     $user = auth_user();
-    $stats = site_stats();
     $latest = topics_list([], 1, 6, $user === null ? null : (int) $user['id']);
-    $html = '<section class="intro"><h1>' . e(t('home.title')) . '</h1>'
-        . '<p class="muted">' . e(t('home.intro')) . '</p></section>';
+    $html = '<section class="intro"><h1>' . e(t('home.title')) . '</h1></section>';
     if ($user === null) {
         $html .= '<section class="card gate-card"><p>' . e(t('home.locked')) . '</p>'
             . '<p><a class="btn btn-primary" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a></p></section>';
@@ -2313,12 +2328,7 @@ function v_home(): void
             . '<li><span>' . e(t('home.p_jury')) . '</span><span>' . $juryText . '</span></li>'
             . '</ul></section>';
     }
-    $html .= '<section class="stat-row" aria-label="Statistik">'
-        . '<div class="stat-tile"><span class="stat-value">' . e(num($stats['topics'])) . '</span><span class="stat-label">' . e(t('home.stat_topics')) . '</span></div>'
-        . '<div class="stat-tile"><span class="stat-value">' . e(num($stats['votes'])) . '</span><span class="stat-label">' . e(t('home.stat_votes')) . '</span></div>'
-        . '<div class="stat-tile"><span class="stat-value">' . e(num($stats['users'])) . '</span><span class="stat-label">' . e(t('home.stat_users')) . '</span></div>'
-        . '</section>'
-        . '<section><div class="page-head"><h2>' . e(t('home.latest')) . '</h2>'
+    $html .= '<section><div class="page-head"><h2>' . e(t('home.latest')) . '</h2>'
         . '<a class="link-quiet" href="' . e(url('/topics')) . '">' . e(t('home.all_topics')) . '</a></div>';
     if ($latest['rows'] === []) {
         $html .= '<p class="muted">' . e(t('topics.none_yet')) . ' <a href="' . e(url('/topics/new')) . '">' . e(t('nav.new')) . '</a></p>';
@@ -2374,6 +2384,27 @@ function v_topics(): void
         . '</select></label>'
         . '<button type="submit" class="btn btn-outline">' . e(t('topics.apply')) . '</button></form>';
 
+    if ($user !== null) {
+        $chips = '';
+        foreach (fav_list((int) $user['id']) as $favorite) {
+            if ($favorite['kind'] === 'category') {
+                $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
+                $href = url('/topics') . '?category=' . rawurlencode((string) $favorite['ref']);
+            } else {
+                $gebiet = fav_to_gebiet((string) $favorite['ref']);
+                if ($gebiet === null) {
+                    continue;
+                }
+                $parts = explode(':', (string) $favorite['ref'], 2);
+                $label = $parts[0] === 'bund' || !isset($parts[1]) ? t('scope.bund') : $parts[1];
+                $href = url('/topics') . '?gebiet=' . rawurlencode($gebiet);
+            }
+            $chips .= '<a class="btn btn-ghost btn-sm" href="' . e($href) . '">★ ' . e($label) . '</a>';
+        }
+        if ($chips !== '') {
+            $html .= '<div class="fav-chips">' . $chips . '</div>';
+        }
+    }
     if ($result['rows'] === []) {
         $html .= '<p class="muted">' . e(t('topics.none')) . '</p>';
     } else {
@@ -2453,7 +2484,6 @@ function v_topic(int $id): void
         if ($myVote !== null) {
             $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')])) . '</p>';
         }
-        $html .= '<p class="muted">' . e(t('vote.neutral_hint')) . ' ' . e(t('vote.signed')) . '</p>';
     }
     $html .= '</section><section class="topic-tools">';
     if ($user !== null) {
@@ -2483,7 +2513,7 @@ function v_topic(int $id): void
 function v_topic_new(array $errors, array $old, bool $postedToday): void
 {
     $html = '<h1>' . e(t('topic.new_title')) . '</h1>'
-        . '<p class="muted">' . e(t('topic.new_intro')) . ' ' . e(t('vote.signed')) . '</p>';
+        . '<p class="muted">' . e(t('topic.new_intro')) . '</p>';
     if ($postedToday) {
         $html .= '<div class="flash">' . e(t('topic.posted_today'))
             . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></div>';
@@ -2535,7 +2565,6 @@ function v_auth(): void
         . '</svg>';
     $html = '<section class="card auth-card">' . $pictogram
         . '<h1>' . e(t('auth.title')) . '</h1>'
-        . '<p class="muted">' . e(t('auth.line')) . '</p>'
         . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
         . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>'
         . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>'
@@ -2695,8 +2724,7 @@ function v_me(): void
 
     $html .= '<section><div class="page-head"><h2>' . e(t('me.profile')) . '</h2>'
         . '<a class="btn btn-outline btn-sm" href="' . e(url('/profil.yaml')) . '">' . e(t('me.download')) . '</a></div>'
-        . '<pre id="profil-yaml" class="yaml-block">' . e($yaml) . '</pre>'
-        . '<p class="muted">' . e(t('me.logout_note')) . '</p></section>';
+        . '<pre id="profil-yaml" class="yaml-block">' . e($yaml) . '</pre></section>';
 
     $html .= '<section class="card danger-zone"><h2>' . e(t('me.delete_title')) . '</h2>'
         . '<p class="muted">' . e(t('me.delete_text')) . '</p>'
