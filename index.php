@@ -908,9 +908,10 @@ function auth_user(): ?array
     if (!is_int($id)) {
         return null;
     }
-    // Zeitfenster abgelaufen -> Identitätsnachweis verfällt, erneut anhalten.
+    // Zeitfenster abgelaufen -> Identitätsnachweis verfällt, erneut auflegen.
+    // Im Testmodus entfällt auch das (keine Ausweis-Aufforderungen).
     $slot = $_SESSION['auth_slot'] ?? null;
-    if (is_int($slot) && (time_slot() - $slot) >= SW_AUTH_SLOTS) {
+    if (empty(SW::$cfg['test_login']) && is_int($slot) && (time_slot() - $slot) >= SW_AUTH_SLOTS) {
         unset($_SESSION['user_id'], $_SESSION['auth_time'], $_SESSION['auth_slot']);
         card_forget();
         session_regenerate_id(true);
@@ -936,13 +937,28 @@ function require_user(): array
  *  Aktion, der Server öffnet mit dem öffentlichen Schlüssel und trägt das
  *  Ergebnis für genau diesen Schlüssel ein. Ein alter Umschlag (anderes
  *  Zeitfenster) wird abgelehnt. */
+/** Strenge Prüfung einer Änderung (rein, damit automatisiert testbar):
+ *  Ohne Testmodus MUSS ein Ausweis vorliegen, zum angemeldeten Schlüssel
+ *  gehören und einen gültigen, zeitgebundenen Umschlag liefern.
+ *  Im Testmodus entfallen alle Ausweis-Aufforderungen. */
+function card_confirm_ok(array $user, ?array $card, string $action): bool
+{
+    if (!empty(SW::$cfg['test_login'])) {
+        return true; // Testmodus: keine Ausweis-Bestätigung bei Änderungen
+    }
+    if ($card === null) {
+        return false;
+    }
+    if (!hash_equals((string) $user['pseudonym_hash'], card_identity($card))) {
+        return false;
+    }
+    return card_open($card['pk'], card_seal($card, $action), $action);
+}
+
 function require_card(array $user): void
 {
-    $card = card_load();
     $action = 'confirm:' . SW::$path;
-    if ($card === null
-        || !hash_equals((string) $user['pseudonym_hash'], card_identity($card))
-        || !card_open($card['pk'], card_seal($card, $action), $action)) {
+    if (!card_confirm_ok($user, card_load(), $action)) {
         log_line('SECURITY', 'card_confirm_failed', []);
         flash('error', 'flash.card_required');
         redirect('/auth');
@@ -1795,7 +1811,7 @@ const SW_DE = [
     'a11y.skip' => 'Zum Inhalt springen',
     'nav.topics' => 'Themen',
     'nav.jury' => 'Jury',
-    'auth.login' => 'Ausweis anhalten',
+    'auth.login' => 'Ausweis auflegen',
     'auth.logout' => 'Abmelden',
     'common.date_format' => 'd.m.Y',
     'common.datetime_format' => 'd.m.Y, H:i',
@@ -1838,7 +1854,7 @@ const SW_DE = [
     'vote.withdraw' => 'Stimme zurückziehen',
     'vote.total' => '{n} Stimmen abgegeben',
     'vote.none_yet' => 'Noch keine Stimmen.',
-    'vote.login_hint' => 'Zum Abstimmen Ausweis anhalten',
+    'vote.login_hint' => 'Zum Abstimmen Ausweis auflegen',
     'vote.bar_aria' => 'Abstimmungsergebnis',
 
     'topic.new_title' => 'Thema einbringen',
@@ -1883,8 +1899,9 @@ const SW_DE = [
 
     'auth.line' => 'Anmeldung mit dem Personalausweis über eine Ausweis-App.',
     'auth.with' => 'Mit {app} anmelden',
-    'auth.title' => 'Ausweis anhalten',
-    'auth.tap' => 'Ausweis anhalten',
+    'auth.title' => 'Mit Ausweis anmelden',
+    'auth.tap' => 'Ausweis auflegen',
+    'auth.test_login' => 'Test-Anmeldung starten',
     'auth.hold' => 'Ausweis an das Gerät halten …',
     'auth.other_card' => 'Anderen Ausweis verwenden',
 
@@ -1914,10 +1931,10 @@ const SW_DE = [
     'report.cancel' => 'Abbrechen',
 
 
-    'flash.session_expired' => 'Sitzung beendet. Bitte Ausweis erneut anhalten.',
-    'flash.auth_expired' => 'Anmeldung abgelaufen – bitte Ausweis erneut anhalten.',
-    'flash.login_required' => 'Bitte zuerst den Ausweis anhalten.',
-    'flash.card_required' => 'Bestätigung fehlgeschlagen. Bitte Ausweis erneut anhalten.',
+    'flash.session_expired' => 'Sitzung beendet. Bitte Ausweis erneut auflegen.',
+    'flash.auth_expired' => 'Anmeldung abgelaufen – bitte Ausweis erneut auflegen.',
+    'flash.login_required' => 'Bitte zuerst den Ausweis auflegen.',
+    'flash.card_required' => 'Bestätigung fehlgeschlagen. Bitte Ausweis erneut auflegen.',
     'flash.rate_limited' => 'Zu viele Anfragen. Bitte kurz warten.',
     'flash.csrf' => 'Anfrage konnte nicht zugeordnet werden. Bitte erneut versuchen.',
     'flash.invalid_input' => 'Ungültige Eingabe.',
@@ -1948,9 +1965,9 @@ const SW_DE = [
     'flash.eid_provider_off' => 'Dieser Anbieter ist in dieser Installation noch nicht eingerichtet.',
     'flash.no_card' => 'Kein Ausweis vorhanden. Bitte Ausweis bereitstellen.',
     'flash.card_not_authorized' => 'Dieser Ausweis ist nicht autorisiert.',
-    'flash.card_ready' => 'Ausweis bereit. Zum Anmelden anhalten.',
+    'flash.card_ready' => 'Ausweis bereit. Zum Anmelden auflegen.',
     'flash.auth_ok' => 'Angemeldet.',
-    'flash.card_new' => 'Bereit für einen anderen Ausweis. Zum Anmelden anhalten.',
+    'flash.card_new' => 'Bereit für einen anderen Ausweis. Zum Anmelden auflegen.',
     'flash.logged_out' => 'Abgemeldet.',
 
     'error.not_found_title' => 'Seite nicht gefunden',
@@ -1969,7 +1986,7 @@ const SW_DE = [
 
     'privacy.h' => 'Datenschutz',
     'privacy.p1' => 'Es werden weder Name noch Anschrift, Geburtsdatum oder E-Mail-Adresse verarbeitet.',
-    'privacy.p2' => 'Beim Anhalten des Ausweises erhält die Seite nur einen öffentlichen Schlüssel und speichert davon ausschließlich ein Pseudonym (Hash mit serverseitigem Geheimnis).',
+    'privacy.p2' => 'Beim Auflegen des Ausweises erhält die Seite nur einen öffentlichen Schlüssel und speichert davon ausschließlich ein Pseudonym (Hash mit serverseitigem Geheimnis).',
     'privacy.p3' => 'Genau ein technisch notwendiges Sitzungs-Cookie. Darüber hinaus wird nichts im Browser gespeichert – keine weiteren Cookies, kein localStorage, keine Tracker, keine Drittinhalte.',
     'privacy.p4' => 'Zur Missbrauchsabwehr werden kurzlebige, gehashte Kennungen für Ratenbegrenzungen verarbeitet und automatisch gelöscht.',
     'privacy.p5' => 'Das Konto kann jederzeit in „Meine Übersicht“ gelöscht werden.',
@@ -1981,7 +1998,7 @@ const SW_EN = [
     'a11y.skip' => 'Skip to content',
     'nav.topics' => 'Topics',
     'nav.jury' => 'Jury',
-    'auth.login' => 'Tap your ID card',
+    'auth.login' => 'Place your ID card',
     'auth.logout' => 'Sign out',
     'common.date_format' => 'Y-m-d',
     'common.datetime_format' => 'Y-m-d, H:i',
@@ -2024,7 +2041,7 @@ const SW_EN = [
     'vote.withdraw' => 'Withdraw vote',
     'vote.total' => '{n} votes cast',
     'vote.none_yet' => 'No votes yet.',
-    'vote.login_hint' => 'Tap your ID card to vote',
+    'vote.login_hint' => 'Place your ID card to vote',
     'vote.bar_aria' => 'Voting result',
 
     'topic.new_title' => 'Raise a topic',
@@ -2069,8 +2086,9 @@ const SW_EN = [
 
     'auth.line' => 'Sign in with your ID card via an ID app.',
     'auth.with' => 'Sign in with {app}',
-    'auth.title' => 'Tap your ID card',
-    'auth.tap' => 'Tap your ID card',
+    'auth.title' => 'Sign in with ID card',
+    'auth.tap' => 'Place your ID card',
+    'auth.test_login' => 'Start test sign-in',
     'auth.hold' => 'Hold your ID card to the device …',
     'auth.other_card' => 'Use a different ID card',
 
@@ -2237,6 +2255,7 @@ a:hover { color: var(--accent-hover); }
 .auth-icon { width: 3.4rem; height: 3.4rem; color: var(--ink); margin: 0.2rem auto 0.4rem; display: block; }
 .provider-list { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.6rem 0; }
 .provider-btn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.auth-action { display: flex; justify-content: center; margin: 0.8rem 0 0.2rem; }
 .hr-soft { border: 0; border-top: 1px solid var(--border); margin: 0.9rem 0 0.6rem; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; border: 1px solid transparent; border-radius: 2px;
   font: inherit; font-weight: 600; font-size: 0.92rem; padding: 0.45rem 0.95rem; cursor: pointer; text-decoration: none;
@@ -2506,7 +2525,9 @@ const SW_JS = <<<'JS'
          erst eine Nutzergeste (Berechtigung), uebernimmt der Knopf. */
       try {
         startScan().then(function () {
+          // NFC laeuft: kein Knopf noetig - nur die Aufforderung zum Auflegen.
           if (status) { status.hidden = false; }
+          tapForm.querySelectorAll('[data-nfc-hide]').forEach(function (b) { b.hidden = true; });
         }).catch(function () { /* Knopf-Fallback */ });
       } catch (e) { /* Knopf-Fallback */ }
       /* Auf NFC-Geraeten loest NUR der Kartenkontakt aus - kein Zeit-Rueckfall.
@@ -2535,6 +2556,14 @@ const SW_ICON = <<<'SVG'
 </svg>
 SVG;
 
+/** Icon-Verweise für alle Browser (SVG modern, PNG/ICO für Safari/iOS). */
+function icon_links(): string
+{
+    return '<link rel="icon" type="image/svg+xml" href="' . e(url('/a/icon.svg')) . '">'
+        . '<link rel="icon" type="image/png" sizes="32x32" href="' . e(url('/favicon.png')) . '">'
+        . '<link rel="apple-touch-icon" sizes="180x180" href="' . e(url('/apple-touch-icon.png')) . '">';
+}
+
 /** Größeres, monochromes Marken-Icon (Häkchen im Feld) für Start/Anmeldung. */
 function brand_icon(string $class): string
 {
@@ -2542,6 +2571,91 @@ function brand_icon(string $class): string
         . '<rect x="2" y="2" width="44" height="44" rx="10" fill="none" stroke="currentColor" stroke-width="3"/>'
         . '<path d="M14 25l7 7 14-15" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'
         . '</svg>';
+}
+
+/* ---- Icons: PNG ohne GD (nur zlib) ------------------------------------- *
+ * Safari/iOS zeigt keine SVG-Favicons; deshalb erzeugt die Datei die Icons
+ * zusätzlich als echtes PNG (und als ICO-Container) – ohne Bibliotheken. */
+
+/** Ein PNG-Chunk mit Länge, Typ, Daten und CRC. */
+function png_chunk(string $type, string $data): string
+{
+    return pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
+}
+
+/** Zeichnet das Marken-Icon (dunkles Feld + weißes Häkchen) als PNG. */
+function icon_png(int $size, bool $rounded = true): string
+{
+    $ss = 3;                       // Kantenglättung per Überabtastung
+    $n = $size * $ss;
+    $bg = [17, 17, 17];            // #111111
+    $fg = [255, 255, 255];
+    $radius = $rounded ? 0.22 * $n : 0.0;
+    // Häkchen als zwei Strecken (relativ zur Kantenlänge)
+    $pts = [[0.28 * $n, 0.53 * $n], [0.44 * $n, 0.69 * $n], [0.74 * $n, 0.34 * $n]];
+    $stroke = 0.085 * $n;
+
+    $distSeg = static function (float $px, float $py, array $a, array $b): float {
+        $vx = $b[0] - $a[0];
+        $vy = $b[1] - $a[1];
+        $wx = $px - $a[0];
+        $wy = $py - $a[1];
+        $len = $vx * $vx + $vy * $vy;
+        $tt = $len > 0 ? max(0.0, min(1.0, ($wx * $vx + $wy * $vy) / $len)) : 0.0;
+        $dx = $wx - $tt * $vx;
+        $dy = $wy - $tt * $vy;
+        return sqrt($dx * $dx + $dy * $dy);
+    };
+    $inRounded = static function (float $x, float $y, float $n, float $r): bool {
+        if ($r <= 0.0) {
+            return true;
+        }
+        $cx = min(max($x, $r), $n - $r);
+        $cy = min(max($y, $r), $n - $r);
+        $dx = $x - $cx;
+        $dy = $y - $cy;
+        return ($dx * $dx + $dy * $dy) <= $r * $r;
+    };
+
+    $raw = '';
+    for ($y = 0; $y < $size; $y++) {
+        $raw .= "\x00";
+        for ($x = 0; $x < $size; $x++) {
+            $rSum = 0; $gSum = 0; $bSum = 0; $aSum = 0;
+            for ($sy = 0; $sy < $ss; $sy++) {
+                for ($sx = 0; $sx < $ss; $sx++) {
+                    $px = $x * $ss + $sx + 0.5;
+                    $py = $y * $ss + $sy + 0.5;
+                    if (!$inRounded($px, $py, (float) $n, $radius)) {
+                        continue; // außerhalb: transparent
+                    }
+                    $d = min($distSeg($px, $py, $pts[0], $pts[1]), $distSeg($px, $py, $pts[1], $pts[2]));
+                    $col = $d <= $stroke / 2 ? $fg : $bg;
+                    $rSum += $col[0]; $gSum += $col[1]; $bSum += $col[2]; $aSum += 255;
+                }
+            }
+            $total = $ss * $ss;
+            $raw .= chr((int) round($rSum / $total)) . chr((int) round($gSum / $total))
+                . chr((int) round($bSum / $total)) . chr((int) round($aSum / $total));
+        }
+    }
+    $ihdr = pack('NN', $size, $size) . chr(8) . chr(6) . chr(0) . chr(0) . chr(0);
+    return "\x89PNG\r\n\x1a\n"
+        . png_chunk('IHDR', $ihdr)
+        . png_chunk('IDAT', gzcompress($raw, 9))
+        . png_chunk('IEND', '');
+}
+
+/** ICO-Container mit eingebettetem PNG (moderne Browser lesen das). */
+function icon_ico(int $size = 32): string
+{
+    $png = icon_png($size, true);
+    $dim = $size >= 256 ? 0 : $size;
+    return pack('vvv', 0, 1, 1)
+        . chr($dim) . chr($dim) . chr(0) . chr(0)
+        . pack('vv', 1, 32)
+        . pack('VV', strlen($png), 22)
+        . $png;
 }
 
 function serve_asset(string $kind): void
@@ -2592,7 +2706,7 @@ function v_layout(string $title, string $content): string
         . '<meta name="referrer" content="no-referrer">'
         . '<title>' . e($title) . ' · ' . e((string) $cfg['app_name']) . '</title>'
         . '<link rel="stylesheet" href="' . e(url('/a/app.css')) . '">'
-        . '<link rel="icon" type="image/svg+xml" href="' . e(url('/a/icon.svg')) . '">'
+        . icon_links()
         . '<script src="' . e(url('/a/app.js')) . '" defer></script>'
         . '</head><body' . ($user !== null ? ' data-profile-url="' . e(url('/profil.yaml')) . '"' : '') . '>';
     if (!empty($cfg['show_test_banner'])) {
@@ -2607,7 +2721,11 @@ function v_layout(string $title, string $content): string
         . '</svg><span>' . e((string) $cfg['app_name']) . '</span></a>'
         . '<div class="header-controls">';
     if ($user === null) {
-        $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
+        // Auf der Anmeldeseite selbst KEIN zweiter Anmelde-Knopf in der
+        // Kopfzeile – der Ausweis-Knopf steht dort genau einmal, mittig.
+        if (SW::$path !== '/auth') {
+            $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
+        }
     } else {
         $html .= '<a class="nav-duty" href="' . e(url('/jury')) . '"' . ($duty !== null ? '' : ' hidden') . '>' . e(t('nav.jury')) . ($duty !== null ? '<span class="duty-dot" aria-hidden="true"></span>' : '') . '</a>'
             . '<form method="post" action="' . e(url('/logout')) . '" class="js-logout">' . csrf_field()
@@ -3084,10 +3202,9 @@ function v_auth(): void
         . '<p class="muted">' . e(t('auth.line')) . '</p>';
 
     if (!empty(SW::$cfg['test_login'])) {
-        // Test-Anmeldung: GENAU EIN Knopf – erzeugt beim Anhalten eine
-        // zufällige, als gültig behandelte Sitzung.
-        $html .= '<form method="post" action="' . e(url('/tap')) . '">' . csrf_field()
-            . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>';
+        // Testmodus: GENAU EIN zentrierter Knopf, keine Ausweis-Aufforderung.
+        $html .= '<form class="auth-action" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
+            . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.test_login')) . '</button></form>';
     } else {
         // Anmelde-Anbieter (Ausweis-Apps): AusweisApp und Nect Wallet.
         $html .= '<div class="provider-list">';
@@ -3097,10 +3214,12 @@ function v_auth(): void
         }
         $html .= '</div>';
         if ($ready) {
-            // Demo: ein autorisierter Ausweis liegt vor – anhalten bestätigt.
+            // Ein autorisierter Ausweis liegt vor. Mit NFC genügt das Auflegen –
+            // dann wird der Knopf ausgeblendet (data-nfc-hide). Ohne NFC bleibt
+            // genau ein sauber zentrierter Knopf stehen.
             $html .= '<hr class="hr-soft">'
-                . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
-                . '<button type="submit" class="btn btn-outline btn-big">' . e(t('auth.tap')) . '</button></form>'
+                . '<form id="tap-form" class="auth-action" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
+                . '<button type="submit" class="btn btn-outline btn-big" data-nfc-hide>' . e(t('auth.tap')) . '</button></form>'
                 . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>';
         }
     }
@@ -3157,7 +3276,7 @@ function v_start(): void
         . '<meta name="referrer" content="no-referrer">'
         . '<title>' . e((string) SW::$cfg['app_name']) . '</title>'
         . '<link rel="stylesheet" href="' . e(url('/a/app.css')) . '">'
-        . '<link rel="icon" type="image/svg+xml" href="' . e(url('/a/icon.svg')) . '">'
+        . icon_links()
         . '</head><body>' . $banner
         . '<main class="start-gate">'
         . '<div class="start-mark">' . brand_icon('brand-icon') . '</div>'
@@ -3799,6 +3918,23 @@ function web_main(): void
         echo "User-agent: *\nDisallow: /\n";
         exit;
     }
+    // Icons: ohne Sitzung abrufbar, mit Cache. PNG/ICO für Safari/iOS,
+    // SVG für moderne Browser.
+    if (preg_match('#^/(favicon\.ico|favicon\.png|apple-touch-icon(?:-precomposed)?\.png|icon-192\.png)$#', $path, $mIcon) === 1) {
+        $name = $mIcon[1];
+        header('Cache-Control: public, max-age=86400');
+        header('X-Content-Type-Options: nosniff');
+        if ($name === 'favicon.ico') {
+            header('Content-Type: image/x-icon');
+            echo icon_ico(32);
+        } else {
+            $size = $name === 'favicon.png' ? 32 : ($name === 'icon-192.png' ? 192 : 180);
+            header('Content-Type: image/png');
+            // Apple-Touch-Icon ohne runde Ecken (iOS maskiert selbst).
+            echo icon_png($size, strpos($name, 'apple-touch') !== 0);
+        }
+        exit;
+    }
     // Öffentlicher Server-Signaturschlüssel: ohne Sitzung/Sprache abrufbar.
     if ($path === '/server.pub') {
         header('Content-Type: text/plain; charset=utf-8');
@@ -4264,6 +4400,27 @@ function cli_selftest(): int
     sort($j1);
     sort($j4);
     $check('Nach 3 Tagen Karenz wieder losbar (Jury 4 = frühere Jury 1)', $j4 === $j1);
+
+    echo "== Strenge im Normalmodus / Skip im Testmodus ==\n";
+    if (card_supports_sodium()) {
+        $pairA = sodium_crypto_sign_keypair();
+        $cardA = ['secret' => sodium_crypto_sign_secretkey($pairA), 'pk' => sodium_crypto_sign_publickey($pairA)];
+        $pairB = sodium_crypto_sign_keypair();
+        $cardB = ['secret' => sodium_crypto_sign_secretkey($pairB), 'pk' => sodium_crypto_sign_publickey($pairB)];
+        $userA = ['pseudonym_hash' => card_identity($cardA)];
+        SW::$cfg['test_login'] = false;
+        $check('Normalmodus: ohne Ausweis abgelehnt', card_confirm_ok($userA, null, 'confirm:/vote') === false);
+        $check('Normalmodus: fremder Ausweis abgelehnt', card_confirm_ok($userA, $cardB, 'confirm:/vote') === false);
+        $check('Normalmodus: eigener Ausweis bestätigt', card_confirm_ok($userA, $cardA, 'confirm:/vote') === true);
+        SW::$cfg['test_login'] = true;
+        $check('Testmodus: Ausweis-Aufforderung entfällt', card_confirm_ok($userA, null, 'confirm:/vote') === true);
+        SW::$cfg['test_login'] = false;
+        $check('Auslieferung: Test-Anmeldung standardmäßig aus', SW_CONFIG['test_login'] === false);
+    } else {
+        for ($i = 0; $i < 5; $i++) {
+            $check('Strenge-Prüfung übersprungen (kein sodium)', true);
+        }
+    }
 
     echo "== Allowlist autorisierter Ausweis-Schlüssel ==\n";
     @unlink(authorized_file());

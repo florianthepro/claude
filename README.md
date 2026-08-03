@@ -55,9 +55,19 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 - **Zwei Test-Schalter (nur Entwicklung/Vorführung):** In der Konfiguration
   oben in `index.php`: `show_test_banner` (Testbetrieb-Banner) und
   `test_login`. Ist `test_login = true`, erzeugt der **eine** Anmelde-Knopf
-  beim Anhalten eine **zufällige, als gültig behandelte Sitzung** (die App tut
-  so, als läge ein echter Ausweis an) – praktisch zum Testen mit vielen
-  Stimmen. Im Echtbetrieb beide auf `false`.
+  eine **zufällige, als gültig behandelte Sitzung**, und **alle
+  Ausweis-Aufforderungen entfallen** (weder beim Anmelden noch bei Änderungen,
+  auch kein Ablauf des Zeitfensters) – praktisch zum Testen mit vielen
+  Stimmen. Im Echtbetrieb beide auf `false`: dann gilt die **strenge**
+  Prüfung – ohne vorliegenden, zum Konto passenden Ausweis mit gültigem
+  Umschlag wird jede Änderung abgewiesen.
+- **Anmelde-Knopf genau einmal:** Auf der Anmeldeseite steht der
+  Ausweis-Knopf **einmal, mittig** (die Kopfzeile zeigt dort keinen zweiten).
+  Mit Web-NFC (Android/Chrome) wird der Knopf ausgeblendet – dann genügt das
+  **Auflegen des Ausweises**; ohne NFC bleibt der eine Knopf.
+- **Icons:** Neben dem SVG liefert die Datei echte **PNG- und ICO-Icons**
+  (`/favicon.ico`, `/favicon.png`, `/apple-touch-icon.png`) – ohne
+  Bildbibliothek erzeugt, da Safari/iOS keine SVG-Favicons anzeigt.
 - **Modi (`eid_mode`):** `demo` – autorisierte Test-Ausweise per
   `php index.php issue-card` (Schlüssel → Allowlist, Ausgabe-Link
   `/claim/<handle>` lädt ihn in die Sitzung). `eid` – ausschließlich über die
@@ -109,7 +119,7 @@ nginx) funktioniert alles weiter über automatisch erzeugte
 ## CLI (optional)
 
 ```bash
-php index.php selftest   # Fachregeln automatisiert prüfen (75 Prüfungen)
+php index.php selftest   # Fachregeln automatisiert prüfen (80 Prüfungen)
 php index.php cron       # Wartungslauf (sonst lazy bei Seitenaufrufen)
 php index.php seed 400   # Demo-Pseudonyme + Zufallsstimmen (Vorführungen)
 php index.php jurysim    # Demo-Jury stimmt in laufenden Prüfungen ab
