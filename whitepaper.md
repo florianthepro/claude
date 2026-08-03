@@ -65,12 +65,12 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
 
 ### 2.3 Gestaltungsprinzipien
 
-1. **Schlicht & offiziell wirkend:** monochromes Schwarz/Weiß mit
-   Grauabstufungen, ruhige Flächen, klare Linien, klare Typografie
-   (System-Schriften, keine Webfonts), keine Verläufe, keine Deko-Effekte,
-   keine „KI-Regenbogen“-Ästhetik. Einzige Farblinie ist eine schmale
-   Leiste in Schwarz-Rot-Gold unter dem Seitenkopf; ein gedecktes Rot
-   bleibt destruktiven Aktionen (Löschen) vorbehalten.
+1. **Schlicht wie eine App:** ruhige graue Fläche, weiße Karten mit weichen
+   Ecken, Haarlinien statt Rahmen, Systemschrift, **ein** blauer Akzent —
+   die Formensprache verbreiteter Messenger-/Systemoberflächen (iOS, Signal).
+   Keine Verläufe, keine Deko-Effekte, keine „KI-Regenbogen“-Ästhetik; Rot
+   bleibt destruktiven Aktionen (Löschen) vorbehalten, Gelb allein dem
+   Testbetrieb-Banner.
 2. **Keine KI-Hinweistexte** auf der Seite. Die Seite spricht als Produkt, nüchtern
    und in Sie-Form.
 3. **Hell/Dunkel automatisch:** Das Design folgt ausschließlich der
@@ -86,10 +86,11 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
    `show_test_banner` auf `true` steht (Auslieferungszustand), zeigt jede Seite oben
    ein deutliches Banner: *„Testbetrieb — keine offizielle Seite der
    Bundesregierung oder einer Behörde.“*
-7. **Barrierearmut:** semantisches HTML, Tastaturbedienung, ausreichende Kontraste
-   (geprüft, auch bei Farbfehlsichtigkeit: Abstimmungsbalken tragen immer
-   Textbeschriftung, Bedeutung hängt nie an Farbe allein). Vollständige
-   BITV-Konformität ist Ziel der Ausbaustufe.
+7. **Barrierearmut:** semantisches HTML, Tastaturbedienung, ausreichende Kontraste.
+   Die Abstimmungsbalken nutzen **Akzentblau gegen Neutralgrau** — auf
+   Farbfehlsichtigkeit geprüft (CVD-Abstand ΔE 18,3 hell / 16,6 dunkel) — und
+   tragen immer Beschriftung samt Prozentwert; Bedeutung hängt nie an Farbe
+   allein. Vollständige BITV-Konformität ist Ziel der Ausbaustufe.
 
 ---
 

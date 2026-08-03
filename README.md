@@ -1,8 +1,13 @@
-# Stimmwerk – Ein-Datei-Version
+# Stimmwerk – Ein-Datei-Version (vf)
 
 Digitale Bürgerbeteiligung mit dem Personalausweis. Konzept und Fachlogik:
-[whitepaper.md](whitepaper.md). Dieser Zweig (v4) besteht aus **einer einzigen
-Datei**: `index.php` ist die gesamte Anwendung.
+[whitepaper.md](whitepaper.md). Dieser Zweig (**vf – version final**) besteht
+aus **einer einzigen Datei**: `index.php` ist die gesamte Anwendung.
+
+**Oberfläche:** schlichtes App-Design in der Formensprache von iOS/Signal –
+graue Fläche, weiße Karten mit weichen Ecken, Haarlinien, ein blauer Akzent,
+Systemschrift; Hell/Dunkel folgt automatisch der Systemeinstellung, Fenster
+öffnen als Sheet von unten.
 
 > **Testbetrieb:** Im Auslieferungszustand zeigt jede Seite ein Banner
 > „Testbetrieb …“. Gesteuert über `show_test_banner` in der Konfiguration
