@@ -229,19 +229,54 @@ ist und der Übergang in den Echtbetrieb protokolliert wird.
 - **Im Testmodus** zeigt die Anmeldeseite **genau einen Knopf**. Er erzeugt
   eine zufällige, als gültig behandelte Sitzung; Ausweis-Aufforderungen bei
   Änderungen entfallen. Das Banner bleibt unabhängig davon sichtbar.
-- **Beendet wird er über die Oberfläche**: ein Chip „Testmodus“ in der
-  Kopfzeile, ein Bestätigungsfenster mit Haken. Das Beenden **löscht alle bis
-  dahin entstandenen Daten** — Themen, Stimmen, Favoriten, Meldungen,
-  Jury-Sitze, Konten, Test-Ausweise und die Allowlist — und schaltet dauerhaft
-  in den Echtbetrieb. Kategorien und System-Konto bleiben. Der Schritt ist
-  bewusst nicht umkehrbar.
+- **Beendet wird er über die Oberfläche**: Der Chip „Testmodus“ in der
+  Kopfzeile führt auf die Seite **„Echtbetrieb einrichten“** (Kapitel 5.3c).
+  Dort wird der Zugang für den Echtbetrieb festgelegt, geprüft und
+  umgeschaltet. Das Umschalten **löscht alle im Testbetrieb entstandenen
+  Daten** — Themen, Stimmen, Merkzettel, Meldungen, Jury-Sitze, Konten und die
+  im Testmodus erzeugten Ausweis-Schlüssel. Kategorien, System-Konto und eine
+  echte Freigabeliste bleiben. Der Schritt ist bewusst nicht umkehrbar.
 - **Danach** existiert kein Weg mehr in die Anwendung, der ohne Ausweis
-  auskommt: Die Anmeldeseite bietet nur noch die Ausweis-Apps an.
+  auskommt: Die Anmeldeseite bietet nur noch die Ausweis-Apps an, und die
+  Einrichtungsseite ist geschlossen.
+
+### 5.3c Einrichtung des Echtbetriebs aus der Anwendung heraus
+
+Der Übergang vom Testbetrieb zum Echtbetrieb ist kein Eingriff in den
+Quelltext, sondern ein geführter Schritt in der Oberfläche. Die Seite
+„Echtbetrieb einrichten“ leistet dreierlei:
+
+1. **Voraussetzungen prüfen.** Sie zeigt, ob das Datenverzeichnis beschreibbar
+   ist, HTTPS anliegt, die Kryptographie-Erweiterung vorhanden ist, der
+   Zugriffsschutz greift und wie viele Ausweis-Schlüssel freigegeben sind.
+2. **Zugang festlegen.** Zur Wahl stehen der **eigene eID-Server** (Anmeldung
+   über die Ausweis-App; setzt Berechtigungszertifikat und einen Server nach
+   TR-03130 voraus) und die **eigene Trust-Liste** (Anmeldung nur mit
+   Schlüsseln aus der Freigabeliste, befüllt über eine Abgleich-Adresse oder
+   `issue-card`). Erfasst werden SOAP-Adresse, Client-Zertifikat und
+   -Schlüssel, die Aktivierungsadresse der Ausweis-App, die Abgleich-Adresse
+   der Freigabeliste und die Startadresse von Nect. Ein Knopf **prüft die
+   Verbindung** zum eID-Server, bevor irgendetwas verändert wird.
+3. **Umschalten.** Erst wenn die Eingaben gültig sind, der eID-Server
+   antwortet und der **Einrichtungsschlüssel** stimmt, werden die Einstellungen
+   nach `data/config.yaml` (Rechte 0600, vom Web nicht erreichbar)
+   geschrieben, die Testdaten gelöscht und der Echtbetrieb dauerhaft
+   aktiviert.
+
+Der **Einrichtungsschlüssel** steht in `data/setup.token` und ist nur über
+Dateizugriff oder `php index.php setup-token` lesbar. Damit kann das
+Umschalten nur, wer den Server betreibt — nicht jeder, der sich im Testbetrieb
+per Knopfdruck eine Sitzung erzeugen kann. Nach dem Umschalten wird die Datei
+gelöscht.
+
+Die Einstellungen aus `config.yaml` überlagern beim Start die Vorgaben im
+Quelltext; übernommen wird ausschließlich eine feste Liste erlaubter
+Schlüssel. `php index.php config` zeigt den wirksamen Stand.
 
 Der Wechsel auf einen echten eID-Server ersetzt nur den Karten-Block; Regeln
 und Abläufe bleiben identisch.
 
-### 5.3c Anbindung der AusweisApp (TR-03124/TR-03130)
+### 5.3d Anbindung der AusweisApp (TR-03124/TR-03130)
 
 Die Anmeldung mit der AusweisApp ist direkt eingebaut und braucht auf der
 Serverseite nichts als den Webserver und diese Datei:
@@ -262,9 +297,9 @@ Serverseite nichts als den Webserver und diese Datei:
    `CommunicationErrorAddress`. Die AusweisApp bricht sauber ab, der Browser
    kehrt zurück — **angemeldet wird niemand**. Das ist die ehrliche Grenze:
    Einen eID-Server darf nur betreiben, wer ein **Berechtigungszertifikat des
-   BVA** besitzt (Kapitel 5.3a).
+   BVA** besitzt (Kapitel 5.3e).
 
-### 5.3a Autorisierte Schlüssel (Allowlist) und ehrliche Grenzen der eID
+### 5.3e Autorisierte Schlüssel (Freigabeliste) und ehrliche Grenzen der eID
 
 Anmelden kann sich ausschließlich, wessen **öffentlicher Schlüssel in einer
 serverseitigen Allowlist** steht (`data/authorized_keys.yaml`) und wer den
@@ -506,7 +541,7 @@ konservativ gebaut: wenig Code, wenig Abhängigkeiten, restriktive Standardwerte
 | Eingaben | Whitelist-Validierung (Enums, Längen, UTF-8-Prüfung, Kontrollzeichen-Filter); keine Datei-Uploads |
 | Fehlerbilder | Keine Stacktraces oder Pfade nach außen; generische Fehlerseiten; Sicherheitsereignisse werden ohne personenbezogene Daten protokolliert |
 | Struktur | Nur `public/` liegt im Webroot; Datenbank, Geheimnisse und Logs außerhalb; `.htaccess`-Fallback verweigert Verzeichnislisten |
-| Betrieb | Selbsttest (`php index.php selftest`, 97 Prüfungen) deckt die Kernregeln automatisiert ab: Tagesgrenze, Abstimmungsende, Jury-Ausschlüsse, Quorum, Fristen, Karenz, Allowlist, Testmodus-Ende, Sprachtabellen |
+| Betrieb | Selbsttest (`php index.php selftest`, 112 Prüfungen) deckt die Kernregeln automatisiert ab: Tagesgrenze, Abstimmungsende, Jury-Ausschlüsse, Quorum, Fristen, Karenz, Freigabeliste, Einrichtung des Echtbetriebs, Sprachtabellen |
 
 ### 8.3 Bedrohungsmodell (Auszug)
 
@@ -588,6 +623,7 @@ Gebietsdaten (amtliche Gemeindeschlüssel AGS/ARS statt Freitext-Gebieten).
 | `eid_mode` | `demo` | `demo` (ausgegebene Test-Ausweise) oder `eid` (nur Ausweis-Apps) |
 | `eid_client_url` | `http://127.0.0.1:24727/eID-Client` | Aktivierungsadresse des eID-Clients (TR-03124) |
 | `eid_server_url` | leer | SOAP-Endpunkt des eigenen eID-Servers (TR-03130); leer = fail-closed |
+| `data/config.yaml` | fehlt | von der Einrichtungsseite geschriebene Überlagerung der Vorgaben |
 | `default_lang` | `de` | Standardsprache |
 | `jury_share` | 1 % | Anteil der Nutzerschaft je Jury |
 | `jury_min` | 5 | Mindest-Jurygröße |
@@ -643,20 +679,28 @@ Meldet die Seite „Fast geschafft“, fehlen dem Verzeichnis Schreibrechte
 (755/775 setzen, neu laden). Ohne `.htaccess`-Unterstützung — etwa unter nginx —
 arbeitet die Anwendung über automatisch erzeugte `/index.php/…`-Adressen
 weiter; eine gleichwertige `try_files`-Regel stellt die sauberen Adressen her.
+Dort ist zusätzlich `/data/` zu sperren — die Anwendung selbst beantwortet
+jede Anfrage auf diesen Pfad mit 404, ausgeliefert würde sie sonst am
+PHP-Prozess vorbei.
 
 Der Auslieferungszustand ist der **Testmodus** (Kapitel 5.3b): ein Knopf meldet
-ohne Ausweis an, damit sich die Plattform vorführen lässt. Das Beenden über die
-Oberfläche löscht alle dabei entstandenen Daten und schaltet dauerhaft auf die
-strenge Ausweisprüfung um.
+ohne Ausweis an, damit sich die Plattform vorführen lässt. Über den Chip
+„Testmodus“ führt die Seite **„Echtbetrieb einrichten“** (Kapitel 5.3c) durch
+Prüfung, Zugangswahl und Umschaltung; sie schreibt die Einstellungen nach
+`data/config.yaml`, löscht alle Testdaten und aktiviert dauerhaft die strenge
+Ausweisprüfung. Der dafür nötige Einrichtungsschlüssel steht in
+`data/setup.token`.
 
 Wartung und Prüfung laufen über dieselbe Datei auf der Kommandozeile:
 
 | Aufruf | Zweck |
 |---|---|
-| `php index.php selftest` | 97 automatisierte Prüfungen der Fachregeln |
+| `php index.php selftest` | 112 automatisierte Prüfungen der Fachregeln |
 | `php index.php cron` | Wartungslauf (sonst beiläufig bei Seitenaufrufen) |
 | `php index.php seed 400` | Demo-Stimmen, anonym wie im Echtbetrieb |
 | `php index.php jurysim` | Demo-Jury stimmt in laufenden Prüfungen ab |
 | `php index.php issue-card 3` | autorisierte Demo-Ausweise samt Abhol-Verweis |
-| `php index.php sync-keys` | Allowlist aus der konfigurierten Trust-Liste |
+| `php index.php sync-keys` | Freigabeliste aus der konfigurierten Trust-Liste |
+| `php index.php setup-token` | Einrichtungsschlüssel für die Umschaltung anzeigen |
+| `php index.php config` | wirksame Einstellungen aus `data/config.yaml` anzeigen |
 | `php -S 127.0.0.1:8080 index.php` | lokale Vorführung ohne Webserver |

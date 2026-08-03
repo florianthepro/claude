@@ -403,10 +403,144 @@ function sw_setup(): void
         SW::$serverSign = base64_decode(trim((string) file_get_contents($srvFile)), true) ?: '';
     }
 
+    setup_apply(setup_load());
+
     $dbPath = getenv('STIMMWERK_DB') ?: SW::$dataDir . '/stimmwerk.sqlite';
     SW::$db = new Db($dbPath);
     SW::$db->migrate();
     sw_seed_categories();
+}
+
+const SW_SETUP_KEYS = [
+    'eid_mode', 'eid_server_url', 'eid_server_cert', 'eid_server_key',
+    'eid_client_url', 'authorized_keys_url', 'nect_start',
+];
+
+function setup_file(): string
+{
+    return SW::$dataDir . '/config.yaml';
+}
+
+function setup_token_file(): string
+{
+    return SW::$dataDir . '/setup.token';
+}
+
+function setup_token(): string
+{
+    $file = setup_token_file();
+    if (!is_file($file)) {
+        @file_put_contents($file, bin2hex(random_bytes(16)) . "\n", LOCK_EX);
+        @chmod($file, 0600);
+    }
+    return trim((string) @file_get_contents($file));
+}
+
+function setup_load(): array
+{
+    $file = setup_file();
+    if (!is_file($file)) {
+        return [];
+    }
+    $out = [];
+    foreach (explode("\n", (string) file_get_contents($file)) as $line) {
+        if (preg_match('/^([a-z_]+):\s*"(.*)"\s*$/', trim($line), $m) !== 1) {
+            continue;
+        }
+        if (in_array($m[1], SW_SETUP_KEYS, true)) {
+            $out[$m[1]] = str_replace(['\\"', '\\\\'], ['"', '\\'], $m[2]);
+        }
+    }
+    return $out;
+}
+
+function setup_save(array $values): bool
+{
+    $lines = [];
+    foreach (SW_SETUP_KEYS as $key) {
+        if (!isset($values[$key])) {
+            continue;
+        }
+        $value = str_replace(['\\', '"'], ['\\\\', '\\"'], (string) $values[$key]);
+        $lines[] = $key . ': "' . $value . '"';
+    }
+    $ok = @file_put_contents(setup_file(), implode("\n", $lines) . "\n", LOCK_EX) !== false;
+    if ($ok) {
+        @chmod(setup_file(), 0600);
+    }
+    return $ok;
+}
+
+function setup_apply(array $values): void
+{
+    foreach ($values as $key => $value) {
+        if ($key === 'nect_start') {
+            $providers = SW::$cfg['eid_providers'];
+            $providers['nect']['start'] = (string) $value;
+            SW::$cfg['eid_providers'] = $providers;
+            continue;
+        }
+        if (in_array($key, SW_SETUP_KEYS, true)) {
+            SW::$cfg[$key] = $value;
+        }
+    }
+}
+
+function setup_read_post(): array
+{
+    return [
+        'eid_mode'            => post_str('eid_mode', 10) === 'eid' ? 'eid' : 'demo',
+        'eid_server_url'      => post_str('eid_server_url', 300),
+        'eid_server_cert'     => post_str('eid_server_cert', 300),
+        'eid_server_key'      => post_str('eid_server_key', 300),
+        'eid_client_url'      => post_str('eid_client_url', 200),
+        'authorized_keys_url' => post_str('authorized_keys_url', 300),
+        'nect_start'          => post_str('nect_start', 300),
+    ];
+}
+
+function setup_validate(array $in): array
+{
+    $errors = [];
+    if ($in['eid_client_url'] === '') {
+        $in['eid_client_url'] = (string) SW_CONFIG['eid_client_url'];
+    }
+    if (preg_match('#^https?://[^\s"\']+$#', $in['eid_client_url']) !== 1) {
+        $errors[] = 'setup.err_client';
+    }
+    foreach (['eid_server_url', 'authorized_keys_url', 'nect_start'] as $key) {
+        if ($in[$key] !== '' && preg_match('#^https://[^\s"\']+$#', $in[$key]) !== 1) {
+            $errors[] = 'setup.err_https';
+        }
+    }
+    foreach (['eid_server_cert', 'eid_server_key'] as $key) {
+        if ($in[$key] !== '' && !is_readable($in[$key])) {
+            $errors[] = 'setup.err_file';
+        }
+    }
+    if ($in['eid_mode'] === 'eid' && $in['eid_server_url'] === '') {
+        $errors[] = 'setup.err_server_missing';
+    }
+    if ($in['eid_mode'] === 'demo' && $in['authorized_keys_url'] === '' && authorized_count_stable() === 0) {
+        $errors[] = 'setup.err_list_empty';
+    }
+    return [array_values(array_unique($errors)), $in];
+}
+
+function setup_probe(array $cfg): bool
+{
+    return eid_server_useid($cfg) !== null;
+}
+
+function setup_ready(): array
+{
+    $htaccess = is_file(__DIR__ . '/.htaccess');
+    return [
+        ['setup.check_data', is_writable(SW::$dataDir)],
+        ['setup.check_https', sw_is_https()],
+        ['setup.check_sodium', card_supports_sodium()],
+        ['setup.check_htaccess', $htaccess],
+    ];
 }
 
 function sw_hmac(string $value): string
@@ -441,10 +575,8 @@ function test_mode_end(): void
     });
     SW::$testMode = false;
 
-    @unlink(authorized_file());
-    foreach (glob(SW::$dataDir . '/issued/*.key') ?: [] as $f) {
-        @unlink($f);
-    }
+    authorized_remove(test_keys_load());
+    @unlink(test_keys_file());
     log_line('SECURITY', 'test_mode_ended', []);
 }
 
@@ -681,6 +813,64 @@ function authorized_contains(string $pkHex): bool
     return isset(authorized_load()[strtolower($pkHex)]);
 }
 
+function authorized_count(): int
+{
+    return count(authorized_load());
+}
+
+function test_keys_file(): string
+{
+    return SW::$dataDir . '/test_keys.list';
+}
+
+function test_keys_load(): array
+{
+    $file = test_keys_file();
+    if (!is_file($file)) {
+        return [];
+    }
+    $out = [];
+    foreach (preg_split('/\r?\n/', (string) file_get_contents($file)) as $line) {
+        $hex = strtolower(trim($line));
+        if (preg_match('/^[0-9a-f]{64,128}$/', $hex) === 1) {
+            $out[] = $hex;
+        }
+    }
+    return $out;
+}
+
+function test_key_add(string $pkHex): void
+{
+    @file_put_contents(test_keys_file(), strtolower($pkHex) . "\n", FILE_APPEND | LOCK_EX);
+    @chmod(test_keys_file(), 0600);
+}
+
+function authorized_count_stable(): int
+{
+    $set = authorized_load();
+    foreach (test_keys_load() as $hex) {
+        unset($set[$hex]);
+    }
+    return count($set);
+}
+
+function authorized_remove(array $pkHexList): int
+{
+    $set = authorized_load();
+    $removed = 0;
+    foreach ($pkHexList as $hex) {
+        $hex = strtolower(trim($hex));
+        if (isset($set[$hex])) {
+            unset($set[$hex]);
+            $removed++;
+        }
+    }
+    if ($removed > 0) {
+        authorized_write($set, 'cleanup');
+    }
+    return $removed;
+}
+
 function authorized_add(array $pkHexList, string $source): int
 {
     $set = authorized_load();
@@ -692,6 +882,12 @@ function authorized_add(array $pkHexList, string $source): int
             $added++;
         }
     }
+    authorized_write($set, $source);
+    return $added;
+}
+
+function authorized_write(array $set, string $source): void
+{
     $y = "stimmwerk_authorized_keys:\n";
     $y .= "  hinweis: \"Oeffentliche Schluessel autorisierter Ausweise. Nur diese koennen sich anmelden.\"\n";
     $y .= "  aktualisiert: \"" . Clock::nowStr() . "\"\n";
@@ -705,7 +901,6 @@ function authorized_add(array $pkHexList, string $source): int
     }
     @file_put_contents(authorized_file(), $y, LOCK_EX);
     @chmod(authorized_file(), 0640);
-    return $added;
 }
 
 function card_load(): ?array
@@ -1772,11 +1967,42 @@ const SW_DE = [
 
     'auth.with' => 'Mit {app} anmelden',
     'testmode.chip' => 'Testmodus',
-    'testmode.end' => 'Testmodus beenden',
-    'testmode.explain' => 'Danach ist nur noch die Anmeldung mit echtem Ausweis möglich. Alle im Testbetrieb angelegten Themen, Stimmen, Meldungen und Test-Ausweise werden gelöscht. Das lässt sich nicht rückgängig machen.',
-    'testmode.confirm' => 'Ja, Testdaten löschen und Testmodus beenden',
-    'flash.testmode_ended' => 'Testmodus beendet, Testdaten gelöscht.',
+    'flash.testmode_ended' => 'Echtbetrieb eingerichtet, Testdaten gelöscht.',
     'flash.testmode_confirm' => 'Bitte das Beenden bestätigen.',
+    'setup.title' => 'Echtbetrieb einrichten',
+    'setup.intro' => 'Hier endet der Testbetrieb: Zugangsart festlegen, prüfen, umschalten. Alle Testdaten werden dabei gelöscht.',
+    'setup.checks' => 'Voraussetzungen',
+    'setup.check_data' => 'Datenverzeichnis beschreibbar',
+    'setup.check_https' => 'HTTPS aktiv',
+    'setup.check_sodium' => 'Kryptographie (sodium) verfügbar',
+    'setup.check_htaccess' => 'Zugriffsschutz (.htaccess) vorhanden',
+    'setup.check_keys' => 'Freigegebene Ausweis-Schlüssel: {n}',
+    'setup.path' => 'Zugang nach dem Umschalten',
+    'setup.path_eid' => 'Eigener eID-Server',
+    'setup.path_eid_hint' => 'Anmeldung über die Ausweis-App; setzt einen eID-Server nach BSI TR-03130 und ein Berechtigungszertifikat des BVA voraus.',
+    'setup.path_list' => 'Eigene Trust-Liste',
+    'setup.path_list_hint' => 'Anmeldung nur mit Schlüsseln aus der Freigabeliste; über die Abgleich-Adresse oder „issue-card“ auf der Kommandozeile befüllt.',
+    'setup.f_server' => 'eID-Server (SOAP-Adresse)',
+    'setup.f_cert' => 'Client-Zertifikat (Pfad)',
+    'setup.f_key' => 'Privater Schlüssel (Pfad)',
+    'setup.f_client' => 'Ausweis-App auf dem Gerät',
+    'setup.f_sync' => 'Abgleich-Adresse der Freigabeliste',
+    'setup.f_nect' => 'Nect Wallet: Startadresse',
+    'setup.token' => 'Einrichtungsschlüssel',
+    'setup.token_hint' => 'Steht in data/setup.token auf dem Server (per FTP oder SSH lesbar), oder über „php index.php setup-token“.',
+    'setup.check_btn' => 'Verbindung prüfen',
+    'setup.finish_btn' => 'Testdaten löschen und umschalten',
+    'setup.confirm' => 'Ja, Testdaten löschen und dauerhaft in den Echtbetrieb wechseln',
+    'setup.err_client' => 'Adresse der Ausweis-App ist ungültig.',
+    'setup.err_https' => 'Adressen müssen mit https:// beginnen.',
+    'setup.err_file' => 'Zertifikat oder Schlüssel ist nicht lesbar.',
+    'setup.err_server_missing' => 'Für den eID-Server wird dessen SOAP-Adresse benötigt.',
+    'setup.err_list_empty' => 'Die Freigabeliste ist leer: Abgleich-Adresse angeben oder zuerst Ausweise ausgeben.',
+    'setup.err_token' => 'Einrichtungsschlüssel stimmt nicht.',
+    'setup.err_save' => 'Einstellungen nicht speicherbar – Rechte des Ordners data/ prüfen.',
+    'flash.setup_ok' => 'eID-Server antwortet.',
+    'flash.setup_failed' => 'eID-Server antwortet nicht oder liefert keine Sitzung.',
+    'flash.setup_no_server' => 'Keine eID-Server-Adresse angegeben.',
     'auth.title' => 'Mit Ausweis anmelden',
     'auth.tap' => 'Ausweis auflegen',
     'auth.test_login' => 'Test-Anmeldung starten',
@@ -1956,11 +2182,42 @@ const SW_EN = [
 
     'auth.with' => 'Sign in with {app}',
     'testmode.chip' => 'Test mode',
-    'testmode.end' => 'End test mode',
-    'testmode.explain' => 'Afterwards only sign-in with a real ID card is possible. All topics, votes, reports and test cards created during test operation are deleted. This cannot be undone.',
-    'testmode.confirm' => 'Yes, delete test data and end test mode',
-    'flash.testmode_ended' => 'Test mode ended, test data deleted.',
+    'flash.testmode_ended' => 'Live operation configured, test data deleted.',
     'flash.testmode_confirm' => 'Please confirm ending test mode.',
+    'setup.title' => 'Set up live operation',
+    'setup.intro' => 'This ends test operation: choose the sign-in method, check it, switch over. All test data is deleted.',
+    'setup.checks' => 'Prerequisites',
+    'setup.check_data' => 'Data directory writable',
+    'setup.check_https' => 'HTTPS active',
+    'setup.check_sodium' => 'Cryptography (sodium) available',
+    'setup.check_htaccess' => 'Access protection (.htaccess) present',
+    'setup.check_keys' => 'Authorised ID keys: {n}',
+    'setup.path' => 'Sign-in after switching',
+    'setup.path_eid' => 'Own eID server',
+    'setup.path_eid_hint' => 'Sign-in via the ID app; requires an eID server per BSI TR-03130 and an authorisation certificate from the BVA.',
+    'setup.path_list' => 'Own trust list',
+    'setup.path_list_hint' => 'Sign-in only with keys from the allowlist; filled via the sync address or “issue-card” on the command line.',
+    'setup.f_server' => 'eID server (SOAP address)',
+    'setup.f_cert' => 'Client certificate (path)',
+    'setup.f_key' => 'Private key (path)',
+    'setup.f_client' => 'ID app on the device',
+    'setup.f_sync' => 'Sync address of the allowlist',
+    'setup.f_nect' => 'Nect Wallet: start address',
+    'setup.token' => 'Setup key',
+    'setup.token_hint' => 'Found in data/setup.token on the server (readable via FTP or SSH), or via “php index.php setup-token”.',
+    'setup.check_btn' => 'Test connection',
+    'setup.finish_btn' => 'Delete test data and switch over',
+    'setup.confirm' => 'Yes, delete test data and switch to live operation permanently',
+    'setup.err_client' => 'The ID app address is invalid.',
+    'setup.err_https' => 'Addresses must start with https://.',
+    'setup.err_file' => 'Certificate or key is not readable.',
+    'setup.err_server_missing' => 'The eID server needs its SOAP address.',
+    'setup.err_list_empty' => 'The allowlist is empty: give a sync address or issue ID cards first.',
+    'setup.err_token' => 'Setup key does not match.',
+    'setup.err_save' => 'Settings could not be saved – check the permissions of the data/ folder.',
+    'flash.setup_ok' => 'eID server responds.',
+    'flash.setup_failed' => 'eID server does not respond or returns no session.',
+    'flash.setup_no_server' => 'No eID server address given.',
     'auth.title' => 'Sign in with ID card',
     'auth.tap' => 'Place your ID card',
     'auth.test_login' => 'Start test sign-in',
@@ -2206,6 +2463,13 @@ a:hover { text-decoration: underline; }
 .topic-tools .link-quiet:hover, .topic-tools .btn:hover { text-decoration: none; opacity: 0.85; }
 .link-quiet { color: var(--muted); font-size: 0.92rem; }
 .ico { width: 1.15rem; height: 1.15rem; display: block; }
+.card-h { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.5rem; }
+.check-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.check-list li { display: flex; align-items: baseline; gap: 0.6rem; font-size: 0.95rem; }
+.check-list li > span { flex: none; width: 1.1rem; text-align: center; font-weight: 700; }
+.check-list .is-ok > span { color: var(--vote-for); }
+.check-list .is-warn { color: var(--muted); }
+.check-list .is-warn > span { color: var(--danger); }
 .fav-menu { position: relative; }
 .fav-menu > summary {
   list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
@@ -2624,8 +2888,7 @@ function v_layout(string $title, string $content): string
         . '<header class="site-header"><div class="shell header-inner">'
         . '<div class="header-controls">';
     if (test_mode() && $user !== null) {
-
-        $html .= '<a class="testmode-chip" href="#modal-testend">' . e(t('testmode.chip')) . '</a>';
+        $html .= '<a class="testmode-chip" href="' . e(url('/setup')) . '">' . e(t('testmode.chip')) . '</a>';
     }
     if ($user === null) {
 
@@ -2648,14 +2911,6 @@ function v_layout(string $title, string $content): string
                 . e(t((string) $f['key'], (array) $f['repl'])) . '</div>';
         }
         $html .= '</div>';
-    }
-    if (test_mode() && $user !== null) {
-        $inner = '<p class="muted">' . e(t('testmode.explain')) . '</p>'
-            . '<form method="post" action="' . e(url('/testmode/end')) . '" class="form-stack">' . csrf_field()
-            . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required>'
-            . '<span>' . e(t('testmode.confirm')) . '</span></label>'
-            . '<div><button type="submit" class="btn btn-danger btn-big">' . e(t('testmode.end')) . '</button></div></form>';
-        $html .= modal('modal-testend', t('testmode.end'), $inner);
     }
     $html .= '<main id="main" class="shell site-main">' . $content . '</main>'
         . '<footer class="site-footer"><div class="shell footer-inner">'
@@ -3114,6 +3369,136 @@ function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
     render(t('topic.edit'), $html);
 }
 
+function v_setup(array $errors = [], ?array $old = null): void
+{
+    require_user();
+    if (!test_mode()) {
+        redirect('/');
+    }
+    $old = $old ?? [
+        'eid_mode' => (string) SW::$cfg['eid_mode'],
+        'eid_server_url' => (string) SW::$cfg['eid_server_url'],
+        'eid_server_cert' => (string) SW::$cfg['eid_server_cert'],
+        'eid_server_key' => (string) SW::$cfg['eid_server_key'],
+        'eid_client_url' => (string) SW::$cfg['eid_client_url'],
+        'authorized_keys_url' => (string) SW::$cfg['authorized_keys_url'],
+        'nect_start' => (string) (SW::$cfg['eid_providers']['nect']['start'] ?? ''),
+    ];
+    $html = '<h1>' . e(t('setup.title')) . '</h1>'
+        . '<p class="muted">' . e(t('setup.intro')) . '</p>'
+        . '<section class="card"><h2 class="card-h">' . e(t('setup.checks')) . '</h2><ul class="check-list">';
+    foreach (setup_ready() as [$key, $ok]) {
+        $html .= '<li class="' . ($ok ? 'is-ok' : 'is-warn') . '"><span aria-hidden="true">'
+            . ($ok ? '&#10003;' : '!') . '</span>' . e(t($key)) . '</li>';
+    }
+    $stable = authorized_count_stable();
+    $html .= '<li class="' . ($stable > 0 ? 'is-ok' : 'is-warn') . '"><span aria-hidden="true">'
+        . ($stable > 0 ? '&#10003;' : '!') . '</span>'
+        . e(t('setup.check_keys', ['n' => num($stable)])) . '</li></ul></section>';
+
+    if ($errors !== []) {
+        $html .= '<div class="flash flash-error" role="alert"><ul class="plain-list">';
+        foreach ($errors as $error) {
+            $html .= '<li>' . e(t($error)) . '</li>';
+        }
+        $html .= '</ul></div>';
+    }
+
+    $eid = $old['eid_mode'] === 'eid';
+    $html .= '<form class="card form-stack" method="post" action="' . e(url('/setup/finish')) . '">' . csrf_field()
+        . '<fieldset class="criteria-set"><legend>' . e(t('setup.path')) . '</legend>'
+        . '<label class="check-label"><input type="radio" name="eid_mode" value="eid"' . ($eid ? ' checked' : '') . '>'
+        . '<span><strong>' . e(t('setup.path_eid')) . '</strong><br><small class="muted">' . e(t('setup.path_eid_hint')) . '</small></span></label>'
+        . '<label class="check-label"><input type="radio" name="eid_mode" value="demo"' . ($eid ? '' : ' checked') . '>'
+        . '<span><strong>' . e(t('setup.path_list')) . '</strong><br><small class="muted">' . e(t('setup.path_list_hint')) . '</small></span></label>'
+        . '</fieldset>'
+        . '<label><span>' . e(t('setup.f_server')) . '</span>'
+        . '<input type="text" name="eid_server_url" inputmode="url" placeholder="https://…" value="' . e($old['eid_server_url']) . '"></label>'
+        . '<div class="form-row"><label><span>' . e(t('setup.f_cert')) . '</span>'
+        . '<input type="text" name="eid_server_cert" value="' . e($old['eid_server_cert']) . '"></label>'
+        . '<label><span>' . e(t('setup.f_key')) . '</span>'
+        . '<input type="text" name="eid_server_key" value="' . e($old['eid_server_key']) . '"></label></div>'
+        . '<label><span>' . e(t('setup.f_client')) . '</span>'
+        . '<input type="text" name="eid_client_url" value="' . e($old['eid_client_url']) . '"></label>'
+        . '<label><span>' . e(t('setup.f_sync')) . '</span>'
+        . '<input type="text" name="authorized_keys_url" inputmode="url" placeholder="https://…" value="' . e($old['authorized_keys_url']) . '"></label>'
+        . '<label><span>' . e(t('setup.f_nect')) . '</span>'
+        . '<input type="text" name="nect_start" inputmode="url" placeholder="https://…" value="' . e($old['nect_start']) . '"></label>'
+        . '<div><button type="submit" class="btn btn-outline" formaction="' . e(url('/setup/check')) . '">'
+        . e(t('setup.check_btn')) . '</button></div>'
+        . '<hr class="hr-soft">'
+        . '<label><span>' . e(t('setup.token')) . '</span>'
+        . '<input type="text" name="token" autocomplete="off" spellcheck="false"></label>'
+        . '<small class="muted">' . e(t('setup.token_hint')) . '</small>'
+        . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required>'
+        . '<span>' . e(t('setup.confirm')) . '</span></label>'
+        . '<div><button type="submit" class="btn btn-danger btn-big">' . e(t('setup.finish_btn')) . '</button></div>'
+        . '</form>';
+    render(t('setup.title'), $html);
+}
+
+function h_setup_check(): void
+{
+    require_user();
+    if (!test_mode()) {
+        redirect('/');
+    }
+    if (!rate_allow('setup:' . ip_key(), 20, 600)) {
+        flash('error', 'flash.rate_limited');
+        redirect('/setup');
+    }
+    [$errors, $values] = setup_validate(setup_read_post());
+    $errors = array_values(array_filter($errors, static function (string $key): bool {
+        return $key !== 'setup.err_list_empty';
+    }));
+    if ($errors !== []) {
+        v_setup($errors, $values);
+    }
+    if ($values['eid_server_url'] === '') {
+        flash('info', 'flash.setup_no_server');
+        redirect('/setup');
+    }
+    flash(setup_probe($values) ? 'success' : 'error', setup_probe($values) ? 'flash.setup_ok' : 'flash.setup_failed');
+    redirect('/setup');
+}
+
+function h_setup_finish(): void
+{
+    require_user();
+    if (!test_mode()) {
+        redirect('/');
+    }
+    if (!rate_allow('setup:' . ip_key(), 20, 600)) {
+        flash('error', 'flash.rate_limited');
+        redirect('/setup');
+    }
+    [$errors, $values] = setup_validate(setup_read_post());
+    if (post_str('confirm', 10) !== 'yes') {
+        $errors[] = 'flash.testmode_confirm';
+    }
+    $token = setup_token();
+    if ($token === '' || !hash_equals($token, post_str('token', 80))) {
+        log_line('SECURITY', 'setup_token_bad', []);
+        $errors[] = 'setup.err_token';
+    }
+    if ($values['eid_mode'] === 'eid' && $errors === [] && !setup_probe($values)) {
+        $errors[] = 'flash.setup_failed';
+    }
+    if ($errors !== []) {
+        v_setup(array_values(array_unique($errors)), $values);
+    }
+    if (!setup_save($values)) {
+        v_setup(['setup.err_save'], $values);
+    }
+    setup_apply($values);
+    test_mode_end();
+    @unlink(setup_token_file());
+    auth_logout();
+    card_forget();
+    flash('info', 'flash.testmode_ended');
+    redirect('/auth');
+}
+
 function v_auth(): void
 {
     if (auth_user() !== null) {
@@ -3260,9 +3645,10 @@ function eid_flow_bind(string $nonce, string $ref): void
     SW::$db->run('UPDATE eid_flows SET eid_ref = ? WHERE nonce = ?', [$ref, $nonce]);
 }
 
-function eid_server_useid(): ?array
+function eid_server_useid(?array $over = null): ?array
 {
-    $url = (string) SW::$cfg['eid_server_url'];
+    $cfg = $over ?? SW::$cfg;
+    $url = (string) ($cfg['eid_server_url'] ?? '');
     if ($url === '' || preg_match('#^https://#', $url) !== 1) {
         return null;
     }
@@ -3278,11 +3664,11 @@ function eid_server_useid(): ?array
         'timeout' => 8,
         'ignore_errors' => true,
     ], 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true]];
-    if ((string) SW::$cfg['eid_server_cert'] !== '') {
-        $ctx['ssl']['local_cert'] = (string) SW::$cfg['eid_server_cert'];
+    if ((string) ($cfg['eid_server_cert'] ?? '') !== '') {
+        $ctx['ssl']['local_cert'] = (string) $cfg['eid_server_cert'];
     }
-    if ((string) SW::$cfg['eid_server_key'] !== '') {
-        $ctx['ssl']['local_pk'] = (string) SW::$cfg['eid_server_key'];
+    if ((string) ($cfg['eid_server_key'] ?? '') !== '') {
+        $ctx['ssl']['local_pk'] = (string) $cfg['eid_server_key'];
     }
     $xml = @file_get_contents($url, false, stream_context_create($ctx));
     if (!is_string($xml) || $xml === '') {
@@ -3577,6 +3963,7 @@ function h_tap(): void
 
         $card = card_create();
         authorized_add([card_identity($card)], 'test-login');
+        test_key_add(card_identity($card));
     } else {
 
         if ((string) SW::$cfg['eid_mode'] === 'eid') {
@@ -3640,23 +4027,6 @@ function h_card_new(): void
     auth_logout();
     card_forget();
     flash('info', 'flash.card_new');
-    redirect('/auth');
-}
-
-function h_testmode_end(): void
-{
-    require_user();
-    if (!test_mode()) {
-        redirect('/');
-    }
-    if (post_str('confirm', 10) !== 'yes') {
-        flash('error', 'flash.testmode_confirm');
-        redirect('/');
-    }
-    test_mode_end();
-    auth_logout();
-    card_forget();
-    flash('info', 'flash.testmode_ended');
     redirect('/auth');
 }
 
@@ -3935,6 +4305,13 @@ function web_main(): void
     SW::$base = $base;
 
     $rawPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
+    if (preg_match('#(^|/)data(/|$)#', $rawPath) === 1) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        echo "404\n";
+        exit;
+    }
     $pathInfo = (string) ($_SERVER['PATH_INFO'] ?? '');
     if ($pathInfo !== '' && $pathInfo[0] === '/') {
         $path = $pathInfo;
@@ -4117,8 +4494,14 @@ function web_main(): void
         if ($path === '/logout' && $method === 'POST') {
             h_logout();
         }
-        if ($path === '/testmode/end' && $method === 'POST') {
-            h_testmode_end();
+        if ($path === '/setup' && $isGet) {
+            v_setup();
+        }
+        if ($path === '/setup/check' && $method === 'POST') {
+            h_setup_check();
+        }
+        if ($path === '/setup/finish' && $method === 'POST') {
+            h_setup_finish();
         }
         if ($path === '/imprint' && $isGet) {
             v_static('imprint.h', ['imprint.p1', 'imprint.p2']);
@@ -4567,6 +4950,61 @@ function cli_selftest(): int
     $check('Kategorien bleiben erhalten', count(categories()) >= 20);
     SW::$testMode = true;
 
+    echo "== Einrichtung des Echtbetriebs ==\n";
+    cli_switch_db($tmpDir, 'setup');
+    SW::$testMode = null;
+    @unlink(authorized_file());
+    @unlink(test_keys_file());
+    $base = ['eid_mode' => 'demo', 'eid_server_url' => '', 'eid_server_cert' => '', 'eid_server_key' => '',
+             'eid_client_url' => 'http://127.0.0.1:24727/eID-Client', 'authorized_keys_url' => '', 'nect_start' => ''];
+    $validate = static function (array $over) use ($base): array {
+        [$errors] = setup_validate(array_merge($base, $over));
+        return $errors;
+    };
+    $check('Leere Freigabeliste ohne Abgleich-Adresse abgelehnt',
+        in_array('setup.err_list_empty', $validate([]), true));
+    authorized_add([str_repeat('ab', 32)], 'selftest');
+    $check('Freigabeliste mit Eintrag genügt', $validate([]) === []);
+    $check('eID-Modus ohne Serveradresse abgelehnt',
+        in_array('setup.err_server_missing', $validate(['eid_mode' => 'eid']), true));
+    $check('Serveradresse ohne https abgelehnt',
+        in_array('setup.err_https', $validate(['eid_server_url' => 'http://eid.example']), true));
+    $check('Nicht lesbares Zertifikat abgelehnt',
+        in_array('setup.err_file', $validate(['eid_server_cert' => '/kein/pfad/cert.pem']), true));
+    $check('Gültige eID-Angaben angenommen',
+        $validate(['eid_mode' => 'eid', 'eid_server_url' => 'https://eid.example/soap']) === []);
+    $saved = array_merge($base, ['eid_mode' => 'eid', 'eid_server_url' => 'https://eid.example/soap',
+                                 'nect_start' => 'https://nect.example/start']);
+    $check('Einstellungen gespeichert', setup_save($saved));
+    $loaded = setup_load();
+    $check('Einstellungen unverändert gelesen',
+        $loaded['eid_server_url'] === 'https://eid.example/soap' && $loaded['eid_mode'] === 'eid');
+    setup_apply($loaded);
+    $check('Einstellungen überschreiben die Vorgabe',
+        (string) SW::$cfg['eid_server_url'] === 'https://eid.example/soap'
+        && (string) SW::$cfg['eid_providers']['nect']['start'] === 'https://nect.example/start');
+    $check('Nicht vorgesehene Schlüssel werden nicht übernommen',
+        !array_key_exists('session_idle_minutes', setup_load()));
+    $check('Unerreichbarer eID-Server meldet Fehlschlag',
+        setup_probe(array_merge($base, ['eid_server_url' => 'https://127.0.0.1:1/soap'])) === false);
+    $token = setup_token();
+    $check('Einrichtungsschlüssel erzeugt und stabil', strlen($token) === 32 && $token === setup_token());
+    @unlink(authorized_file());
+    @unlink(test_keys_file());
+    $realKey = str_repeat('cd', 32);
+    $testKey = str_repeat('ef', 32);
+    authorized_add([$realKey], 'issue-card');
+    authorized_add([$testKey], 'test-login');
+    test_key_add($testKey);
+    $check('Testschlüssel zählen nicht als freigegebene Ausweise', authorized_count_stable() === 1);
+    test_mode_end();
+    $check('Testschlüssel beim Umschalten entfernt', !authorized_contains($testKey));
+    $check('Echter Ausweis-Schlüssel bleibt erhalten', authorized_contains($realKey));
+    SW::$cfg = SW_CONFIG;
+    @unlink(setup_file());
+    @unlink(setup_token_file());
+    SW::$testMode = true;
+
     echo "== Sprachtabellen ==\n";
     $missingEn = array_diff(array_keys(SW_DE), array_keys(SW_EN));
     $missingDe = array_diff(array_keys(SW_EN), array_keys(SW_DE));
@@ -4679,7 +5117,23 @@ function cli_main(array $argv): int
     if ($cmd === 'sync-keys') {
         return cli_sync_keys($argv[2] ?? '');
     }
-    echo "Aufrufe: php index.php selftest | cron | seed [n] | jurysim | issue-card [n] | sync-keys [url]\n";
+    if ($cmd === 'setup-token') {
+        if (!test_mode()) {
+            echo "Testbetrieb ist bereits beendet; ein Einrichtungsschluessel wird nicht mehr gebraucht.\n";
+            return 0;
+        }
+        echo setup_token() . "\n";
+        return 0;
+    }
+    if ($cmd === 'config') {
+        $stored = setup_load();
+        echo $stored === [] ? "Keine Einstellungen in data/config.yaml.\n" : '';
+        foreach (SW_SETUP_KEYS as $key) {
+            printf("%-20s %s\n", $key, (string) ($stored[$key] ?? '-'));
+        }
+        return 0;
+    }
+    echo "Aufrufe: php index.php selftest | cron | seed [n] | jurysim | issue-card [n] | sync-keys [url] | setup-token | config\n";
     return $cmd === 'help' ? 0 : 1;
 }
 
