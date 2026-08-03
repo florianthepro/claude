@@ -41,15 +41,11 @@ const SW_CONFIG = [
     'app_name' => 'Stimmwerk',
     'domain'   => 'stimmwerk.de',
 
-    /* ===== Zwei Test-Schalter (nur für Entwicklung/Vorführung) ===== */
-    // 1) Testbetrieb-Banner: solange true, zeigt jede Seite den Hinweis, dass
-    //    dies keine offizielle Seite der Bundesregierung oder Behörde ist.
+    // Testbetrieb-Banner: solange true, zeigt jede Seite den Hinweis, dass
+    // dies keine offizielle Seite der Bundesregierung oder Behörde ist.
+    // (Der Testmodus selbst ist KEINE Konfiguration mehr – er ist bei einer
+    //  frischen Installation aktiv und wird über die Oberfläche beendet.)
     'show_test_banner' => true,
-    // 2) Test-Anmeldung: solange true, erzeugt der Anmelde-Knopf beim
-    //    „Anhalten“ eine ZUFÄLLIGE, als gültig behandelte Sitzung (die App tut
-    //    so, als läge ein echter Ausweis an). NUR zum Testen – im Echtbetrieb
-    //    auf false: dann ist ausschließlich echte Ausweis-Prüfung möglich.
-    'test_login' => false,
 
     // Anmeldemodus:
     //   'demo' = Ausweise werden per CLI ausgegeben (issue-card) und in die
@@ -72,6 +68,18 @@ const SW_CONFIG = [
     //  - Nect: Start-URL des Nect-Ident-Flows (Nect Wallet).
     // Leer = nicht konfiguriert; der Anbieter meldet dann sauber „nicht
     // eingerichtet“ (fail-closed), es kommt niemand ohne echte Prüfung hinein.
+    // Aktivierungsadresse des eID-Clients nach BSI TR-03124. Die AusweisApp
+    // (oder ein anderer eID-Client) lauscht lokal auf diesem Port; der Aufruf
+    // mit tcTokenURL startet die Ausweis-Prüfung direkt auf dem Gerät. Dieser
+    // Teil braucht KEINE Konfiguration – Apache + diese Datei genügen.
+    'eid_client_url' => 'http://127.0.0.1:24727/eID-Client',
+    // eID-Server nach BSI TR-03130 (SOAP-Endpunkt useID/getResult). Nur ein
+    // Betreiber mit Berechtigungszertifikat des BVA kann so einen Server
+    // betreiben; ohne Eintrag liefert /eid/tctoken einen sauberen Fehler an die
+    // AusweisApp zurück und niemand wird angemeldet (fail-closed).
+    'eid_server_url'  => '',
+    'eid_server_cert' => '', // Client-Zertifikat (PEM) für die mTLS-Verbindung
+    'eid_server_key'  => '', // zugehöriger privater Schlüssel (PEM)
     'eid_providers' => [
         'ausweisapp' => ['label' => 'AusweisApp', 'start' => ''],
         'nect'       => ['label' => 'Nect Wallet', 'start' => ''],
@@ -105,6 +113,7 @@ final class SW
     public static string $dataDir = '';
     public static string $pepper = '';
     public static string $serverSign = '';
+    public static ?bool $testMode = null;
     public static string $lang = 'de';
     /** @var array<string,string> */
     public static array $tActive = [];
@@ -210,7 +219,7 @@ CREATE TABLE IF NOT EXISTS topics (
     scope_level  TEXT    NOT NULL CHECK (scope_level IN ('kommune','landkreis','bundesland','bund')),
     scope_name   TEXT,
     status       TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','closed','removed')),
-    end_mode     TEXT    NOT NULL DEFAULT 'date' CHECK (end_mode IN ('date','count')),
+    end_mode     TEXT    NOT NULL DEFAULT 'date' CHECK (end_mode IN ('date','count','both')),
     end_date     TEXT,
     end_target   INTEGER,
     created_at   TEXT    NOT NULL,
@@ -269,6 +278,15 @@ CREATE TABLE IF NOT EXISTS rate_limits (
     k            TEXT    PRIMARY KEY,
     window_start INTEGER NOT NULL,
     cnt          INTEGER NOT NULL
+);
+
+-- Laufende Ausweis-App-Vorgänge (TR-03124). Die AusweisApp holt das tcToken
+-- ohne Browser-Cookie ab; der Einmal-Nonce in der tcTokenURL verbindet beides.
+CREATE TABLE IF NOT EXISTS eid_flows (
+    nonce      TEXT    PRIMARY KEY,
+    session_id TEXT    NOT NULL,
+    eid_ref    TEXT,
+    created_at INTEGER NOT NULL
 );
 SQL;
 
@@ -346,9 +364,12 @@ final class Db
 
     public function migrate(): void
     {
+        // Das Schema besteht ausschließlich aus IF-NOT-EXISTS-Anweisungen und
+        // wird daher bei jedem Start angewandt: neue Tabellen erscheinen auch
+        // in bestehenden Datenbanken, vorhandene Daten bleiben unberührt.
         $exists = $this->val("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_info'");
+        $this->pdo->exec(SW_SCHEMA);
         if ($exists === null) {
-            $this->pdo->exec(SW_SCHEMA);
             $this->run("INSERT INTO schema_info (k, v) VALUES ('version', '1'), ('created_at', ?)", [Clock::nowStr()]);
         }
     }
@@ -464,6 +485,46 @@ function sw_setup(): void
 function sw_hmac(string $value): string
 {
     return hash_hmac('sha256', $value, SW::$pepper);
+}
+
+/* ---- Testmodus ---------------------------------------------------------- *
+ * Kein Konfigurationsschalter: Eine frische Installation startet IM
+ * Testmodus, damit sie sofort ohne eID-Server nutzbar ist. Beenden erfolgt
+ * einmalig über die Oberfläche; dabei werden alle im Testbetrieb erzeugten
+ * Inhalte gelöscht. Danach gilt ausschließlich die echte Ausweis-Prüfung. */
+function test_mode(): bool
+{
+    if (SW::$testMode === null) {
+        SW::$testMode = SW::$db !== null
+            && (string) (SW::$db->val("SELECT v FROM schema_info WHERE k = 'test_mode'") ?? '1') === '1';
+    }
+    return SW::$testMode;
+}
+
+/** Beendet den Testmodus und löscht alle im Testbetrieb erzeugten Inhalte. */
+function test_mode_end(): void
+{
+    SW::$db->tx(function (): void {
+        SW::$db->run('DELETE FROM report_jurors');
+        SW::$db->run('DELETE FROM reports');
+        SW::$db->run('DELETE FROM votes');
+        SW::$db->run('DELETE FROM favorites');
+        SW::$db->run('DELETE FROM topics');
+        SW::$db->run('DELETE FROM users WHERE is_system = 0');
+        SW::$db->run('DELETE FROM rate_limits');
+        SW::$db->run('DELETE FROM eid_flows');
+        SW::$db->run(
+            "INSERT INTO schema_info (k, v) VALUES ('test_mode', '0')
+             ON CONFLICT(k) DO UPDATE SET v = '0'"
+        );
+    });
+    SW::$testMode = false;
+    // Testausweise und deren Freigaben verwerfen.
+    @unlink(authorized_file());
+    foreach (glob(SW::$dataDir . '/issued/*.key') ?: [] as $f) {
+        @unlink($f);
+    }
+    log_line('SECURITY', 'test_mode_ended', []);
 }
 
 /* ============================== Hilfsfunktionen =========================== */
@@ -911,7 +972,7 @@ function auth_user(): ?array
     // Zeitfenster abgelaufen -> Identitätsnachweis verfällt, erneut auflegen.
     // Im Testmodus entfällt auch das (keine Ausweis-Aufforderungen).
     $slot = $_SESSION['auth_slot'] ?? null;
-    if (empty(SW::$cfg['test_login']) && is_int($slot) && (time_slot() - $slot) >= SW_AUTH_SLOTS) {
+    if (!test_mode() && is_int($slot) && (time_slot() - $slot) >= SW_AUTH_SLOTS) {
         unset($_SESSION['user_id'], $_SESSION['auth_time'], $_SESSION['auth_slot']);
         card_forget();
         session_regenerate_id(true);
@@ -943,7 +1004,7 @@ function require_user(): array
  *  Im Testmodus entfallen alle Ausweis-Aufforderungen. */
 function card_confirm_ok(array $user, ?array $card, string $action): bool
 {
-    if (!empty(SW::$cfg['test_login'])) {
+    if (test_mode()) {
         return true; // Testmodus: keine Ausweis-Bestätigung bei Änderungen
     }
     if ($card === null) {
@@ -1189,41 +1250,53 @@ function topic_delete(int $topicId, int $userId): void
     SW::$db->run('DELETE FROM topics WHERE id = ?', [$topicId]);
 }
 
-/** Ende-Angaben aus dem Formular lesen und prüfen.
- *  @return array{0:string,1:?string,2:?int}|null [mode, date, target] */
+/**
+ * Ende-Angaben aus dem Formular lesen und prüfen. Datum und Zielwert sind
+ * frei kombinierbar; mindestens eines muss gesetzt sein. Was zuerst
+ * eintritt, beendet die Abstimmung.
+ * @return array{0:string,1:?string,2:?int}|null [mode, date, target]
+ */
 function parse_topic_end(): ?array
 {
-    $mode = post_str('end_mode', 10);
-    if ($mode === 'date') {
-        $date = post_str('end_date', 10);
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1) {
-            return null;
-        }
-        $today = Clock::localDate();
-        $max = substr(Clock::addDaysStr(Clock::nowStr(), 365), 0, 10);
-        if ($date <= $today || $date > $max) {
-            return null;
-        }
-        return ['date', $date, null];
+    $useDate = isset($_POST['end_by_date']);
+    $useTarget = isset($_POST['end_by_target']);
+    if (!$useDate && !$useTarget) {
+        return null;
     }
-    if ($mode === 'count' || $mode === 'percent') {
-        $value = post_int('end_value');
-        if ($value === null || $value < 1) {
+    $date = null;
+    $target = null;
+
+    if ($useDate) {
+        $raw = post_str('end_date', 10);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) !== 1) {
             return null;
         }
-        if ($mode === 'percent') {
+        $max = substr(Clock::addDaysStr(Clock::nowStr(), 365), 0, 10);
+        if ($raw <= Clock::localDate() || $raw > $max) {
+            return null;
+        }
+        $date = $raw;
+    }
+    if ($useTarget) {
+        $value = post_int('end_value');
+        $unit = post_str('end_unit', 10);
+        if ($value === null || $value < 1 || !in_array($unit, ['count', 'percent'], true)) {
+            return null;
+        }
+        if ($unit === 'percent') {
             if ($value > 100) {
                 return null;
             }
             $users = (int) SW::$db->val('SELECT COUNT(*) FROM users WHERE is_system = 0');
-            $value = max(10, (int) ceil($users * $value / 100));
+            $value = (int) ceil($users * $value / 100);
         }
         if ($value > 100000000) {
             return null;
         }
-        return ['count', null, max(10, $value)];
+        $target = max(10, $value);
     }
-    return null;
+    $mode = $date !== null && $target !== null ? 'both' : ($date !== null ? 'date' : 'count');
+    return [$mode, $date, $target];
 }
 
 const SW_TOPIC_SELECT = "
@@ -1365,11 +1438,12 @@ function topic_close_if_due(array $topic): string
     if ($topic['status'] !== 'active') {
         return (string) $topic['status'];
     }
+    // Datum und Zielwert sind frei kombinierbar: Was zuerst eintritt, beendet.
     $close = false;
-    if ($topic['end_mode'] === 'date' && $topic['end_date'] !== null && Clock::localDate() > (string) $topic['end_date']) {
+    if ($topic['end_date'] !== null && Clock::localDate() > (string) $topic['end_date']) {
         $close = true;
     }
-    if ($topic['end_mode'] === 'count' && $topic['end_target'] !== null) {
+    if ($topic['end_target'] !== null) {
         $total = (int) SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ?', [(int) $topic['id']]);
         if ($total >= (int) $topic['end_target']) {
             $close = true;
@@ -1761,7 +1835,7 @@ function maintenance_tick(): void
 {
     SW::$db->run(
         "UPDATE topics SET status = 'closed'
-         WHERE status = 'active' AND end_mode = 'date' AND end_date IS NOT NULL AND end_date < ?",
+         WHERE status = 'active' AND end_date IS NOT NULL AND end_date < ?",
         [Clock::localDate()]
     );
     SW::$db->run(
@@ -1866,15 +1940,17 @@ const SW_DE = [
     'scope.pick_land' => 'Bundesland wählen …',
     'scope.pick_kreis' => 'Landkreis/Stadt wählen …',
     'topic.f_end' => 'Ende der Abstimmung',
-    'topic.end_date' => 'nach Datum',
-    'topic.end_count' => 'bei Stimmenzahl',
-    'topic.end_percent' => 'bei Zustimmung in %',
-    'topic.end_date_label' => 'Enddatum',
-    'topic.end_value_label' => 'Zielwert',
-    'topic.end_percent_hint' => '% der registrierten Ausweise, die dafür oder dagegen stimmen.',
+    'topic.end_by_date' => 'an einem Datum',
+    'topic.end_by_target' => 'bei erreichter Stimmenzahl',
+    'topic.end_value_ph' => 'Anzahl',
+    'topic.end_unit' => 'Einheit',
+    'topic.end_unit_count' => 'Stimmen',
+    'topic.end_unit_percent' => '% der Ausweise',
+    'topic.end_hint' => 'Beides möglich – es endet, was zuerst eintritt.',
     'topic.err_end' => 'Bitte ein gültiges Ende angeben (Datum in der Zukunft oder Zielzahl).',
     'topic.ends_on' => 'Läuft bis {date}',
     'topic.ends_count' => '{have} von {target} Stimmen',
+    'topic.ends_both' => 'Läuft bis {date} oder {have} von {target} Stimmen',
     'topic.ended' => 'beendet',
     'topic.vote_closed' => 'Die Abstimmung ist beendet.',
     'topic.edit' => 'Thema bearbeiten',
@@ -1899,6 +1975,12 @@ const SW_DE = [
 
     'auth.line' => 'Anmeldung mit dem Personalausweis über eine Ausweis-App.',
     'auth.with' => 'Mit {app} anmelden',
+    'testmode.chip' => 'Testmodus',
+    'testmode.end' => 'Testmodus beenden',
+    'testmode.explain' => 'Danach ist nur noch die Anmeldung mit echtem Ausweis möglich. Alle im Testbetrieb angelegten Themen, Stimmen, Meldungen und Test-Ausweise werden gelöscht. Das lässt sich nicht rückgängig machen.',
+    'testmode.confirm' => 'Ja, Testdaten löschen und Testmodus beenden',
+    'flash.testmode_ended' => 'Testmodus beendet, Testdaten gelöscht.',
+    'flash.testmode_confirm' => 'Bitte das Beenden bestätigen.',
     'auth.title' => 'Mit Ausweis anmelden',
     'auth.tap' => 'Ausweis auflegen',
     'auth.test_login' => 'Test-Anmeldung starten',
@@ -1966,7 +2048,6 @@ const SW_DE = [
     'flash.no_card' => 'Kein Ausweis vorhanden. Bitte Ausweis bereitstellen.',
     'flash.card_not_authorized' => 'Dieser Ausweis ist nicht autorisiert.',
     'flash.card_ready' => 'Ausweis bereit. Zum Anmelden auflegen.',
-    'flash.auth_ok' => 'Angemeldet.',
     'flash.card_new' => 'Bereit für einen anderen Ausweis. Zum Anmelden auflegen.',
     'flash.logged_out' => 'Abgemeldet.',
 
@@ -2051,15 +2132,17 @@ const SW_EN = [
     'scope.pick_land' => 'Choose federal state …',
     'scope.pick_kreis' => 'Choose district/city …',
     'topic.f_end' => 'End of voting',
-    'topic.end_date' => 'by date',
-    'topic.end_count' => 'at vote count',
-    'topic.end_percent' => 'at approval in %',
-    'topic.end_date_label' => 'End date',
-    'topic.end_value_label' => 'Target value',
-    'topic.end_percent_hint' => '% of registered ID cards voting for or against.',
+    'topic.end_by_date' => 'on a date',
+    'topic.end_by_target' => 'at a number of votes',
+    'topic.end_value_ph' => 'Amount',
+    'topic.end_unit' => 'Unit',
+    'topic.end_unit_count' => 'votes',
+    'topic.end_unit_percent' => '% of ID cards',
+    'topic.end_hint' => 'Both possible – whichever comes first ends it.',
     'topic.err_end' => 'Please set a valid end (future date or target count).',
     'topic.ends_on' => 'Runs until {date}',
     'topic.ends_count' => '{have} of {target} votes',
+    'topic.ends_both' => 'Runs until {date} or {have} of {target} votes',
     'topic.ended' => 'ended',
     'topic.vote_closed' => 'Voting has ended.',
     'topic.edit' => 'Edit topic',
@@ -2086,6 +2169,12 @@ const SW_EN = [
 
     'auth.line' => 'Sign in with your ID card via an ID app.',
     'auth.with' => 'Sign in with {app}',
+    'testmode.chip' => 'Test mode',
+    'testmode.end' => 'End test mode',
+    'testmode.explain' => 'Afterwards only sign-in with a real ID card is possible. All topics, votes, reports and test cards created during test operation are deleted. This cannot be undone.',
+    'testmode.confirm' => 'Yes, delete test data and end test mode',
+    'flash.testmode_ended' => 'Test mode ended, test data deleted.',
+    'flash.testmode_confirm' => 'Please confirm ending test mode.',
     'auth.title' => 'Sign in with ID card',
     'auth.tap' => 'Place your ID card',
     'auth.test_login' => 'Start test sign-in',
@@ -2153,7 +2242,6 @@ const SW_EN = [
     'flash.no_card' => 'No ID card present. Please provide an ID card.',
     'flash.card_not_authorized' => 'This ID card is not authorised.',
     'flash.card_ready' => 'ID card ready. Tap to sign in.',
-    'flash.auth_ok' => 'Signed in.',
     'flash.card_new' => 'Ready for a different ID card. Tap to sign in.',
     'flash.logged_out' => 'Signed out.',
 
@@ -2250,6 +2338,9 @@ a:hover { text-decoration: underline; }
 .brand:hover { text-decoration: none; }
 .brand-mark { width: 1.4rem; height: 1.4rem; color: var(--accent); }
 .header-controls { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+.testmode-chip { padding: 0.3rem 0.7rem; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 0.85rem; font-weight: 650; }
+.testmode-chip:hover { text-decoration: none; opacity: 0.9; }
+.header-inner { justify-content: flex-end; }
 .nav-duty { position: relative; padding: 0.3rem 0.7rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.9rem; font-weight: 600; }
 .nav-duty:hover { text-decoration: none; }
 .duty-dot { display: inline-block; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--danger); margin-left: 0.35rem; vertical-align: middle; }
@@ -2359,8 +2450,13 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .criteria-set, .end-fields { border: 0; background: var(--field); border-radius: var(--radius-sm); padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; margin: 0; }
 .criteria-set legend, .end-fields legend { font-weight: 600; padding: 0; font-size: 0.92rem; float: left; width: 100%; margin-bottom: 0.2rem; }
 .criteria-set input[type="radio"] { accent-color: var(--accent); width: 1.1rem; height: 1.1rem; margin-top: 0.25rem; }
-.end-fields label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.92rem; font-weight: 600; }
 .end-fields input, .end-fields select { background: var(--surface); }
+.end-fields .check { display: flex; align-items: center; gap: 0.6rem; font-size: 1rem; font-weight: 400; }
+.end-fields .check input { accent-color: var(--accent); width: 1.15rem; height: 1.15rem; flex: none; }
+.end-row { display: flex; gap: 0.5rem; margin: -0.2rem 0 0.2rem 1.75rem; }
+.end-row input, .end-row select { flex: 1 1 0; min-width: 0; width: auto; }
+.end-row input[type="number"] { flex: 0 1 7.5rem; }
+.end-row[hidden] { display: none; }
 .scope-picker { display: flex; flex-direction: column; gap: 0.4rem; }
 .law-quote { font-size: 0.92rem; color: var(--muted); display: block; margin-top: 0.25rem; }
 .hr-soft { border: 0; border-top: 1px solid var(--sep); margin: 1rem 0 0.6rem; }
@@ -2379,9 +2475,15 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .start-mark { color: var(--accent); }
 .brand-icon { width: 4.2rem; height: 4.2rem; display: block; }
 .start-brand { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
-.start-langs { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.8rem; width: min(18rem, 100%); }
+.start-langs { display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
 .start-langs form { display: flex; }
-.start-langs .btn { width: 100%; }
+.lang-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  background: var(--surface); border: 0; border-radius: var(--radius);
+  padding: 0.9rem 1.2rem; font: inherit; font-weight: 600; color: var(--ink); cursor: pointer;
+}
+.lang-btn:active { opacity: 0.7; }
+.flag { width: 4.2rem; height: auto; display: block; border-radius: 4px; }
 
 /* ---------- Sonstiges ---------- */
 .error-card { max-width: 26rem; margin: 3rem auto; text-align: center; }
@@ -2507,18 +2609,14 @@ const SW_JS = <<<'JS'
       sync();
     });
 
-    /* Ende-Felder je nach Modus zeigen */
+    /* Ende-Felder: Datum und/oder Zielwert einblenden */
     document.querySelectorAll('[data-end-fields]').forEach(function (fs) {
-      var mode = fs.querySelector('[data-end-mode]');
-      var apply = function () {
-        fs.querySelectorAll('[data-end-when]').forEach(function (el) {
-          el.hidden = el.getAttribute('data-end-when').split(' ').indexOf(mode.value) === -1;
-        });
-        fs.querySelectorAll('[data-end-hint]').forEach(function (el) {
-          el.hidden = el.getAttribute('data-end-hint') !== mode.value;
-        });
-      };
-      mode.addEventListener('change', apply); apply();
+      fs.querySelectorAll('[data-end-toggle]').forEach(function (box) {
+        var part = fs.querySelector('[data-end-part="' + box.getAttribute('data-end-toggle') + '"]');
+        if (!part) return;
+        var apply = function () { part.hidden = !box.checked; };
+        box.addEventListener('change', apply); apply();
+      });
     });
 
     /* Fenster (:target-Modal) per Escape schliessen */
@@ -2565,7 +2663,7 @@ const SW_JS = <<<'JS'
         reader.addEventListener('readingerror', go);
         return reader.scan();
       };
-      /* Leser sofort scharf: Perso anhalten genuegt. Verlangt der Browser
+      /* Leser sofort scharf: Perso auflegen genuegt. Verlangt der Browser
          erst eine Nutzergeste (Berechtigung), uebernimmt der Knopf. */
       try {
         startScan().then(function () {
@@ -2599,6 +2697,26 @@ const SW_ICON = <<<'SVG'
   <path d="M6.5 12.3l3.6 3.5 7.4-7.6" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 SVG;
+
+/** Flagge Deutschland (Sprachauswahl). */
+function flag_de(): string
+{
+    return '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
+        . '<rect width="60" height="12" y="0" fill="#000000"/>'
+        . '<rect width="60" height="12" y="12" fill="#dd0000"/>'
+        . '<rect width="60" height="12" y="24" fill="#ffcc00"/></svg>';
+}
+
+/** Flagge Vereinigtes Königreich (Sprachauswahl Englisch). */
+function flag_en(): string
+{
+    return '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
+        . '<rect width="60" height="36" fill="#012169"/>'
+        . '<path d="M0 0L60 36M60 0L0 36" stroke="#ffffff" stroke-width="7"/>'
+        . '<path d="M0 0L60 36M60 0L0 36" stroke="#c8102e" stroke-width="3"/>'
+        . '<path d="M30 0V36M0 18H60" stroke="#ffffff" stroke-width="12"/>'
+        . '<path d="M30 0V36M0 18H60" stroke="#c8102e" stroke-width="7"/></svg>';
+}
 
 /** Icon-Verweise für alle Browser (SVG modern, PNG/ICO für Safari/iOS). */
 function icon_links(): string
@@ -2758,12 +2876,12 @@ function v_layout(string $title, string $content): string
     }
     $html .= '<a class="skip-link" href="#main">' . e(t('a11y.skip')) . '</a>'
         . '<header class="site-header"><div class="shell header-inner">'
-        . '<a class="brand" href="' . e(url('/')) . '" aria-label="' . e((string) $cfg['app_name']) . '">'
-        . '<svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
-        . '<rect x="1.5" y="1.5" width="21" height="21" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>'
-        . '<path d="M6.5 12.5l3.6 3.6 7.4-8.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
-        . '</svg><span>' . e((string) $cfg['app_name']) . '</span></a>'
         . '<div class="header-controls">';
+    if (test_mode() && $user !== null) {
+        // Testmodus beenden – nur solange er läuft und nur für angemeldete
+        // Sitzungen; die Anmeldeseite bleibt bei genau einem Knopf.
+        $html .= '<a class="testmode-chip" href="#modal-testend">' . e(t('testmode.chip')) . '</a>';
+    }
     if ($user === null) {
         // Auf der Anmeldeseite selbst KEIN zweiter Anmelde-Knopf in der
         // Kopfzeile – der Ausweis-Knopf steht dort genau einmal, mittig.
@@ -2786,6 +2904,14 @@ function v_layout(string $title, string $content): string
                 . e(t((string) $f['key'], (array) $f['repl'])) . '</div>';
         }
         $html .= '</div>';
+    }
+    if (test_mode() && $user !== null) {
+        $inner = '<p class="muted">' . e(t('testmode.explain')) . '</p>'
+            . '<form method="post" action="' . e(url('/testmode/end')) . '" class="form-stack">' . csrf_field()
+            . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required>'
+            . '<span>' . e(t('testmode.confirm')) . '</span></label>'
+            . '<div><button type="submit" class="btn btn-danger btn-big">' . e(t('testmode.end')) . '</button></div></form>';
+        $html .= modal('modal-testend', t('testmode.end'), $inner);
     }
     $html .= '<main id="main" class="shell site-main">' . $content . '</main>'
         . '<footer class="site-footer"><div class="shell footer-inner">'
@@ -2846,29 +2972,37 @@ function p_votebar(int $for, int $against): string
     return $html;
 }
 
-/** Ende-Auswahl im Themenformular: nach Datum ODER nach erreichter
- *  Stimmenzahl/Prozent. Kompakt, mit JS werden die passenden Felder gezeigt. */
+/** Ende-Auswahl im Themenformular: Datum und/oder Zielwert (Stimmenzahl oder
+ *  Prozent der Ausweise). Beides ankreuzbar – es gilt, was zuerst eintritt. */
 function topic_end_fields(array $old): string
 {
-    $mode = in_array($old['end_mode'] ?? '', ['date', 'count', 'percent'], true) ? $old['end_mode'] : 'date';
+    $byDate = (bool) ($old['end_by_date'] ?? true);
+    $byTarget = (bool) ($old['end_by_target'] ?? false);
+    if (!$byDate && !$byTarget) {
+        $byDate = true;
+    }
     $defaultDate = substr(Clock::addDaysStr(Clock::nowStr(), 30), 0, 10);
     $date = ($old['end_date'] ?? '') !== '' ? (string) $old['end_date'] : $defaultDate;
     $value = ($old['end_value'] ?? '') !== '' ? (string) $old['end_value'] : '';
+    $unit = ($old['end_unit'] ?? '') === 'percent' ? 'percent' : 'count';
     $minDate = substr(Clock::addDaysStr(Clock::nowStr(), 1), 0, 10);
     $maxDate = substr(Clock::addDaysStr(Clock::nowStr(), 365), 0, 10);
-    $html = '<fieldset class="end-fields" data-end-fields><legend>' . e(t('topic.f_end')) . '</legend>'
-        . '<select name="end_mode" data-end-mode>'
-        . '<option value="date"' . ($mode === 'date' ? ' selected' : '') . '>' . e(t('topic.end_date')) . '</option>'
-        . '<option value="count"' . ($mode === 'count' ? ' selected' : '') . '>' . e(t('topic.end_count')) . '</option>'
-        . '<option value="percent"' . ($mode === 'percent' ? ' selected' : '') . '>' . e(t('topic.end_percent')) . '</option>'
-        . '</select>'
-        . '<label data-end-when="date"><span>' . e(t('topic.end_date_label')) . '</span>'
-        . '<input type="date" name="end_date" value="' . e($date) . '" min="' . e($minDate) . '" max="' . e($maxDate) . '"></label>'
-        . '<label data-end-when="count percent"><span>' . e(t('topic.end_value_label')) . '</span>'
-        . '<input type="number" name="end_value" min="1" max="100000000" value="' . e($value) . '" inputmode="numeric"></label>'
-        . '<small class="muted" data-end-hint="percent">' . e(t('topic.end_percent_hint')) . '</small>'
+    return '<fieldset class="end-fields" data-end-fields><legend>' . e(t('topic.f_end')) . '</legend>'
+        . '<label class="check"><input type="checkbox" name="end_by_date" value="1" data-end-toggle="date"'
+        . ($byDate ? ' checked' : '') . '><span>' . e(t('topic.end_by_date')) . '</span></label>'
+        . '<div class="end-row" data-end-part="date"' . ($byDate ? '' : ' hidden') . '>'
+        . '<input type="date" name="end_date" value="' . e($date) . '" min="' . e($minDate) . '" max="' . e($maxDate) . '" aria-label="' . e(t('topic.end_by_date')) . '">'
+        . '</div>'
+        . '<label class="check"><input type="checkbox" name="end_by_target" value="1" data-end-toggle="target"'
+        . ($byTarget ? ' checked' : '') . '><span>' . e(t('topic.end_by_target')) . '</span></label>'
+        . '<div class="end-row" data-end-part="target"' . ($byTarget ? '' : ' hidden') . '>'
+        . '<input type="number" name="end_value" min="1" max="100000000" value="' . e($value) . '" inputmode="numeric" placeholder="' . e(t('topic.end_value_ph')) . '" aria-label="' . e(t('topic.end_by_target')) . '">'
+        . '<select name="end_unit" aria-label="' . e(t('topic.end_unit')) . '">'
+        . '<option value="count"' . ($unit === 'count' ? ' selected' : '') . '>' . e(t('topic.end_unit_count')) . '</option>'
+        . '<option value="percent"' . ($unit === 'percent' ? ' selected' : '') . '>' . e(t('topic.end_unit_percent')) . '</option>'
+        . '</select></div>'
+        . '<small class="muted">' . e(t('topic.end_hint')) . '</small>'
         . '</fieldset>';
-    return $html;
 }
 
 /** Themenformular (Neu und Bearbeiten). */
@@ -3027,7 +3161,8 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
 
     // Fenster: Thema einbringen
     $old = $formOld ?? ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0, 'scope' => 'de',
-                        'end_mode' => 'date', 'end_date' => '', 'end_value' => ''];
+                        'end_by_date' => true, 'end_date' => '', 'end_by_target' => false,
+                        'end_value' => '', 'end_unit' => 'count'];
     if (topic_has_posted_today($userId)) {
         $newInner = '<p class="muted">' . e(t('topic.posted_today'))
             . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></p>';
@@ -3060,18 +3195,25 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
     render(t('app.tagline'), $html);
 }
 
-/** Wie lange läuft die Abstimmung noch? Text je Ende-Modus. */
+/** Wie lange läuft die Abstimmung noch? Datum, Zielwert oder beides. */
 function topic_end_text(array $topic): string
 {
     if ($topic['status'] === 'closed') {
         return t('topic.ended');
     }
-    if ($topic['end_mode'] === 'date' && $topic['end_date'] !== null) {
-        return t('topic.ends_on', ['date' => Clock::displayLocal((string) $topic['end_date'] . ' 00:00:00', t('common.date_format'))]);
+    $date = $topic['end_date'] !== null
+        ? Clock::displayLocal((string) $topic['end_date'] . ' 00:00:00', t('common.date_format'))
+        : null;
+    $target = $topic['end_target'] !== null ? (int) $topic['end_target'] : null;
+    $have = num((int) $topic['votes_for'] + (int) $topic['votes_against']);
+    if ($date !== null && $target !== null) {
+        return t('topic.ends_both', ['date' => $date, 'have' => $have, 'target' => num($target)]);
     }
-    if ($topic['end_mode'] === 'count' && $topic['end_target'] !== null) {
-        $total = (int) $topic['votes_for'] + (int) $topic['votes_against'];
-        return t('topic.ends_count', ['have' => num($total), 'target' => num((int) $topic['end_target'])]);
+    if ($date !== null) {
+        return t('topic.ends_on', ['date' => $date]);
+    }
+    if ($target !== null) {
+        return t('topic.ends_count', ['have' => $have, 'target' => num($target)]);
     }
     return '';
 }
@@ -3209,9 +3351,11 @@ function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
             'reasoning' => (string) $topic['reasoning'],
             'category_id' => (int) $topic['category_id'],
             'scope' => $scopeVal,
-            'end_mode' => (string) $topic['end_mode'],
+            'end_by_date' => $topic['end_date'] !== null,
             'end_date' => (string) ($topic['end_date'] ?? ''),
-            'end_value' => $topic['end_mode'] === 'count' ? (string) ($topic['end_target'] ?? '') : '',
+            'end_by_target' => $topic['end_target'] !== null,
+            'end_value' => (string) ($topic['end_target'] ?? ''),
+            'end_unit' => 'count',
         ];
     }
     $html = '<h1>' . e(t('topic.edit')) . '</h1>'
@@ -3244,7 +3388,7 @@ function v_auth(): void
         . '<h1>' . e(t('auth.title')) . '</h1>'
         . '<p class="muted">' . e(t('auth.line')) . '</p>';
 
-    if (!empty(SW::$cfg['test_login'])) {
+    if (test_mode()) {
         // Testmodus: GENAU EIN zentrierter Knopf, keine Ausweis-Aufforderung.
         $html .= '<form class="auth-action" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
             . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.test_login')) . '</button></form>';
@@ -3270,8 +3414,24 @@ function v_auth(): void
     render(t('auth.title'), $html);
 }
 
-/** Startet den Anmelde-Flow eines Anbieters (AusweisApp / Nect). Ist der
- *  Anbieter nicht konfiguriert, schlägt es sauber fehl (fail-closed). */
+/** Absolute Adresse dieser Installation (für tcToken/Rücksprünge). */
+function site_url(string $path = ''): string
+{
+    $scheme = sw_is_https() ? 'https' : 'http';
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? SW::$cfg['domain']);
+    return $scheme . '://' . $host . base_path() . $path;
+}
+
+/** Startet den Anmelde-Flow eines Anbieters.
+ *
+ *  AusweisApp: direkte Aktivierung des eID-Clients nach BSI TR-03124 – der
+ *  Browser wird auf http://127.0.0.1:24727/eID-Client?tcTokenURL=… geleitet.
+ *  Die AusweisApp (Desktop wie Smartphone) fängt diese Adresse ab, holt das
+ *  tcToken hier ab und beginnt das Auslesen des Ausweises. Dafür ist keine
+ *  Konfiguration nötig; es genügt der Apache mit dieser Datei.
+ *
+ *  Andere Anbieter (Nect) starten über ihre konfigurierte Start-URL. Fehlt
+ *  sie, schlägt es sauber fehl (fail-closed). */
 function h_eid_start(): void
 {
     $key = query_str('provider', 30);
@@ -3280,6 +3440,22 @@ function h_eid_start(): void
         flash('error', 'flash.eid_required');
         redirect('/auth');
     }
+    if (!rate_allow('eid:' . ip_key(), 20, 600)) {
+        flash('error', 'flash.rate_limited');
+        redirect('/auth');
+    }
+    if ($key === 'ausweisapp') {
+        // Einmal-Nonce in der tcTokenURL: Die AusweisApp holt das Token als
+        // eigener HTTP-Client OHNE Browser-Cookie ab – der Nonce ist die
+        // einzige Klammer zwischen Browsersitzung und Ausweis-Vorgang.
+        $nonce = bin2hex(random_bytes(16));
+        eid_flow_start($nonce);
+        $tcToken = site_url('/eid/tctoken?s=' . $nonce);
+        $client = (string) SW::$cfg['eid_client_url'];
+        log_line('SECURITY', 'eid_client_activation', ['provider' => 'ausweisapp']);
+        header('Location: ' . $client . '?tcTokenURL=' . rawurlencode($tcToken), true, 303);
+        exit;
+    }
     $start = (string) ($providers[$key]['start'] ?? '');
     if ($start === '' || preg_match('#^https://#', $start) !== 1) {
         // Anbieter vorhanden, aber (noch) nicht eingerichtet.
@@ -3287,27 +3463,155 @@ function h_eid_start(): void
         redirect('/auth');
     }
     // Konfiguriert: an den echten Flow des Anbieters übergeben. Dieser prüft
-    // den Ausweis (eID-Server/Nect) und ruft anschließend /eid/callback auf.
-    $callback = ($_SERVER['REQUEST_SCHEME'] ?? (sw_is_https() ? 'https' : 'http'))
-        . '://' . ($_SERVER['HTTP_HOST'] ?? SW::$cfg['domain']) . base_path() . '/eid/callback';
+    // den Ausweis (Nect) und ruft anschließend /eid/callback auf.
     $sep = strpos($start, '?') === false ? '?' : '&';
-    header('Location: ' . $start . $sep . 'redirect=' . rawurlencode($callback), true, 303);
+    header('Location: ' . $start . $sep . 'redirect=' . rawurlencode(site_url('/eid/callback')), true, 303);
     exit;
 }
 
-/** Rückkanal des Anbieters. Vertraut wird NUR einem serverseitig geprüften
- *  Ergebnis; ohne eingerichteten Anbieter/Prüfung passiert nichts. */
+/** tcToken nach BSI TR-03124 – wird von der AusweisApp abgeholt.
+ *
+ *  Mit eingerichtetem eID-Server (TR-03130) enthält es dessen PAOS-Adresse und
+ *  die Sitzungskennung aus `useID`. Ohne eID-Server wird bewusst nur eine
+ *  CommunicationErrorAddress geliefert: Die AusweisApp bricht sauber ab und
+ *  schickt den Browser zurück – angemeldet wird niemand (fail-closed). */
+function h_eid_tctoken(): void
+{
+    header('Content-Type: text/xml; charset=utf-8');
+    header('Cache-Control: no-store');
+    $nonce = query_str('s', 40);
+    $errorUrl = site_url('/eid/callback?e=1');
+    $flow = eid_flow_find($nonce);
+    if ($flow === null) {
+        echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+            . '<TCTokenType><CommunicationErrorAddress>' . e($errorUrl)
+            . '</CommunicationErrorAddress></TCTokenType>';
+        exit;
+    }
+    $session = eid_server_useid();
+    if ($session === null) {
+        // Kein eID-Server hinterlegt (oder nicht erreichbar): sauberer Abbruch.
+        log_line('SECURITY', 'eid_tctoken_unconfigured', []);
+        echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+            . '<TCTokenType><CommunicationErrorAddress>' . e($errorUrl)
+            . '</CommunicationErrorAddress></TCTokenType>';
+        exit;
+    }
+    eid_flow_bind($nonce, $session['session']);
+    echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+        . '<TCTokenType>'
+        . '<ServerAddress>' . e($session['paos']) . '</ServerAddress>'
+        . '<SessionIdentifier>' . e($session['session']) . '</SessionIdentifier>'
+        . '<RefreshAddress>' . e(site_url('/eid/callback')) . '</RefreshAddress>'
+        . '<CommunicationErrorAddress>' . e($errorUrl) . '</CommunicationErrorAddress>'
+        . '<Binding>urn:liberty:paos:2006-08</Binding>'
+        . '</TCTokenType>';
+    exit;
+}
+
+/** Ausweis-Vorgang vormerken: Nonce ↔ Browsersitzung, 10 Minuten gültig. */
+function eid_flow_start(string $nonce): void
+{
+    SW::$db->run('DELETE FROM eid_flows WHERE created_at < ?', [Clock::now()->getTimestamp() - 600]);
+    SW::$db->run(
+        'INSERT INTO eid_flows (nonce, session_id, created_at) VALUES (?, ?, ?)',
+        [$nonce, session_id(), Clock::now()->getTimestamp()]
+    );
+}
+
+/** Vorgang zum Nonce holen (nur frische Vorgänge). */
+function eid_flow_find(string $nonce): ?array
+{
+    if (preg_match('/^[a-f0-9]{32}$/', $nonce) !== 1) {
+        return null;
+    }
+    $row = SW::$db->one('SELECT * FROM eid_flows WHERE nonce = ?', [$nonce]);
+    if ($row === null || (int) $row['created_at'] < Clock::now()->getTimestamp() - 600) {
+        return null;
+    }
+    return $row;
+}
+
+/** eID-Server-Sitzung am Vorgang vermerken (für den späteren Rücksprung). */
+function eid_flow_bind(string $nonce, string $ref): void
+{
+    SW::$db->run('UPDATE eid_flows SET eid_ref = ? WHERE nonce = ?', [$ref, $nonce]);
+}
+
+/** Sitzung beim eID-Server anfordern (TR-03130 `useID`). Ohne konfigurierten
+ *  Server gibt es hier bewusst nichts zurück – das ist der Anschlusspunkt für
+ *  einen Betreiber mit Berechtigungszertifikat.
+ *  @return array{paos:string,session:string}|null */
+function eid_server_useid(): ?array
+{
+    $url = (string) SW::$cfg['eid_server_url'];
+    if ($url === '' || preg_match('#^https://#', $url) !== 1) {
+        return null;
+    }
+    $soap = '<?xml version="1.0" encoding="UTF-8"?>'
+        . '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"'
+        . ' xmlns:eid="http://bsi.bund.de/eID/"><soap:Body><eid:useIDRequest>'
+        . '<eid:UseOperations><eid:RestrictedIdentification eid:required="REQUIRED"/></eid:UseOperations>'
+        . '</eid:useIDRequest></soap:Body></soap:Envelope>';
+    $ctx = ['http' => [
+        'method'  => 'POST',
+        'header'  => "Content-Type: text/xml; charset=utf-8\r\nSOAPAction: \"\"\r\n",
+        'content' => $soap,
+        'timeout' => 8,
+        'ignore_errors' => true,
+    ], 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true]];
+    if ((string) SW::$cfg['eid_server_cert'] !== '') {
+        $ctx['ssl']['local_cert'] = (string) SW::$cfg['eid_server_cert'];
+    }
+    if ((string) SW::$cfg['eid_server_key'] !== '') {
+        $ctx['ssl']['local_pk'] = (string) SW::$cfg['eid_server_key'];
+    }
+    $xml = @file_get_contents($url, false, stream_context_create($ctx));
+    if (!is_string($xml) || $xml === '') {
+        log_line('SECURITY', 'eid_server_unreachable', []);
+        return null;
+    }
+    $paos = eid_xml_value($xml, 'eCardServerAddress');
+    $session = eid_xml_value($xml, 'Session');
+    if ($session === '') {
+        $session = eid_xml_value($xml, 'ID');
+    }
+    if ($paos === '' || $session === '') {
+        log_line('SECURITY', 'eid_server_bad_response', []);
+        return null;
+    }
+    return ['paos' => $paos, 'session' => $session];
+}
+
+/** Ein Element aus einer SOAP-Antwort lesen (namensraum-tolerant). */
+function eid_xml_value(string $xml, string $name): string
+{
+    $pattern = '#<(?:[A-Za-z0-9_.-]+:)?' . preg_quote($name, '#') . '(?:\s[^>]*)?>([^<]*)</#';
+    return preg_match($pattern, $xml, $m) === 1 ? trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')) : '';
+}
+
+/** Rücksprung aus der Ausweis-App. Vertraut wird NUR einem serverseitig
+ *  geprüften Ergebnis; ohne eingerichteten eID-Server passiert nichts. */
 function h_eid_callback(): void
 {
-    // In der Ausbaustufe verifiziert dieser Endpunkt die signierte Zusicherung
-    // des eID-Servers/Nect (Server-zu-Server bzw. signierter Rücksprung) und
-    // entnimmt ihr den geprüften öffentlichen Schlüssel. Ohne diese
-    // Verifikation wird niemand angemeldet.
+    $flow = SW::$db->one(
+        'SELECT * FROM eid_flows WHERE session_id = ? ORDER BY created_at DESC LIMIT 1',
+        [session_id()]
+    );
+    SW::$db->run('DELETE FROM eid_flows WHERE session_id = ?', [session_id()]);
+    if ($flow === null || ($flow['eid_ref'] ?? '') === '' || query_str('e', 4) !== '') {
+        flash('error', 'flash.eid_required');
+        redirect('/auth');
+    }
+    // Hier holt ein Betreiber mit eID-Server das Ergebnis ab (TR-03130
+    // `getResult`), prüft die Signatur der Zusicherung und entnimmt ihr die
+    // geprüfte Kennung. Ohne diese Prüfung wird niemand angemeldet.
+    log_line('SECURITY', 'eid_callback_unverified', []);
     flash('error', 'flash.eid_required');
     redirect('/auth');
 }
 
-/** Sprachwahl beim Sitzungsbeginn: klares Icon, zwei Textknöpfe – ohne Flaggen. */
+/** Sprachwahl beim Sitzungsbeginn: klares Icon, zwei Knöpfe mit Flagge. */
 function v_start(): void
 {
     http_response_code(200);
@@ -3327,10 +3631,12 @@ function v_start(): void
         . '<div class="start-langs">'
         . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
         . '<input type="hidden" name="return" value="/">'
-        . '<button type="submit" name="lang" value="de" class="btn btn-outline" lang="de">Deutsch</button></form>'
+        . '<button type="submit" name="lang" value="de" class="lang-btn" lang="de">'
+        . flag_de() . '<span>Deutsch</span></button></form>'
         . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
         . '<input type="hidden" name="return" value="/">'
-        . '<button type="submit" name="lang" value="en" class="btn btn-outline" lang="en">English</button></form>'
+        . '<button type="submit" name="lang" value="en" class="lang-btn" lang="en">'
+        . flag_en() . '<span>English</span></button></form>'
         . '</div></main></body></html>';
     exit;
 }
@@ -3568,8 +3874,8 @@ function h_tap(): void
         flash('error', 'flash.rate_limited');
         redirect('/auth');
     }
-    if (!empty(SW::$cfg['test_login'])) {
-        // TEST-ANMELDUNG: erzeugt eine zufällige Sitzung und behandelt sie als
+    if (test_mode()) {
+        // TESTMODUS: erzeugt eine zufällige Sitzung und behandelt sie als
         // gültig (die App tut so, als läge ein echter Ausweis an). Der zufällige
         // Schlüssel wird dazu autorisiert – die Prüfungen unten laufen normal.
         $card = card_create();
@@ -3608,7 +3914,6 @@ function h_tap(): void
     }
     auth_login($identity);
     $_SESSION['auth_slot'] = time_slot();
-    flash('success', 'flash.auth_ok');
     redirect('/');
 }
 
@@ -3642,6 +3947,24 @@ function h_card_new(): void
     auth_logout();
     card_forget();
     flash('info', 'flash.card_new');
+    redirect('/auth');
+}
+
+/** Beendet den Testmodus über die Oberfläche (löscht alle Testinhalte). */
+function h_testmode_end(): void
+{
+    require_user();
+    if (!test_mode()) {
+        redirect('/');
+    }
+    if (post_str('confirm', 10) !== 'yes') {
+        flash('error', 'flash.testmode_confirm');
+        redirect('/');
+    }
+    test_mode_end();
+    auth_logout();
+    card_forget();
+    flash('info', 'flash.testmode_ended');
     redirect('/auth');
 }
 
@@ -3729,10 +4052,12 @@ function topic_form_read(): array
         'goal'        => post_str('goal', SW_GOAL_MAX, true),
         'reasoning'   => post_str('reasoning', SW_REASONING_MAX, true),
         'category_id' => post_int('category_id') ?? 0,
-        'scope'       => post_str('scope', 160),
-        'end_mode'    => post_str('end_mode', 10),
-        'end_date'    => post_str('end_date', 10),
-        'end_value'   => post_str('end_value', 10),
+        'scope'         => post_str('scope', 160),
+        'end_by_date'   => isset($_POST['end_by_date']),
+        'end_date'      => post_str('end_date', 10),
+        'end_by_target' => isset($_POST['end_by_target']),
+        'end_value'     => post_str('end_value', 10),
+        'end_unit'      => post_str('end_unit', 10),
     ];
     $errors = [];
     if (mb_strlen($old['title']) < SW_TITLE_MIN) {
@@ -4007,9 +4332,12 @@ function web_main(): void
         }
 
         // Allererster Aufruf: Sprachwahl über Flaggen, danach die Seite.
+        // Ausgenommen sind die /eid/-Endpunkte: Das tcToken holt die
+        // Ausweis-App als eigener HTTP-Client ohne Sitzung und ohne Sprache ab.
         $langChosen = is_string($_SESSION['lang'] ?? null) || $user !== null;
         if (!$langChosen && ($method === 'GET' || $method === 'HEAD')
-            && !in_array($path, ['/start', '/imprint', '/privacy'], true)) {
+            && !in_array($path, ['/start', '/imprint', '/privacy'], true)
+            && strpos($path, '/eid/') !== 0) {
             redirect('/start');
         }
         if ($path === '/start' && ($method === 'GET' || $method === 'HEAD')) {
@@ -4102,6 +4430,9 @@ function web_main(): void
         if ($path === '/eid/start' && $isGet) {
             h_eid_start();
         }
+        if ($path === '/eid/tctoken' && $isGet) {
+            h_eid_tctoken();
+        }
         if ($path === '/eid/callback' && $isGet) {
             h_eid_callback();
         }
@@ -4113,6 +4444,9 @@ function web_main(): void
         }
         if ($path === '/logout' && $method === 'POST') {
             h_logout();
+        }
+        if ($path === '/testmode/end' && $method === 'POST') {
+            h_testmode_end();
         }
         if ($path === '/imprint' && $isGet) {
             v_static('imprint.h', ['imprint.p1', 'imprint.p2']);
@@ -4451,14 +4785,13 @@ function cli_selftest(): int
         $pairB = sodium_crypto_sign_keypair();
         $cardB = ['secret' => sodium_crypto_sign_secretkey($pairB), 'pk' => sodium_crypto_sign_publickey($pairB)];
         $userA = ['pseudonym_hash' => card_identity($cardA)];
-        SW::$cfg['test_login'] = false;
+        SW::$testMode = false;
         $check('Normalmodus: ohne Ausweis abgelehnt', card_confirm_ok($userA, null, 'confirm:/vote') === false);
         $check('Normalmodus: fremder Ausweis abgelehnt', card_confirm_ok($userA, $cardB, 'confirm:/vote') === false);
         $check('Normalmodus: eigener Ausweis bestätigt', card_confirm_ok($userA, $cardA, 'confirm:/vote') === true);
-        SW::$cfg['test_login'] = true;
+        SW::$testMode = true;
         $check('Testmodus: Ausweis-Aufforderung entfällt', card_confirm_ok($userA, null, 'confirm:/vote') === true);
-        SW::$cfg['test_login'] = false;
-        $check('Auslieferung: Test-Anmeldung standardmäßig aus', SW_CONFIG['test_login'] === false);
+        SW::$testMode = false;
     } else {
         for ($i = 0; $i < 5; $i++) {
             $check('Strenge-Prüfung übersprungen (kein sodium)', true);
@@ -4512,6 +4845,68 @@ function cli_selftest(): int
     $systemId = (int) SW::$db->val('SELECT id FROM users WHERE is_system = 1');
     $check('Thema entkoppelt (System-Konto)', (int) SW::$db->val('SELECT author_id FROM topics WHERE id = ?', [$carolTopic]) === $systemId);
 
+    echo "== Themen-Ende: Datum, Zielwert, Kombination ==\n";
+    cli_switch_db($tmpDir, 'endform');
+    $readEnd = static function (array $post): ?array {
+        $_POST = $post;
+        $result = parse_topic_end();
+        $_POST = [];
+        return $result;
+    };
+    $soon = substr(Clock::addDaysStr(Clock::nowStr(), 5), 0, 10);
+    $check('Nur Datum ergibt Modus "date"', $readEnd(['end_by_date' => '1', 'end_date' => $soon]) === ['date', $soon, null]);
+    $check('Nur Stimmenzahl ergibt Modus "count"', $readEnd(['end_by_target' => '1', 'end_value' => '250', 'end_unit' => 'count']) === ['count', null, 250]);
+    $check('Datum + Zielwert ergibt Modus "both"',
+        $readEnd(['end_by_date' => '1', 'end_date' => $soon, 'end_by_target' => '1', 'end_value' => '80', 'end_unit' => 'count']) === ['both', $soon, 80]);
+    $check('Ohne Auswahl kein gültiges Ende', $readEnd([]) === null);
+    $check('Datum in der Vergangenheit abgelehnt', $readEnd(['end_by_date' => '1', 'end_date' => '2000-01-01']) === null);
+    $check('Prozent über 100 abgelehnt', $readEnd(['end_by_target' => '1', 'end_value' => '120', 'end_unit' => 'percent']) === null);
+    cli_add_users(200, 'pc');
+    $pct = $readEnd(['end_by_target' => '1', 'end_value' => '10', 'end_unit' => 'percent']);
+    $check('Prozent wird in Stimmenzahl umgerechnet', $pct !== null && $pct[2] === 20);
+    $bothUser = cli_add_users(1, 'both')[0];
+    $bothTopic = topic_create($bothUser, 'Thema mit Datum und Zielzahl', 'Ziel des Kombi-Tests hier.', 'Begründung des Kombi-Tests hier.', $catId, 'bund', null, 'both', $soon, 2);
+    $bv = cli_add_users(2, 'bv');
+    vote_cast($bv[0], $bothTopic, 'for');
+    vote_cast($bv[1], $bothTopic, 'for');
+    $check('Kombination: Zielzahl schließt vor dem Datum',
+        SW::$db->val('SELECT status FROM topics WHERE id = ?', [$bothTopic]) === 'closed');
+    $dateFirst = topic_create($bv[0], 'Thema schließt am Datum', 'Ziel des Datum-Kombi-Tests.', 'Begründung des Datum-Kombi-Tests.', $catId, 'bund', null, 'both', substr(Clock::nowStr(), 0, 10), 1000000);
+    $warp('+2 days');
+    maintenance_tick();
+    $check('Kombination: Datum schließt vor der Zielzahl',
+        SW::$db->val('SELECT status FROM topics WHERE id = ?', [$dateFirst]) === 'closed');
+    $warp('-2 days');
+
+    echo "== Testbetrieb: Zustand in der Datenbank, Ende löscht alles ==\n";
+    cli_switch_db($tmpDir, 'testmode');
+    SW::$testMode = null;
+    $check('Testbetrieb ist im Auslieferungszustand aktiv', test_mode() === true);
+    $tmUser = cli_add_users(1, 'tm')[0];
+    $tmTopic = cli_make_topic($tmUser, 'Thema aus dem Testbetrieb');
+    vote_cast(cli_add_users(1, 'tv')[0], $tmTopic, 'for');
+    fav_toggle($tmUser, 'scope', 'bundesland:Bayern');
+    test_mode_end();
+    $check('Testbetrieb beendet', test_mode() === false);
+    $check('Themen gelöscht', (int) SW::$db->val('SELECT COUNT(*) FROM topics') === 0);
+    $check('Stimmen gelöscht', (int) SW::$db->val('SELECT COUNT(*) FROM votes') === 0);
+    $check('Favoriten gelöscht', (int) SW::$db->val('SELECT COUNT(*) FROM favorites') === 0);
+    $check('Konten gelöscht (System-Konto bleibt)',
+        (int) SW::$db->val('SELECT COUNT(*) FROM users WHERE is_system = 0') === 0
+        && (int) SW::$db->val('SELECT COUNT(*) FROM users WHERE is_system = 1') === 1);
+    $check('Kategorien bleiben erhalten', count(categories()) >= 20);
+    SW::$testMode = true;
+
+    echo "== Sprachtabellen ==\n";
+    $missingEn = array_diff(array_keys(SW_DE), array_keys(SW_EN));
+    $missingDe = array_diff(array_keys(SW_EN), array_keys(SW_DE));
+    $check('Deutsch und Englisch decken dieselben Schlüssel ab',
+        $missingEn === [] && $missingDe === []);
+    $emptyVals = array_filter(SW_EN, static function ($v): bool {
+        return trim((string) $v) === '';
+    });
+    $check('Keine leeren englischen Texte', $emptyVals === []);
+
     Clock::setTestNow(null);
     putenv('STIMMWERK_DB');
     array_map('unlink', glob($tmpDir . '/*') ?: []);
@@ -4544,9 +4939,10 @@ function cli_seed(int $count): void
                     continue;
                 }
                 $choice = random_int(1, 100) <= $forShare ? 'for' : 'against';
+                // Wie im Echtbetrieb: ohne Ausweis-Bezug, nur unter dem Marker.
                 SW::$db->run(
-                    'INSERT OR IGNORE INTO votes (topic_id, user_id, choice, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-                    [(int) $topic['id'], $userId, $choice, $now, $now]
+                    'INSERT OR IGNORE INTO votes (topic_id, voter_tag, choice, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+                    [(int) $topic['id'], vote_tag((int) $topic['id'], user_pk($userId)), $choice, $now, $now]
                 );
                 $votes++;
             }

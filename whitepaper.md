@@ -15,7 +15,9 @@
 > nicht den Anspruch, staatliche Verfahren rechtlich zu ersetzen. Der Prototyp zeigt,
 > wie eine solche Plattform funktionieren könnte. Solange der Testbetrieb läuft, zeigt
 > die Seite dauerhaft ein entsprechendes Hinweisbanner an (im Code über die
-> Konfigurationsvariable `show_test_banner = true` gesteuert).
+> Konfigurationsvariable `show_test_banner = true` gesteuert). Eine frische
+> Installation startet im **Testmodus**; er wird über die Oberfläche beendet und
+> löscht dabei alle bis dahin entstandenen Testdaten (Kapitel 5.3b).
 
 ---
 
@@ -77,15 +79,18 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
    Systemeinstellung (`prefers-color-scheme`) — es wird bewusst nichts im
    Browser gespeichert, auch keine Design-Präferenz.
 4. **Symbolhafter Einstieg:** Beim Sitzungsbeginn nur Marken-Icon und
-   Sprachwahl (Deutsch/English als Textknöpfe, keine Flaggen); die Anmeldung
-   führt ein Ausweis-Piktogramm mit NFC-Wellen an, Text bleibt minimal.
+   Sprachwahl — **Deutsch/English als Knöpfe mit Flagge**; die Anmeldung
+   führt ein Ausweis-Piktogramm mit NFC-Wellen an, Text bleibt minimal. Die
+   Kopfzeile der Seite trägt danach **keine Wortmarke** und keinen
+   Anmeldestatus, sondern nur die nötigen Bedienelemente.
 5. **Responsiv:** eine Codebasis für Smartphone, Tablet, PC und Terminals; alle
    Funktionen sind ohne JavaScript nutzbar (JavaScript verbessert nur Details:
    Countdown und NFC-Auslösung am Smartphone).
 6. **Testbetrieb-Banner:** Solange die Konfigurationsvariable
    `show_test_banner` auf `true` steht (Auslieferungszustand), zeigt jede Seite oben
    ein deutliches Banner: *„Testbetrieb — keine offizielle Seite der
-   Bundesregierung oder einer Behörde.“*
+   Bundesregierung oder einer Behörde.“* Der **Testmodus** selbst ist keine
+   Variable, sondern ein Zustand der Installation (Kapitel 5.3b).
 7. **Barrierearmut:** semantisches HTML, Tastaturbedienung, ausreichende Kontraste.
    Die Abstimmungsbalken nutzen **Akzentblau gegen Neutralgrau** — auf
    Farbfehlsichtigkeit geprüft (CVD-Abstand ΔE 18,3 hell / 16,6 dunkel) — und
@@ -160,7 +165,7 @@ Für Stimmwerk entscheidend ist die Funktion **„dienstespezifisches Kennzeiche
 
 ### 5.2 Ablauf (Produktion)
 
-1. Nutzer wählt „Ausweis anhalten“. Die Plattform startet über den eID-Client
+1. Nutzer wählt „Ausweis auflegen“. Die Plattform startet über den eID-Client
    (AusweisApp, Schnittstelle nach TR-03124) eine Authentisierung beim zugelassenen
    **eID-Server** (TR-03130).
 2. Nutzer hält die Karte an das NFC-Smartphone bzw. den Kartenleser und gibt die
@@ -179,7 +184,7 @@ Berechtigungsumfang „pseudonymer Zugang“ sowie ein zertifizierter eID-Server
 
 Der Prototyp bildet das Verfahren originalgetreu nach: Eine simulierte
 Testkarte im Browser übernimmt die Rolle des Chips und hält ein echtes
-Ed25519-Schlüsselpaar (libsodium). Beim „Ausweis anhalten“ signiert der
+Ed25519-Schlüsselpaar (libsodium). Beim „Ausweis auflegen“ signiert der
 private Schlüssel eine Zufallsnachricht; der Server prüft die Signatur
 gegen den öffentlichen Schlüssel und leitet daraus das Pseudonym ab.
 **Zwei getrennte Vorgänge:**
@@ -201,12 +206,54 @@ gegen den öffentlichen Schlüssel und leitet daraus das Pseudonym ab.
 Zusätzlich trägt jedes Formular ein **Einmal-Token** (beim Einlösen
 verbraucht — Wiederholungen laufen ins Leere), und im Browser liegt außer
 der Sitzungs-ID nur die bewusst geladene profil.yaml. Am Smartphone ist
-der NFC-Leser auf der Anmeldeseite automatisch scharf: Das Anhalten des
+der NFC-Leser auf der Anmeldeseite automatisch scharf: Das Auflegen des
 (echten) Personalausweises löst die Anmeldung direkt aus (Web NFC; der
-Knopf bleibt Rückfall und Berechtigungsgeste). Der Testbetrieb
-unterscheidet sich vom Echtbetrieb allein durch das Banner und die
-serverseitig simulierte Karte; der Wechsel auf einen echten eID-Server
-ersetzt nur den Karten-Block, Regeln und Abläufe bleiben identisch.
+Knopf bleibt Rückfall und Berechtigungsgeste).
+
+### 5.3b Testmodus als Zustand, nicht als Variable
+
+Eine frische Installation startet **im Testmodus**. Er ist kein Schalter in
+der Konfigurationsdatei, sondern ein Zustand in der Datenbank
+(`schema_info.test_mode`), damit eine Vorführung ohne Codeänderung möglich
+ist und der Übergang in den Echtbetrieb protokolliert wird.
+
+- **Im Testmodus** zeigt die Anmeldeseite **genau einen Knopf**. Er erzeugt
+  eine zufällige, als gültig behandelte Sitzung; Ausweis-Aufforderungen bei
+  Änderungen entfallen. Das Banner bleibt unabhängig davon sichtbar.
+- **Beendet wird er über die Oberfläche**: ein Chip „Testmodus“ in der
+  Kopfzeile, ein Bestätigungsfenster mit Haken. Das Beenden **löscht alle bis
+  dahin entstandenen Daten** — Themen, Stimmen, Favoriten, Meldungen,
+  Jury-Sitze, Konten, Test-Ausweise und die Allowlist — und schaltet dauerhaft
+  in den Echtbetrieb. Kategorien und System-Konto bleiben. Der Schritt ist
+  bewusst nicht umkehrbar.
+- **Danach** existiert kein Weg mehr in die Anwendung, der ohne Ausweis
+  auskommt: Die Anmeldeseite bietet nur noch die Ausweis-Apps an.
+
+Der Wechsel auf einen echten eID-Server ersetzt nur den Karten-Block; Regeln
+und Abläufe bleiben identisch.
+
+### 5.3c Anbindung der AusweisApp (TR-03124/TR-03130)
+
+Die Anmeldung mit der AusweisApp ist direkt eingebaut und braucht auf der
+Serverseite nichts als den Webserver und diese Datei:
+
+1. Der Knopf „Mit AusweisApp anmelden“ leitet den Browser auf die
+   **Aktivierungsadresse des eID-Clients** nach TR-03124:
+   `http://127.0.0.1:24727/eID-Client?tcTokenURL=…`. Die AusweisApp — am PC wie
+   am Smartphone — fängt diese Adresse ab.
+2. Die App holt das **tcToken** unter `/eid/tctoken` ab. Sie tut das als
+   eigener HTTP-Client **ohne Browser-Cookie**; deshalb trägt die tcTokenURL
+   einen **Einmal-Nonce** (10 Minuten gültig), der Browsersitzung und
+   Ausweis-Vorgang verbindet.
+3. Mit hinterlegtem **eID-Server** (TR-03130, `eid_server_url`) fordert der
+   Server dort per `useID` eine Sitzung an und liefert der App ServerAddress,
+   SessionIdentifier und RefreshAddress. Die App liest den Chip PIN-geschützt
+   aus und schickt den Browser zurück auf `/eid/callback`.
+4. **Ohne** eID-Server liefert das tcToken bewusst nur eine
+   `CommunicationErrorAddress`. Die AusweisApp bricht sauber ab, der Browser
+   kehrt zurück — **angemeldet wird niemand**. Das ist die ehrliche Grenze:
+   Einen eID-Server darf nur betreiben, wer ein **Berechtigungszertifikat des
+   BVA** besitzt (Kapitel 5.3a).
 
 ### 5.3a Autorisierte Schlüssel (Allowlist) und ehrliche Grenzen der eID
 
@@ -278,8 +325,13 @@ Behördenregister.
   Ausweis-Bezug, sondern nur ein HMAC aus Thema + öffentlichem Schlüssel mit
   serverseitigem Geheimnis. Doppelstimmen sind ausgeschlossen, doch ohne das
   Geheimnis lässt sich nicht rückschließen, welcher Ausweis wie gestimmt hat.
-- **Abstimmungsende je Thema:** nach **Datum** oder bei Erreichen einer
-  **Ziel-Stimmenzahl bzw. Prozent-Zustimmung**. Danach ist das Thema beendet;
+- **Abstimmungsende je Thema — Datum, Zielwert oder beides:** Beim Einbringen
+  sind zwei Bedingungen ankreuzbar: ein **Enddatum** und ein **Zielwert**
+  (absolute Stimmenzahl oder Prozentanteil der registrierten Ausweise).
+  Gesetzt werden darf eine von beiden **oder beide zugleich** — dann endet die
+  Abstimmung, **was zuerst eintritt**. Prozentangaben werden beim Anlegen in
+  eine absolute Zahl umgerechnet (mindestens 10 Stimmen), damit das Ziel im
+  Verlauf nicht mit der Nutzerzahl wandert. Danach ist das Thema beendet;
   Verfasser können ihr Thema **bearbeiten und löschen**.
 - Ergebnisse sind live sichtbar (Anzahl dafür/dagegen, Anteil, Balkendarstellung mit
   Textbeschriftung).
@@ -441,7 +493,7 @@ konservativ gebaut: wenig Code, wenig Abhängigkeiten, restriktive Standardwerte
 | Eingaben | Whitelist-Validierung (Enums, Längen, UTF-8-Prüfung, Kontrollzeichen-Filter); keine Datei-Uploads |
 | Fehlerbilder | Keine Stacktraces oder Pfade nach außen; generische Fehlerseiten; Sicherheitsereignisse werden ohne personenbezogene Daten protokolliert |
 | Struktur | Nur `public/` liegt im Webroot; Datenbank, Geheimnisse und Logs außerhalb; `.htaccess`-Fallback verweigert Verzeichnislisten |
-| Betrieb | Selbsttest-Skript (`bin/selftest.php`) prüft die Kernregeln (Tagesgrenze, Jury-Ausschlüsse, Quorum, Fristen, Karenz) automatisiert |
+| Betrieb | Selbsttest (`php index.php selftest`, 97 Prüfungen) deckt die Kernregeln automatisiert ab: Tagesgrenze, Abstimmungsende, Jury-Ausschlüsse, Quorum, Fristen, Karenz, Allowlist, Testmodus-Ende, Sprachtabellen |
 
 ### 8.3 Bedrohungsmodell (Auszug)
 
@@ -520,7 +572,9 @@ Gebietsdaten (amtliche Gemeindeschlüssel AGS/ARS statt Freitext-Gebieten).
 | Parameter | Standard | Bedeutung |
 |---|---|---|
 | `show_test_banner` | **true** | Testbetrieb-Banner auf jeder Seite |
-| `eid_provider` | `mock` | `mock` (Simulation) oder `tr03130` (echter eID-Server) |
+| `eid_mode` | `demo` | `demo` (ausgegebene Test-Ausweise) oder `eid` (nur Ausweis-Apps) |
+| `eid_client_url` | `http://127.0.0.1:24727/eID-Client` | Aktivierungsadresse des eID-Clients (TR-03124) |
+| `eid_server_url` | leer | SOAP-Endpunkt des eigenen eID-Servers (TR-03130); leer = fail-closed |
 | `default_lang` | `de` | Standardsprache |
 | `jury_share` | 1 % | Anteil der Nutzerschaft je Jury |
 | `jury_min` | 5 | Mindest-Jurygröße |
