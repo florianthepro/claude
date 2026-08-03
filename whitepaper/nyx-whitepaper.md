@@ -6,7 +6,7 @@
 
 ## Abstract
 
-Eine rein Peer-to-Peer basierte Form der Nachrichtenübermittlung würde es erlauben, Nachrichten direkt von einem Teilnehmer zum anderen zu senden, ohne den Umweg über einen Diensteanbieter. Digitale Signaturen und Ende-zu-Ende-Verschlüsselung lösen einen Teil des Problems, doch der wesentliche Vorteil geht verloren, wenn weiterhin ein vertrauenswürdiger Dritter benötigt wird, um Identitäten zu verwalten, Schlüssel zu verteilen und Nachrichten zwischenzuspeichern. Dieser Dritte sieht, wer mit wem kommuniziert, wann und wie oft — Informationen, die den Inhalt der Nachrichten oft entbehrlich machen. Wir schlagen eine Lösung für dieses Metadaten-Problem vor, die auf drei Bausteinen beruht: Identität ist ausschließlich ein Schlüsselpaar, ohne Telefonnummer und ohne Registrierung; die Verteilung und der Widerruf öffentlicher Schlüssel erfolgt über eine öffentliche, nur anhängbare Kette von Blöcken, die durch Rechenaufwand gesichert ist; und der Transport erfolgt über ein Mixnetz mit Schichtverschlüsselung, in dem kein einzelner Knoten Sender und Empfänger zugleich kennt. Jede einzelne Nachricht wird unter einem eigenen, temporären Schlüssel übertragen, der aus einer fortschreitenden Schlüsselkette abgeleitet und unmittelbar nach der Entschlüsselung auf dem Endgerät gelöscht wird. Das System ist sicher, solange ein Angreifer weniger als einen kritischen Anteil der Weiterleitungsknoten kontrolliert und die Endgeräte selbst nicht kompromittiert sind.
+Eine rein Peer-to-Peer basierte Form der Nachrichtenübermittlung würde es erlauben, Nachrichten direkt von einem Teilnehmer zum anderen zu senden, ohne den Umweg über einen Diensteanbieter. Digitale Signaturen und Ende-zu-Ende-Verschlüsselung lösen einen Teil des Problems, doch der wesentliche Vorteil geht verloren, wenn weiterhin ein vertrauenswürdiger Dritter benötigt wird, um Identitäten zu verwalten, Schlüssel zu verteilen und Nachrichten zwischenzuspeichern. Dieser Dritte sieht, wer mit wem kommuniziert, wann und wie oft — Informationen, die den Inhalt der Nachrichten oft entbehrlich machen. Wir schlagen eine Lösung für dieses Metadaten-Problem vor, die auf drei Bausteinen beruht: Identität ist ausschließlich ein Schlüsselpaar, ohne Telefonnummer und ohne Registrierung; die Verteilung und der Widerruf öffentlicher Schlüssel erfolgt über eine öffentliche, nur anhängbare Kette von Blöcken, die durch Rechenaufwand gesichert ist; und der Transport erfolgt über ein Mixnetz mit Schichtverschlüsselung, in dem kein einzelner Knoten Sender und Empfänger zugleich kennt. Jede einzelne Nachricht wird unter einem eigenen, temporären Schlüssel übertragen, der aus einer fortschreitenden Schlüsselkette abgeleitet und unmittelbar nach der Entschlüsselung auf dem Endgerät gelöscht wird. Da Endgeräte meist offline sind, muss die Nachricht bis zur Abholung dezentral zwischengelagert werden; wir zeigen, wie sie in dieser Zeit ausfallsicher vorliegt und ab dem Moment der Abholung wertlos wird — ohne dass die Sicherheit davon abhinge, dass ein fremder Rechner ein Löschversprechen einhält. Das System ist sicher, solange ein Angreifer weniger als einen kritischen Anteil der Knoten kontrolliert und die Endgeräte selbst nicht kompromittiert sind.
 
 ---
 
@@ -154,13 +154,12 @@ Die praktische Konsequenz: wird ein Gerät zwei Wochen nach einer Unterhaltung b
 Kopf (authentifiziert, nicht verschlüsselt):
   DH_pub          32 B      aktueller Ratschenschlüssel
   PN, N            8 B      Kettenzähler
-  drop_tag        32 B      Zustelladresse, siehe 7.2
 
 Rumpf:
   AEAD( MK_i ; kopf ; klartext || füllung )
 ```
 
-Alle Pakete haben nach der Fragmentierung dieselbe Länge (Abschnitt 6.2). Der Kopf enthält keine Absender- und keine Empfängeradresse — nur einen pro Nachricht neu abgeleiteten Zustell-Tag.
+Der Kopf enthält weder Absender- noch Empfängeradresse. Erst die Speicherschicht versieht die Teile dieses Chiffrats mit ihren Zustell-Tags (Abschnitt 7.4); die Adressierung ist damit vollständig von der Nachricht getrennt. Alle Pakete haben nach der Fragmentierung dieselbe Länge (Abschnitt 6.2).
 
 ---
 
@@ -197,29 +196,91 @@ Mischen erzeugt Verzögerung. Wir bieten zwei Betriebsarten: einen interaktiven 
 
 ---
 
-## 7. Zustellung an Abwesende
+## 7. Dezentrale Ablage bis zur Abholung
 
-### 7.1 Das Problem
+### 7.1 Zwei gegenläufige Anforderungen
 
-Endgeräte sind meistens offline. Ein rein synchrones P2P-System wäre unbenutzbar. Es braucht also Knoten, die Nachrichten zwischenspeichern — und genau diese Knoten sind im klassischen Modell der Ort, an dem alle Metadaten anfallen.
+Endgeräte sind meistens offline. Ein rein synchrones P2P-System wäre unbenutzbar. Es braucht also Knoten, die Nachrichten zwischenspeichern — und genau diese Knoten sind im klassischen Modell der Ort, an dem alle Metadaten anfallen und an dem eine Beschlagnahme sich lohnt.
 
-### 7.2 Blinde Ablagen
+An die Ablage stellen wir zwei Anforderungen, die in entgegengesetzte Richtungen ziehen:
 
-Nachrichten werden nicht an eine Identität adressiert, sondern an einen pro Nachricht neu abgeleiteten Tag:
+> **(A) Verfügbarkeit.** Bis zur Abholung muss die Nachricht sicher vorliegen — auch wenn einzelne Knoten ausfallen, abgeschaltet oder beschlagnahmt werden. Niemand darf sie durch Ausfall verlieren.
+>
+> **(B) Wertlosigkeit.** Ab der Abholung müssen die gespeicherten Daten wertlos sein — auch für einen Knoten, der sie entgegen der Absprache behält, und auch für einen Angreifer, der den Datenträger später auswertet.
+
+(A) verlangt Vervielfältigung, (B) verlangt Vernichtung. Der übliche Ansatz, beides über einen Löschbefehl zu versöhnen, trägt nicht: **Löschung auf fremder Hardware ist nicht erzwingbar und nicht beweisbar.** Ein Knoten, der behauptet gelöscht zu haben, kann eine Kopie zurückbehalten, und kein Protokoll der Welt kann das feststellen.
+
+Der Entwurf zieht daraus die einzige tragfähige Konsequenz: **Die Sicherheit darf nicht davon abhängen, dass irgendjemand löscht.** Die gespeicherten Daten müssen von sich aus wertlos werden. Löschung ist dann eine willkommene Zugabe, keine Voraussetzung.
+
+### 7.2 Was gespeichert wird
+
+Was zur Ablage gegeben wird, ist bereits das fertige Chiffrat aus Abschnitt 5 — verschlüsselt unter dem Nachrichtenschlüssel `MK_i` der Doppelratsche. Dieser Schlüssel wird von keinem Speicherknoten je gesehen, berührt das Speichernetz zu keinem Zeitpunkt und existiert nach der Entschlüsselung auf dem Endgerät nicht mehr.
+
+Das ist die Grundgarantie, auf der alles Weitere aufbaut: Der Wert einer Ablage liegt nicht an ihrem Speicherort, sondern in einem Schlüssel, der diesen Ort nie erreicht und beim Empfänger stirbt.
+
+### 7.3 Verteilung: Alles-oder-nichts über k von n
+
+Eine Nachricht wird nicht als Ganzes bei einem Knoten hinterlegt, sondern in `n` Teile zerlegt, von denen `k` zur Rekonstruktion genügen (Standard: `k = 10`, `n = 20`). Die Teile gehen an `n` unabhängig gewählte Knoten in verschiedenen Netzen und Rechtsräumen.
+
+Reed-Solomon-Kodierung allein wäre hier ein Fehler: bei systematischer Kodierung sind die ersten Teile wörtliche Ausschnitte der Eingabe, ein einzelner Teil verrät also einen Teil des Chiffrats und dessen Struktur. Wir schalten deshalb eine **Alles-oder-nichts-Transformation** (AONT) vor die Kodierung:
 
 ```
-drop_tag_i = HMAC( SK_tag , i )
+r        ← Zufall (256 bit)
+w        = AONT( chiffrat , r )       Umwandlung, nicht Verschlüsselung
+s_1..s_n = ReedSolomon_{k,n}( w )     verteilt auf n Knoten
 ```
 
-wobei `SK_tag` ein aus der Sitzung abgeleitetes, nur den beiden Partnern bekanntes Geheimnis ist und `i` der Nachrichtenzähler. Zwei Tags derselben Unterhaltung sind für jeden Dritten nicht als zusammengehörig erkennbar — sie sehen aus wie unabhängige Zufallswerte.
+Die AONT hat die Eigenschaft, dass aus **weniger als der vollständigen Ausgabe** `w` kein einziges Bit der Eingabe ableitbar ist — nicht ein Teilstück, nicht ein Muster, nichts. In Verbindung mit der Kodierung heißt das: mit `k−1` Teilen weiß ein Angreifer exakt so viel wie mit null Teilen.
 
-Der Speicherknoten sieht: einen Zufallswert und 2 KiB Rauschen. Er kennt weder Sender noch Empfänger noch Zugehörigkeit zu einer Unterhaltung. Wird er beschlagnahmt, gibt sein Datenträger nichts preis als eine Menge nicht zuordenbarer Chiffrate.
+Daraus folgt die Eigenschaft, auf die es ankommt: **Es genügt, dass `n − k + 1` der Knoten löschen, damit die Ablage für alle unwiederbringlich zerstört ist** — bei `k = 10`, `n = 20` also 11 von 20. Nicht alle müssen mitspielen. Die Mehrheit der ehrlichen Knoten vernichtet die Nachricht auch gegen den Willen der unehrlichen. Die Rechnung dazu steht in Abschnitt 10.3.
 
-### 7.3 Abholung
+### 7.4 Blinde Ablagen
 
-Der Empfänger berechnet die zu erwartenden Tags selbst — er kennt `SK_tag` und den Zähler — und fragt sie über das Mixnetz ab. Die Abfrage erfolgt in Sammelanfragen über einen Bereich von Tags, gemischt mit Fülltags, sodass der Speicherknoten nicht lernt, welcher Tag den Anfragenden tatsächlich interessiert.
+Kein Teil wird an eine Identität adressiert, sondern an einen pro Nachricht und pro Teil neu abgeleiteten Tag:
 
-Jede Ablage hat eine Verfallszeit (Standard: 7 Tage). Danach wird sie gelöscht, auch wenn sie nie abgeholt wurde. Nach bestätigter Abholung wird sie sofort gelöscht. Es gibt keine Sicherungskopie, kein Archiv und keine serverseitige Historie — an keiner Stelle des Systems.
+```
+drop_tag_{i,j} = HMAC( SK_tag , i || j )
+```
+
+wobei `SK_tag` ein aus der Sitzung abgeleitetes, nur den beiden Partnern bekanntes Geheimnis ist, `i` der Nachrichtenzähler und `j` der Index des Teils. Zwei Tags derselben Nachricht sind für Dritte nicht als zusammengehörig erkennbar, und zwei Nachrichten derselben Unterhaltung erst recht nicht — sie sehen aus wie unabhängige Zufallswerte.
+
+Der Speicherknoten sieht: einen Zufallswert und einen Block Rauschen fester Größe. Er kennt weder Sender noch Empfänger, weder die Zugehörigkeit zu einer Unterhaltung noch die zu einer Nachricht, noch weiß er, welche anderen Knoten die übrigen Teile halten. Wird er beschlagnahmt, gibt sein Datenträger nichts preis als eine Menge nicht zuordenbarer Bruchstücke, die unterhalb der Rekonstruktionsschwelle liegen.
+
+### 7.5 Sicher liegen bleiben, bis abgeholt wird
+
+Solange die Nachricht nicht abgeholt ist, muss sie verfügbar bleiben. Dafür:
+
+- **Aufbewahrungsnachweise.** Jeder Knoten muss in unregelmäßigen Abständen auf eine Zufallsabfrage hin einen Merkle-Beweis über einen zufälligen Ausschnitt seines Bestandes liefern. Der Beweis ist nur mit den tatsächlich vorhandenen Daten berechenbar; ihn zu fälschen ist so teuer wie ihn zu erfüllen. Bleibt er aus, verfällt das Pfand des Knotens.
+- **Reparatur.** Fällt ein Knoten dauerhaft aus, erzeugen die verbleibenden Knoten aus `k` vorhandenen Teilen einen Ersatzteil und geben ihn an einen neuen Knoten. Das geschieht ohne Rekonstruktion des Klartexts — und ohne dass der Klartext auch nur existierte, denn was rekonstruiert wird, ist ein Chiffrat, dessen Schlüssel niemand im Netz hat.
+- **Streuung.** Die `n` Knoten werden so gewählt, dass sie sich in Betreiber, autonomem System und Rechtsraum unterscheiden. Eine Beschlagnahme in einem Land trifft dadurch nur wenige Teile.
+
+Die Verfügbarkeitsrechnung steht in Abschnitt 10.2. Kurz: bei `k = 10` von `n = 20` und einer Einzelknotenverfügbarkeit von nur 90 % beträgt die Ausfallwahrscheinlichkeit einer Ablage rund `7 · 10⁻⁷`.
+
+### 7.6 Abholung
+
+Der Empfänger berechnet die zu erwartenden Tags selbst — er kennt `SK_tag` und den Zähler — und fragt sie über das Mixnetz ab. Die Abfrage erfolgt in Sammelanfragen über einen Bereich von Tags, vermischt mit Fülltags, sodass der Knoten nicht lernt, welcher Tag den Anfragenden tatsächlich interessiert. Er beantwortet alle gleich.
+
+Der Empfänger benötigt `k` der `n` Teile. Er fragt sie bei verschiedenen Knoten über verschiedene Pfade ab; keiner der Knoten erfährt, dass er einen von mehreren Teilen derselben Nachricht liefert. Nach Erhalt setzt er `w` zusammen, invertiert die AONT, entschlüsselt mit `MK_i` — und löscht `MK_i` (Abschnitt 5.3).
+
+Eine Ablage ist genau einmal abholbar. Jeder Tag ist an einen Zählerstand gebunden, ein zweiter Abruf desselben Tags wird nicht bedient. Damit sind Wiedereinspielungen und stille Doppelabholungen ausgeschlossen.
+
+### 7.7 Wertlosmachung nach der Abholung
+
+Hier greifen vier Schichten ineinander. Jede einzelne ist wirksam; sie sind bewusst so gestaffelt, dass die stärkeren nicht auf dem Wohlverhalten der Knoten beruhen.
+
+**Schicht 1 — Der Schlüssel war nie dort.** Das gespeicherte Chiffrat ist unter `MK_i` verschlüsselt. Dieser Schlüssel wurde aus einer Einwegkette abgeleitet, hat das Speichernetz nie berührt und wird auf dem Endgerät unmittelbar nach der Entschlüsselung überschrieben. Ab diesem Moment existiert weltweit kein Schlüssel mehr, der das Gespeicherte öffnen könnte. Ein Knoten, der sein Teil behält, hält Rauschen fest. Das ist kryptographische Vernichtung: nicht die Daten werden gelöscht, sondern der Schlüssel — und das gründlich, an genau einer Stelle, die unter der Kontrolle des Nutzers steht.
+
+**Schicht 2 — Punktierbare Speicherverschlüsselung.** Jeder Knoten legt eingehende Teile zusätzlich unter einem eigenen, lokalen Speicherschlüssel ab, der in kurzen Abständen fortgeschrieben und dabei *punktiert* wird: nach jeder Herausgabe entfernt der Knoten aus seinem eigenen Schlüssel die Fähigkeit, genau diesen Tag zu entschlüsseln, und behält nur die Fähigkeit für alle übrigen. Der alte Schlüsselzustand wird überschrieben. Wird der Knoten anschließend beschlagnahmt, kann er den herausgegebenen Teil selbst dann nicht mehr entschlüsseln, wenn das Chiffrat noch auf seinem Datenträger liegt und der Angreifer den vollständigen Speicherinhalt samt Schlüsselmaterial hat. Diese Schicht schützt gegen den *später* kompromittierten, zum Zeitpunkt der Abholung ehrlichen Knoten — der häufigste reale Fall.
+
+**Schicht 3 — Zerstörung durch Schwelle.** Nach der Abholung löschen die Knoten ihre Teile. Erzwingbar ist das nicht, aber es muss auch nicht bei allen gelingen: Sobald `n − k + 1` Knoten gelöscht haben, liegt der Rest unterhalb der Rekonstruktionsschwelle, und wegen der AONT ist das, was übrig bleibt, nicht ein Teil der Nachricht, sondern nichts. Ein einzelner hortender Knoten ist wirkungslos; ein Angreifer braucht `k` hortende Knoten unter den `n` zufällig gewählten. Wie unwahrscheinlich das ist, zeigt Abschnitt 10.3.
+
+**Schicht 4 — Verfall.** Jede Ablage hat eine Verfallszeit (Standard: 7 Tage). Danach wird sie gelöscht, auch wenn sie nie abgeholt wurde, und die Vergütung endet. Nicht abgeholte Nachrichten sammeln sich nicht an. Es gibt keine Sicherungskopie, kein Archiv und keine serverseitige Historie — an keiner Stelle des Systems.
+
+Der ökonomische Anreiz zeigt in dieselbe Richtung: Speicherung wird pro Zeiteinheit vergütet, und diese Vergütung endet mit der Abholung. Ein Knoten, der ein abgeholtes Teil behält, zahlt dafür Speicherplatz und bekommt nichts. Wirtschaftlich rational ist Löschen.
+
+### 7.8 Was ausdrücklich nicht behauptet wird
+
+Wir können nicht beweisen, dass gelöscht wurde. Es gibt kein kryptographisches Verfahren, das einem entfernten Rechner nachweislich das Vergessen abverlangt; jeder „Löschnachweis" ist bestenfalls die Aussage, dass der Knoten die Daten nicht mehr *vorzeigen* will. Deshalb beruht keine der Garantien dieses Abschnitts darauf, dass ein Knoten seine Zusage einhält. Was übrig bleibt, wenn man alle Löschversprechen streicht, ist Schicht 1 — und die allein genügt bereits: ohne `MK_i` ist das Gespeicherte von Zufallsrauschen nicht unterscheidbar. Die Schichten 2 bis 4 verkleinern die Angriffsfläche zusätzlich; sie tragen sie nicht.
 
 ---
 
@@ -227,11 +288,11 @@ Jede Ablage hat eine Verfallszeit (Standard: 7 Tage). Danach wird sie gelöscht,
 
 Damit genügend Knoten existieren, müssen sie einen Grund haben zu existieren. Freiwilligkeit allein hat sich in bestehenden Netzen als tragfähig, aber knapp erwiesen.
 
-Knoten erbringen zwei messbare Leistungen: Weiterleitung und Speicherung. Beide werden vergütet. Speicherung wird über regelmäßige Aufbewahrungsnachweise belegt: der Knoten muss auf eine Zufallsabfrage hin einen Merkle-Beweis über einen zufälligen Ausschnitt der bei ihm liegenden Daten liefern; kann er das nicht, verfällt sein Pfand.
+Knoten erbringen drei messbare Leistungen: Weiterleitung, Speicherung und Reparatur ausgefallener Teile. Alle drei werden vergütet, die Speicherung pro Zeiteinheit und über Aufbewahrungsnachweise belegt (Abschnitt 7.5); bleibt ein Nachweis aus, verfällt das Pfand. Die Vergütung endet mit der Abholung — ein Knoten, der ein abgeholtes Teil aufbewahrt, trägt die Kosten und erhält nichts.
 
 Die Bezahlung selbst darf keine Metadaten erzeugen — eine nachvollziehbare Zahlung vom Nutzer an den Knoten würde genau das offenlegen, was das Mixnetz verbirgt. Wir verwenden daher blind signierte Gutscheine: der Nutzer erwirbt Gutscheine gegen die Netzwährung, lässt sie blind signieren und reicht sie beim Knoten ein. Der Aussteller kann die Einlösung nicht dem Erwerb zuordnen.
 
-Der Beitritt eines Knotens erfordert ein Pfand. Das ist der Sybil-Schutz des Transportnetzes: er macht nicht unmöglich, viele Knoten zu betreiben, aber er macht es proportional teuer — und Abschnitt 10 zeigt, welcher Anteil an Knoten überhaupt gefährlich wird.
+Der Beitritt eines Knotens erfordert ein Pfand. Das ist der Sybil-Schutz sowohl des Transport- als auch des Speichernetzes: er macht es nicht unmöglich, viele Knoten zu betreiben, aber proportional teuer — und Abschnitt 10 zeigt, ab welchem Anteil an Knoten es überhaupt gefährlich wird.
 
 ---
 
@@ -244,6 +305,8 @@ Daraus folgt unmittelbar: wer eine Gruppe verlässt, kann spätere Nachrichten n
 ---
 
 ## 10. Berechnung
+
+### 10.1 Verkettung von Sender und Empfänger
 
 Wir betrachten den maßgeblichen Angriff auf die Anonymität: ein Angreifer kontrolliert einen Anteil `q` aller Weiterleitungsknoten und versucht, Sender und Empfänger einer Unterhaltung zu verknüpfen. Dazu muss er den ersten *und* den letzten Knoten desselben Pfades kontrollieren. Bei zufälliger Pfadwahl aus einer großen Knotenmenge:
 
@@ -284,7 +347,49 @@ Ist der Wächter ehrlich — was mit Wahrscheinlichkeit `1 − q` der Fall ist �
 
 Dies ist der wichtigste quantitative Befund dieses Entwurfs: die Sicherheit eines anonymen Netzes hängt weniger an der Stärke seiner Kryptographie als an der Frage, wie oft es dem Angreifer eine neue Gelegenheit gibt.
 
-**Zum Verzeichnis** gilt eine analoge Überlegung. Ein untergeschobener Prekey muss in der Kette veröffentlicht werden. Spiegeln `k` unabhängige Beobachter die Kette und vergleichen ihre Blockköpfe, wird eine abweichende Sicht mit Wahrscheinlichkeit `1 − (1 − p)^k` entdeckt, wobei `p` die Wahrscheinlichkeit ist, dass ein einzelner Beobachter die betreffende Sicht zu sehen bekommt. Schon eine kleine Zahl unabhängiger Beobachter macht einen gezielten Schlüsselaustausch zu einem Angriff mit hoher Entdeckungswahrscheinlichkeit — und, anders als beim Verkehrsangriff, mit dauerhaftem Beweis.
+**Zum Verzeichnis** gilt eine analoge Überlegung. Ein untergeschobener Prekey muss in der Kette veröffentlicht werden. Spiegeln `m` unabhängige Beobachter die Kette und vergleichen ihre Blockköpfe, wird eine abweichende Sicht mit Wahrscheinlichkeit `1 − (1 − p)^m` entdeckt, wobei `p` die Wahrscheinlichkeit ist, dass ein einzelner Beobachter die betreffende Sicht zu sehen bekommt. Schon eine kleine Zahl unabhängiger Beobachter macht einen gezielten Schlüsselaustausch zu einem Angriff mit hoher Entdeckungswahrscheinlichkeit — und, anders als beim Verkehrsangriff, mit dauerhaftem Beweis.
+
+### 10.2 Verfügbarkeit der Ablage bis zur Abholung
+
+Eine Nachricht liegt als `n` Teile bei `n` Knoten, `k` genügen zur Rekonstruktion. Ist `a` die Wahrscheinlichkeit, dass ein einzelner Knoten zum Zeitpunkt der Abholung erreichbar ist und seinen Teil noch hält, so ist die Ablage genau dann verloren, wenn weniger als `k` Knoten liefern:
+
+```
+P(verfügbar) = Σ_{i=k}^{n}  C(n,i) · a^i · (1−a)^{n−i}
+```
+
+Für `k = 10`, `n = 20`:
+
+| Einzelknoten `a` | P(Ablage verfügbar) | P(Verlust) |
+|---|---|---|
+| 0,50 | 58,8 % | 4,1 · 10⁻¹ |
+| 0,70 | 98,3 % | 1,7 · 10⁻² |
+| 0,80 | 99,94 % | 5,6 · 10⁻⁴ |
+| 0,90 | 99,99993 % | 7,1 · 10⁻⁷ |
+
+Bei einer Einzelknotenverfügbarkeit von 90 % — einer bescheidenen Annahme für Freiwilligenhardware — geht eine von rund 1,4 Millionen Ablagen verloren, und das auch nur, wenn zwischenzeitlich keine Reparatur greift. Der Preis ist ein Speicheraufwand vom Faktor `n/k = 2`. Der Vergleich mit einfacher Vervielfältigung fällt deutlich aus: um dieselbe Verlustwahrscheinlichkeit mit vollständigen Kopien zu erreichen, bräuchte man bei `a = 0,9` sieben vollständige Kopien statt des Doppelten der Nutzdaten — und jede dieser Kopien wäre für sich vollständig, also für einen Angreifer wertvoll.
+
+### 10.3 Wertlosigkeit nach der Abholung
+
+Jetzt dieselbe Verteilung aus der Gegenrichtung. Nach der Abholung löschen die ehrlichen Knoten. Sei `q` der Anteil der Knoten, die entgegen der Absprache aufbewahren. Zur Rekonstruktion braucht ein Angreifer `k` hortende Knoten unter den `n` zufällig gewählten:
+
+```
+P(rekonstruierbar) = Σ_{i=k}^{n}  C(n,i) · q^i · (1−q)^{n−i}
+```
+
+Für `k = 10`, `n = 20`:
+
+| Anteil hortender Knoten `q` | P(Nachricht rekonstruierbar) |
+|---|---|
+| 0,10 | 7,2 · 10⁻⁶ |
+| 0,20 | 2,6 · 10⁻³ |
+| 0,30 | 4,8 · 10⁻² |
+| 0,50 | 5,9 · 10⁻¹ |
+
+Es ist dieselbe Formel wie in 10.2, mit `q` an der Stelle von `a` — und das ist keine Koinzidenz, sondern der Kern des Entwurfs: **Verfügbarkeit und Vernichtbarkeit sind zwei Lesarten derselben Schwelle.** Der Parameter `k/n` entscheidet über beide zugleich. Wählt man `k` zu klein, ist die Nachricht robust verfügbar, aber leicht zu horten; wählt man `k` zu groß, ist sie schwer zu horten, aber leicht zu verlieren. `k = n/2` ist das Gleichgewicht, in dem beide Wahrscheinlichkeiten gleichzeitig klein sind — solange ehrliche Knoten in der Mehrheit sind, und zwar deutlich.
+
+Man beachte, wie steil die Kurve ist. Bei `q = 0,1` scheitert der Angreifer mit einer Wahrscheinlichkeit von über 99,999 %; bei `q = 0,5` gelingt es ihm meistens. Zwischen „harmlos" und „gebrochen" liegen wenige Prozentpunkte. Deshalb ist der Sybil-Schutz aus Abschnitt 8 — Pfand pro Knoten, Streuung über Betreiber und Rechtsräume — kein Nebenaspekt, sondern die Voraussetzung, unter der diese Tabelle überhaupt gilt.
+
+Und schließlich: diese ganze Rechnung betrifft nur die Frage, ob der Angreifer das *Chiffrat* wieder zusammensetzen kann. Gelingt ihm das, hält er immer noch verschlüsselte Daten, deren Schlüssel gemäß Abschnitt 5.3 nicht mehr existiert. Die Tabelle beschreibt also nicht die Wahrscheinlichkeit, mit der eine Nachricht gelesen wird, sondern die weit schwächere, mit der ein Angreifer sie überhaupt als Rauschblock wiederherstellt.
 
 ---
 
@@ -295,6 +400,8 @@ Wir halten es für notwendig, die Grenzen ebenso deutlich zu benennen wie die Ei
 **Der globale passive Beobachter.** Wer den gesamten Netzverkehr an allen Ein- und Austrittspunkten gleichzeitig mit feiner Zeitauflösung beobachtet, kann auch bei konstanter Paketgröße und Mischverzögerung Korrelationen finden — insbesondere im interaktiven Modus. Kein Mixnetz mit geringer Latenz löst dieses Problem. Der Depeschenmodus mit hoher Verzögerung und durchgehendem Deckverkehr verschiebt die Grenze erheblich, hebt sie aber nicht auf.
 
 **Das Endgerät.** Alles, was hier beschrieben wird, schützt Daten auf dem Weg. Ein kompromittiertes Endgerät liest mit, bevor verschlüsselt und nachdem entschlüsselt wurde. Die Löschung ephemerer Schlüssel begrenzt den Schaden auf den Zeitraum der Kompromittierung — das ist wertvoll, aber es ist kein Schutz gegen einen aktiven Angreifer auf dem Gerät selbst.
+
+**Löschung bleibt unbeweisbar.** Die Ablage wird nach der Abholung wertlos, weil der Schlüssel verschwindet und weil die Rekonstruktionsschwelle unterschritten wird — nicht, weil ein Knoten seine Löschzusage einhält. Diese Zusage ist und bleibt unüberprüfbar (Abschnitt 7.8). Wer die Schwellenannahme aus Abschnitt 10.3 nicht akzeptiert, muss davon ausgehen, dass jedes je abgelegte Chiffrat dauerhaft existiert; die Sicherheit ruht dann allein auf der Vernichtung des Schlüssels auf dem Endgerät. Wir halten diese Reserve für vertretbar, weil sie an genau einer Stelle liegt, die dem Nutzer selbst gehört.
 
 **Anonymität braucht Gesellschaft.** Die Anonymitätsmenge eines Nutzers ist die Menge der Nutzer, die er hätte sein können. In einem Netz mit hundert Teilnehmern ist sie unabhängig von der Kryptographie klein. Das System wird mit jedem Teilnehmer sicherer — und ist zu Beginn am schwächsten.
 
@@ -308,9 +415,11 @@ Wir halten es für notwendig, die Grenzen ebenso deutlich zu benennen wie die Ei
 
 ## 12. Schlussfolgerung
 
-Wir haben ein Nachrichtensystem vorgeschlagen, das ohne vertrauenswürdige Dritte auskommt. Identität ist ein selbst erzeugtes Schlüsselpaar ohne Bezug zu einer realen Person. Das Schlüsselverzeichnis ist eine öffentliche, durch Rechenaufwand gesicherte Kette, in der ein untergeschobener Schlüssel nicht heimlich, sondern nur öffentlich und dauerhaft nachweisbar erfolgen kann. Der Transport erfolgt über ein Mixnetz mit Schichtverschlüsselung, einheitlicher Paketgröße und Deckverkehr, in dem kein Knoten Sender und Empfänger zugleich kennt. Zwischengespeicherte Nachrichten liegen unter pro Nachricht neu abgeleiteten Tags, die für den Speicherknoten nicht als zusammengehörig erkennbar sind.
+Wir haben ein Nachrichtensystem vorgeschlagen, das ohne vertrauenswürdige Dritte auskommt. Identität ist ein selbst erzeugtes Schlüsselpaar ohne Bezug zu einer realen Person. Das Schlüsselverzeichnis ist eine öffentliche, durch Rechenaufwand gesicherte Kette, in der ein untergeschobener Schlüssel nicht heimlich, sondern nur öffentlich und dauerhaft nachweisbar erfolgen kann. Der Transport erfolgt über ein Mixnetz mit Schichtverschlüsselung, einheitlicher Paketgröße und Deckverkehr, in dem kein Knoten Sender und Empfänger zugleich kennt.
 
-Der Kern ist die Behandlung der Schlüssel. Jede Nachricht wird unter einem eigenen, aus einer Einwegkette abgeleiteten Schlüssel übertragen, der auf dem Endgerät unmittelbar nach der Entschlüsselung überschrieben wird und danach nirgends mehr existiert — nicht beim Sender, nicht beim Empfänger, nicht im Netz. Die spätere Beschlagnahme eines Geräts oder eines Speicherknotens gibt aufgezeichnete Kommunikation nicht preis.
+Die Zwischenlagerung bis zur Abholung, die im klassischen Modell der verwundbarste Punkt ist, lösen wir durch Zerlegung: eine Nachricht liegt als `n` Teile bei `n` unabhängigen Knoten in verschiedenen Rechtsräumen, jeweils unter einem eigenen, unverkettbaren Tag; `k` Teile genügen zur Wiederherstellung, und weniger als `k` Teile ergeben wegen der vorgeschalteten Alles-oder-nichts-Transformation buchstäblich nichts. Dieselbe Schwelle liefert beide Eigenschaften, die wir brauchen: bis zur Abholung ist die Nachricht auch bei Ausfall der Hälfte aller Knoten sicher verfügbar, und ab der Abholung genügt es, dass `n − k + 1` Knoten löschen, um sie für alle unwiederbringlich zu vernichten — einschließlich derjenigen, die nicht gelöscht haben.
+
+Der Kern ist die Behandlung der Schlüssel. Jede Nachricht wird unter einem eigenen, aus einer Einwegkette abgeleiteten Schlüssel übertragen, der auf dem Endgerät unmittelbar nach der Entschlüsselung überschrieben wird und danach nirgends mehr existiert — nicht beim Sender, nicht beim Empfänger, nicht im Netz. Deshalb hängt die Wertlosigkeit der gespeicherten Daten an keiner Stelle davon ab, dass ein fremder Rechner tatsächlich löscht: Löschung auf fremder Hardware ist weder erzwingbar noch beweisbar, und ein Entwurf, der sie voraussetzt, verspricht mehr als er hält. Wir löschen stattdessen den Schlüssel, an genau einer Stelle, die dem Nutzer gehört. Was bei den Speicherknoten zurückbleibt, ist danach von Zufallsrauschen nicht zu unterscheiden. Die spätere Beschlagnahme eines Geräts oder eines Speicherknotens gibt aufgezeichnete Kommunikation nicht preis.
 
 Die Sicherheit des Systems beruht nicht auf der Redlichkeit eines Betreibers, sondern darauf, dass ein Angreifer weniger als einen kritischen Anteil der Knoten kontrolliert — und, wie Abschnitt 10 zeigt, vor allem darauf, dem Angreifer möglichst wenige Gelegenheiten zu geben.
 
@@ -330,3 +439,8 @@ Die Sicherheit des Systems beruht nicht auf der Redlichkeit eines Betreibers, so
 10. N. Borisov, G. Danezis, I. Goldberg, *DP5: A Private Presence Service*, PoPETs, 2015.
 11. A. Juels, B. Kaliski, *PORs: Proofs of Retrievability for Large Files*, ACM CCS, 2007.
 12. R. Dingledine, N. Mathewson, *Anonymity Loves Company: Usability and the Network Effect*, WEIS, 2006.
+13. R. Rivest, *All-or-Nothing Encryption and the Package Transform*, FSE, 1997.
+14. J. Resch, J. Plank, *AONT-RS: Blending Security and Performance in Dispersed Storage Systems*, USENIX FAST, 2011.
+15. M. Green, I. Miers, *Forward Secure Asynchronous Messaging from Puncturable Encryption*, IEEE S&P, 2015.
+16. R. Perlman, *File System Design with Assured Delete*, IEEE Security in Storage Workshop, 2005.
+17. D. Boneh, R. Lipton, *A Revocable Backup System*, USENIX Security, 1996.
