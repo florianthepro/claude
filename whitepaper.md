@@ -380,11 +380,16 @@ Behördenregister.
   eine absolute Zahl umgerechnet (mindestens 10 Stimmen), damit das Ziel im
   Verlauf nicht mit der Nutzerzahl wandert. Danach ist das Thema beendet;
   Verfasser können ihr Thema **bearbeiten**.
-- **Abgestimmte Themen bleiben dauerhaft.** Sobald die erste Stimme abgegeben
-  ist, kann auch der Verfasser das Thema nicht mehr löschen; die Seite sagt das
-  ausdrücklich. Löschbar bleibt nur ein Thema, zu dem noch niemand abgestimmt
-  hat. (Davon unberührt ist die Entfernung durch eine Bürger-Jury nach
-  festgestelltem Gesetzesverstoß, Kapitel 7.)
+- **Themen werden nie gelöscht.** Es gibt keinen Löschweg für Verfasser. Ein
+  Thema, zu dem **noch niemand abgestimmt** hat, lässt sich **archivieren**:
+  Es verschwindet aus Listen, Suche und Ähnlichkeitsabgleich, ist nicht mehr
+  wählbar, nicht mehr bearbeitbar und nicht mehr meldbar, bleibt aber unter
+  seiner Adresse erhalten und trägt dort die Kennzeichnung „Archiviert“.
+- **Abgestimmte Themen bleiben unverändert bestehen.** Sobald die erste Stimme
+  abgegeben ist, entfällt auch das Archivieren; die Seite sagt das
+  ausdrücklich. Damit bleibt jedes Thema, über das abgestimmt wurde, dauerhaft
+  nachvollziehbar. (Davon unberührt ist die Entfernung durch eine Bürger-Jury
+  nach festgestelltem Gesetzesverstoß, Kapitel 7.)
 - **Gleiche Titel sind erlaubt, aber sichtbar.** Beim Einbringen zeigt das
   Formular schon während des Tippens, ob es bereits ähnliche Themen gibt, und
   verlinkt sie; einbringen lässt sich das Thema trotzdem. Auf der Themenseite
@@ -561,7 +566,7 @@ konservativ gebaut: wenig Code, wenig Abhängigkeiten, restriktive Standardwerte
 | Eingaben | Whitelist-Validierung (Enums, Längen, UTF-8-Prüfung, Kontrollzeichen-Filter); keine Datei-Uploads |
 | Fehlerbilder | Keine Stacktraces oder Pfade nach außen; generische Fehlerseiten; Sicherheitsereignisse werden ohne personenbezogene Daten protokolliert |
 | Struktur | Nur `public/` liegt im Webroot; Datenbank, Geheimnisse und Logs außerhalb; `.htaccess`-Fallback verweigert Verzeichnislisten |
-| Betrieb | Selbsttest (`php index.php selftest`, 116 Prüfungen) deckt die Kernregeln automatisiert ab: Tagesgrenze, Abstimmungsende, Jury-Ausschlüsse, Quorum, Fristen, Karenz, Freigabeliste, Dauerhaftigkeit abgestimmter Themen, Ähnlichkeitssuche, Einrichtung des Echtbetriebs, Sprachtabellen |
+| Betrieb | Selbsttest (`php index.php selftest`, 119 Prüfungen) deckt die Kernregeln automatisiert ab: Tagesgrenze, Abstimmungsende, Jury-Ausschlüsse, Quorum, Fristen, Karenz, Freigabeliste, Dauerhaftigkeit abgestimmter Themen, Archivierung, Ähnlichkeitssuche, Einrichtung des Echtbetriebs, Sprachtabellen |
 
 ### 8.3 Bedrohungsmodell (Auszug)
 
@@ -715,7 +720,7 @@ Wartung und Prüfung laufen über dieselbe Datei auf der Kommandozeile:
 
 | Aufruf | Zweck |
 |---|---|
-| `php index.php selftest` | 116 automatisierte Prüfungen der Fachregeln |
+| `php index.php selftest` | 119 automatisierte Prüfungen der Fachregeln |
 | `php index.php cron` | Wartungslauf (sonst beiläufig bei Seitenaufrufen) |
 | `php index.php seed 400` | Demo-Stimmen, anonym wie im Echtbetrieb |
 | `php index.php jurysim` | Demo-Jury stimmt in laufenden Prüfungen ab |

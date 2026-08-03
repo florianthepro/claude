@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS topics (
     category_id  INTEGER NOT NULL REFERENCES categories(id),
     scope_level  TEXT    NOT NULL CHECK (scope_level IN ('kommune','landkreis','bundesland','bund')),
     scope_name   TEXT,
-    status       TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','closed','removed')),
+    status       TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','closed','removed','archived')),
     end_mode     TEXT    NOT NULL DEFAULT 'date' CHECK (end_mode IN ('date','count','both')),
     end_date     TEXT,
     end_target   INTEGER,
@@ -1278,7 +1278,8 @@ function topic_create(int $userId, string $title, string $goal, string $reasonin
 function topic_update(int $topicId, int $userId, string $title, string $goal, string $reasoning, int $categoryId, string $scopeLevel, ?string $scopeName, string $endMode, ?string $endDate, ?int $endTarget): void
 {
     $topic = SW::$db->one('SELECT * FROM topics WHERE id = ?', [$topicId]);
-    if ($topic === null || (int) $topic['author_id'] !== $userId || $topic['status'] === 'removed') {
+    if ($topic === null || (int) $topic['author_id'] !== $userId
+        || in_array((string) $topic['status'], ['removed', 'archived'], true)) {
         throw new DomainException('flash.not_author');
     }
     SW::$db->run(
@@ -1290,16 +1291,18 @@ function topic_update(int $topicId, int $userId, string $title, string $goal, st
     );
 }
 
-function topic_delete(int $topicId, int $userId): void
+function topic_archive(int $topicId, int $userId): void
 {
-    $topic = SW::$db->one('SELECT author_id FROM topics WHERE id = ?', [$topicId]);
-    if ($topic === null || (int) $topic['author_id'] !== $userId) {
+    $topic = SW::$db->one('SELECT author_id, status FROM topics WHERE id = ?', [$topicId]);
+    if ($topic === null || (int) $topic['author_id'] !== $userId
+        || in_array((string) $topic['status'], ['removed', 'archived'], true)) {
         throw new DomainException('flash.not_author');
     }
     if (topic_has_votes($topicId)) {
         throw new DomainException('flash.topic_locked');
     }
-    SW::$db->run('DELETE FROM topics WHERE id = ?', [$topicId]);
+    SW::$db->run("UPDATE topics SET status = 'archived' WHERE id = ?", [$topicId]);
+    log_line('INFO', 'topic_archived', ['topic' => $topicId]);
 }
 
 function topic_has_votes(int $topicId): bool
@@ -1331,7 +1334,7 @@ function topics_similar(string $title, ?int $excludeId = null, int $limit = 5): 
         $where[] = 'lower(t.title) LIKE ?';
         $args[] = '%' . $word . '%';
     }
-    $sql = 'SELECT t.id, t.title FROM topics t WHERE t.status != \'removed\' AND (' . implode(' OR ', $where) . ')';
+    $sql = 'SELECT t.id, t.title FROM topics t WHERE t.status IN (\'active\', \'closed\') AND (' . implode(' OR ', $where) . ')';
     if ($excludeId !== null) {
         $sql .= ' AND t.id != ?';
         $args[] = $excludeId;
@@ -2024,8 +2027,10 @@ const SW_DE = [
     'topic.vote_closed' => 'Die Abstimmung ist beendet.',
     'topic.edit' => 'Thema bearbeiten',
     'topic.save' => 'Änderungen speichern',
-    'topic.delete' => 'Thema löschen',
-    'topic.delete_confirm' => 'Dieses Thema und alle zugehörigen Stimmen werden gelöscht.',
+    'topic.archive' => 'Thema archivieren',
+    'topic.archive_confirm' => 'Das Thema verschwindet aus den Listen und ist nicht mehr wählbar. Gelöscht wird es nicht.',
+    'topic.archived_badge' => 'Archiviert',
+    'topic.archived_note' => 'Dieses Thema wurde vom Verfasser archiviert.',
     'home.recent_votes' => 'Kürzlich abgestimmt (noch änderbar)',
     'vote.changeable_until' => 'änderbar bis {date}',
     'vote.locked_note' => 'nach 24 Stunden fest',
@@ -2137,7 +2142,7 @@ const SW_DE = [
     'topic.similar' => 'Ähnliche Themen',
     'topic.similar_hint' => 'Zu diesem Titel gibt es bereits ähnliche Themen. Einbringen ist trotzdem möglich.',
     'flash.topic_updated' => 'Thema aktualisiert.',
-    'flash.topic_deleted' => 'Thema gelöscht.',
+    'flash.topic_archived' => 'Thema archiviert.',
     'flash.vote_locked' => 'Diese Stimme ist nach 24 Stunden nicht mehr änderbar.',
     'flash.report_created' => 'Meldung aufgenommen. Die Jury ist ausgelost; Abstimmung ab 00:00 Uhr.',
     'flash.jury_not_open' => 'Diese Abstimmung ist nicht (mehr) offen.',
@@ -2241,8 +2246,10 @@ const SW_EN = [
     'topic.vote_closed' => 'Voting has ended.',
     'topic.edit' => 'Edit topic',
     'topic.save' => 'Save changes',
-    'topic.delete' => 'Delete topic',
-    'topic.delete_confirm' => 'This topic and all its votes will be deleted.',
+    'topic.archive' => 'Archive topic',
+    'topic.archive_confirm' => 'The topic disappears from the lists and can no longer be voted on. It is not deleted.',
+    'topic.archived_badge' => 'Archived',
+    'topic.archived_note' => 'This topic was archived by its author.',
     'home.recent_votes' => 'Recently voted (still changeable)',
     'vote.changeable_until' => 'changeable until {date}',
     'vote.locked_note' => 'fixed after 24 hours',
@@ -2356,7 +2363,7 @@ const SW_EN = [
     'topic.similar' => 'Similar topics',
     'topic.similar_hint' => 'Similar topics already exist for this title. You can still publish it.',
     'flash.topic_updated' => 'Topic updated.',
-    'flash.topic_deleted' => 'Topic deleted.',
+    'flash.topic_archived' => 'Topic archived.',
     'flash.vote_locked' => 'This vote can no longer be changed after 24 hours.',
     'flash.report_created' => 'Report received. The jury has been drawn; voting starts at midnight.',
     'flash.jury_not_open' => 'This vote is not (or no longer) open.',
@@ -2534,6 +2541,7 @@ a:hover { text-decoration: underline; }
 .votebar-for { background: var(--vote-for); }
 .votebar-against { background: var(--vote-against); }
 .votebar-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 0.92rem; margin-top: 0.5rem; color: var(--ink); }
+.votebar-for.w-0, .votebar-against.w-0 { display: none; }
 .votebar-legend b { font-weight: 600; }
 .votebar-legend .pct { color: var(--muted); margin-left: 0.35rem; }
 .votefig-slim { margin-top: 0.6rem; }
@@ -3280,7 +3288,7 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
 
     $recent = [];
     foreach (topics_voted_by($userId) as $row) {
-        if ($row['status'] !== 'removed' && empty($row['locked'])) {
+        if (!in_array((string) $row['status'], ['removed', 'archived'], true) && empty($row['locked'])) {
             $recent[] = $row;
         }
     }
@@ -3362,6 +3370,9 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
 
 function topic_end_text(array $topic): string
 {
+    if ($topic['status'] === 'archived') {
+        return t('topic.archived_badge');
+    }
     if ($topic['status'] === 'closed') {
         return t('topic.ended');
     }
@@ -3437,13 +3448,15 @@ function v_topic(int $id): void
     $myVote = $voteRow === null ? null : (string) $voteRow['choice'];
     $isAuthor = $userId !== null && (int) $topic['author_id'] === $userId;
     $openReport = report_open_for($id);
+    $archived = $topic['status'] === 'archived';
     $closed = $topic['status'] !== 'active';
     $scopeRef = $topic['scope_level'] === 'bund' ? 'bund' : $topic['scope_level'] . ':' . (string) $topic['scope_name'];
 
     $html = '<article class="topic-detail"><div class="topic-card-meta">'
         . '<span class="badge">' . e(cat_name($topic)) . '</span>'
         . '<span class="badge">' . e(scope_text($topic)) . '</span>'
-        . ($closed ? '<span class="badge badge-danger">' . e(t('topic.ended')) . '</span>' : '')
+        . ($archived ? '<span class="badge badge-danger">' . e(t('topic.archived_badge')) . '</span>'
+            : ($closed ? '<span class="badge badge-danger">' . e(t('topic.ended')) . '</span>' : ''))
         . '</div>'
         . '<h1>' . e((string) $topic['title']) . '</h1>'
         . '<p class="muted">' . e(Clock::displayLocal((string) $topic['created_at'], t('common.date_format')))
@@ -3456,7 +3469,9 @@ function v_topic(int $id): void
     $barFor = (int) $topic['votes_for'];
     $barAgainst = (int) $topic['votes_against'];
     $html .= '<section class="card" data-topic="' . (int) $topic['id'] . '">' . p_votebar($barFor, $barAgainst);
-    if ($user === null) {
+    if ($archived) {
+        $html .= '<p class="muted">' . e(t('topic.archived_note')) . '</p>';
+    } elseif ($user === null) {
         $html .= '<p><a class="btn btn-primary" href="' . e(url('/auth')) . '">' . e(t('vote.login_hint')) . '</a></p>';
     } elseif ($closed) {
         $html .= '<p class="muted">' . e(t('topic.vote_closed')) . '</p>';
@@ -3493,10 +3508,10 @@ function v_topic(int $id): void
         );
     }
     $locked = topic_has_votes((int) $topic['id']);
-    if ($isAuthor) {
+    if ($isAuthor && !$archived) {
         $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topic/' . (int) $topic['id'] . '/edit')) . '">' . e(t('topic.edit')) . '</a>';
         if (!$locked) {
-            $html .= '<a class="link-quiet" href="#modal-del">' . e(t('topic.delete')) . '</a>';
+            $html .= '<a class="link-quiet" href="#modal-del">' . e(t('topic.archive')) . '</a>';
         }
     }
     if ($openReport !== null) {
@@ -3504,7 +3519,7 @@ function v_topic(int $id): void
     } elseif ($user !== null && !$isAuthor && !$closed) {
         $html .= '<a class="link-quiet" href="' . e(url('/report/' . (int) $topic['id'])) . '">' . e(t('topic.report_link')) . '</a>';
     }
-    if ($isAuthor && $locked) {
+    if ($isAuthor && $locked && !$archived) {
         $html .= '<span class="muted">' . e(t('topic.locked_note')) . '</span>';
     }
     $html .= '</section>';
@@ -3518,12 +3533,12 @@ function v_topic(int $id): void
     }
     $html .= '</article>';
 
-    if ($isAuthor && !$locked) {
-        $delInner = '<p class="muted">' . e(t('topic.delete_confirm')) . '</p>'
-            . '<form method="post" action="' . e(url('/topic/' . (int) $topic['id'] . '/delete')) . '">' . csrf_field()
-            . '<div class="btn-row"><button type="submit" class="btn btn-danger">' . e(t('topic.delete')) . '</button>'
+    if ($isAuthor && !$locked && !$archived) {
+        $delInner = '<p class="muted">' . e(t('topic.archive_confirm')) . '</p>'
+            . '<form method="post" action="' . e(url('/topic/' . (int) $topic['id'] . '/archive')) . '">' . csrf_field()
+            . '<div class="btn-row"><button type="submit" class="btn btn-danger">' . e(t('topic.archive')) . '</button>'
             . '<a class="btn btn-ghost" href="#">' . e(t('common.close')) . '</a></div></form>';
-        $html .= modal('modal-del', t('topic.delete'), $delInner);
+        $html .= modal('modal-del', t('topic.archive'), $delInner);
     }
     render((string) $topic['title'], $html);
 }
@@ -3535,7 +3550,8 @@ function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
     if ($topic === null) {
         v_error_404();
     }
-    if ((int) $topic['author_id'] !== (int) $user['id'] || $topic['status'] === 'removed') {
+    if ((int) $topic['author_id'] !== (int) $user['id']
+        || in_array((string) $topic['status'], ['removed', 'archived'], true)) {
         flash('error', 'flash.not_author');
         redirect('/topic/' . $id);
     }
@@ -4439,18 +4455,18 @@ function h_topic_edit(int $topicId): void
     redirect('/topic/' . $topicId);
 }
 
-function h_topic_delete(int $topicId): void
+function h_topic_archive(int $topicId): void
 {
     $user = require_user();
     require_card($user);
     try {
-        topic_delete($topicId, (int) $user['id']);
+        topic_archive($topicId, (int) $user['id']);
     } catch (DomainException $e) {
         flash('error', $e->getMessage());
         redirect('/topic/' . $topicId);
     }
-    flash('success', 'flash.topic_deleted');
-    redirect('/');
+    flash('success', 'flash.topic_archived');
+    redirect('/topic/' . $topicId);
 }
 
 function h_favorite(): void
@@ -4702,8 +4718,8 @@ function web_main(): void
         if (preg_match('#^/topic/(\d{1,10})/edit$#', $path, $m) === 1 && $method === 'POST') {
             h_topic_edit((int) $m[1]);
         }
-        if (preg_match('#^/topic/(\d{1,10})/delete$#', $path, $m) === 1 && $method === 'POST') {
-            h_topic_delete((int) $m[1]);
+        if (preg_match('#^/topic/(\d{1,10})/archive$#', $path, $m) === 1 && $method === 'POST') {
+            h_topic_archive((int) $m[1]);
         }
         if ($path === '/vote' && $method === 'POST') {
             h_vote();
@@ -4925,18 +4941,35 @@ function cli_selftest(): int
     }
     vote_cast($c1, $ownTopic, 'for');
     try {
-        topic_delete($ownTopic, $au2);
+        topic_archive($ownTopic, $au2);
         $check('Abgestimmtes Thema bleibt dauerhaft bestehen', false);
     } catch (DomainException $e) {
         $check('Abgestimmtes Thema bleibt dauerhaft bestehen', $e->getMessage() === 'flash.topic_locked');
     }
-    $check('Abgestimmtes Thema weiterhin vorhanden',
-        SW::$db->val('SELECT COUNT(*) FROM topics WHERE id = ?', [$ownTopic]) == 1);
+    $check('Abgestimmtes Thema weiterhin aktiv',
+        SW::$db->val('SELECT status FROM topics WHERE id = ?', [$ownTopic]) === 'active');
     $warp('+1 day');
-    $freshTopic = cli_make_topic($au2, 'Thema ohne Stimmen zum Löschen');
-    topic_delete($freshTopic, $au2);
-    $check('Thema ohne Stimmen bleibt löschbar',
-        SW::$db->val('SELECT COUNT(*) FROM topics WHERE id = ?', [$freshTopic]) == 0);
+    $freshTopic = cli_make_topic($au2, 'Thema ohne Stimmen zum Archivieren');
+    topic_archive($freshTopic, $au2);
+    $check('Thema ohne Stimmen wird archiviert, nicht gelöscht',
+        SW::$db->val('SELECT status FROM topics WHERE id = ?', [$freshTopic]) === 'archived'
+        && SW::$db->val('SELECT COUNT(*) FROM topics WHERE id = ?', [$freshTopic]) == 1);
+    $check('Archiviertes Thema erscheint nicht in der Liste',
+        !in_array($freshTopic, array_map(static function (array $r): int {
+            return (int) $r['id'];
+        }, topics_list([], 1, 50, null)['rows']), true));
+    try {
+        vote_cast($c1, $freshTopic, 'for');
+        $check('Archiviertes Thema ist nicht wählbar', false);
+    } catch (DomainException $e) {
+        $check('Archiviertes Thema ist nicht wählbar', $e->getMessage() === 'flash.topic_not_votable');
+    }
+    try {
+        topic_update($freshTopic, $au2, 'Neuer Titel im Archiv', 'Ziel im Archiv hier.', 'Begründung im Archiv hier.', $catId, 'bund', null, 'date', substr(Clock::addDaysStr(Clock::nowStr(), 10), 0, 10), null);
+        $check('Archiviertes Thema ist nicht mehr bearbeitbar', false);
+    } catch (DomainException $e) {
+        $check('Archiviertes Thema ist nicht mehr bearbeitbar', $e->getMessage() === 'flash.not_author');
+    }
     $warp('-1 day');
     $similar = topics_similar('Neuer Titel nach Bearbeitung', null, 5);
     $check('Ähnliches Thema wird gefunden', $similar !== [] && (int) $similar[0]['id'] === $ownTopic);
