@@ -74,7 +74,9 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
    bleibt destruktiven Aktionen (Löschen) vorbehalten, Gelb allein dem
    Testbetrieb-Banner.
 2. **Keine KI-Hinweistexte** auf der Seite. Die Seite spricht als Produkt, nüchtern
-   und in Sie-Form.
+   und in Sie-Form. Es steht nur Text da, der eine Entscheidung trägt:
+   Erklärsätze unter selbsterklärenden Überschriften, Wiederholungen von Zahlen
+   und Beschriftungen wie „Eingebracht am“ entfallen.
 3. **Hell/Dunkel automatisch:** Das Design folgt ausschließlich der
    Systemeinstellung (`prefers-color-scheme`) — es wird bewusst nichts im
    Browser gespeichert, auch keine Design-Präferenz.
@@ -334,7 +336,8 @@ Behördenregister.
   Geheimnis lässt sich nicht rückschließen, welcher Ausweis wie gestimmt hat.
 - **Abstimmungsende je Thema — Datum, Zielwert oder beides:** Beim Einbringen
   sind zwei Bedingungen ankreuzbar: ein **Enddatum** und ein **Zielwert**
-  (absolute Stimmenzahl oder Prozentanteil der registrierten Ausweise).
+  (Einheit „X Stimmen“ für eine feste Zahl oder „% Stimmen“ für einen Anteil
+  der registrierten Ausweise).
   Gesetzt werden darf eine von beiden **oder beide zugleich** — dann endet die
   Abstimmung, **was zuerst eintritt**. Prozentangaben werden beim Anlegen in
   eine absolute Zahl umgerechnet (mindestens 10 Stimmen), damit das Ziel im
@@ -363,8 +366,11 @@ Verbraucherschutz · Kommunales & Ehrenamt · Demokratie & Beteiligung
 
 ### 6.4 Favoriten und Gesamtansicht („Meine Übersicht“)
 
-- Kategorien und Gebiete lassen sich **favorisieren**; Favoriten filtern die
-  Themenlisten und stehen — am Pseudonym gespeichert — auf jedem Gerät bereit.
+- Kategorien und Gebiete lassen sich **merken**: Am Thema steht dafür ein
+  **Lesezeichen-Symbol**, das ein kleines Auswahlfeld mit den beiden konkreten
+  Namen öffnet (Kategorie und Gebiet); Gemerktes ist im Feld hervorgehoben und
+  wird durch erneutes Antippen wieder entfernt. Gemerkte Einträge filtern die
+  Themenlisten und stehen — am Schlüssel gespeichert — auf jedem Gerät bereit.
 - Nach dem Anhalten des Ausweises zeigt **„Meine Übersicht“**:
   - alle Themen, für die man gestimmt hat (mit eigener Stimme und aktuellem Stand),
   - alle selbst eingebrachten Themen (mit Status),

@@ -1715,13 +1715,9 @@ const SW_DE = [
 
     'topic.goal_label' => 'Ziel',
     'topic.reasoning_label' => 'Begründung',
-    'topic.created' => 'Eingebracht am {date}',
     'topic.report_link' => 'Inhalt melden',
     'topic.report_open' => 'Gemeinschaftsprüfung läuft.',
-    'topic.fav_add' => 'Kategorie favorisieren',
-    'topic.fav_remove' => 'Kategorie-Favorit entfernen',
-    'topic.fav_scope_add' => 'Gebiet favorisieren',
-    'topic.fav_scope_remove' => 'Gebiets-Favorit entfernen',
+    'topic.save' => 'Merken',
     'topic.removed_title' => 'Inhalt entfernt',
     'topic.removed_text' => 'Dieser Beitrag wurde nach Prüfung durch eine ausgeloste Bürger-Jury entfernt.',
     'topic.your_vote' => 'Ihre Stimme: {choice}',
@@ -1729,7 +1725,6 @@ const SW_DE = [
     'vote.for' => 'Dafür',
     'vote.against' => 'Dagegen',
     'vote.withdraw' => 'Stimme zurückziehen',
-    'vote.total' => '{n} Stimmen abgegeben',
     'vote.none_yet' => 'Noch keine Stimmen.',
     'vote.login_hint' => 'Zum Abstimmen Ausweis auflegen',
     'vote.bar_aria' => 'Abstimmungsergebnis',
@@ -1747,9 +1742,8 @@ const SW_DE = [
     'topic.end_by_target' => 'bei erreichter Stimmenzahl',
     'topic.end_value_ph' => 'Anzahl',
     'topic.end_unit' => 'Einheit',
-    'topic.end_unit_count' => 'Stimmen',
-    'topic.end_unit_percent' => '% der Ausweise',
-    'topic.end_hint' => 'Beides möglich – es endet, was zuerst eintritt.',
+    'topic.end_unit_count' => 'X Stimmen',
+    'topic.end_unit_percent' => '% Stimmen',
     'topic.err_end' => 'Bitte ein gültiges Ende angeben (Datum in der Zukunft oder Zielzahl).',
     'topic.ends_on' => 'Läuft bis {date}',
     'topic.ends_count' => '{have} von {target} Stimmen',
@@ -1776,7 +1770,6 @@ const SW_DE = [
     'topic.err_category' => 'Bitte eine Kategorie wählen.',
     'topic.err_scope' => 'Bitte einen Geltungsbereich wählen.',
 
-    'auth.line' => 'Anmeldung mit dem Personalausweis über eine Ausweis-App.',
     'auth.with' => 'Mit {app} anmelden',
     'testmode.chip' => 'Testmodus',
     'testmode.end' => 'Testmodus beenden',
@@ -1906,13 +1899,9 @@ const SW_EN = [
 
     'topic.goal_label' => 'Goal',
     'topic.reasoning_label' => 'Reasoning',
-    'topic.created' => 'Raised on {date}',
     'topic.report_link' => 'Report content',
     'topic.report_open' => 'Community review in progress.',
-    'topic.fav_add' => 'Add category to favourites',
-    'topic.fav_remove' => 'Remove category favourite',
-    'topic.fav_scope_add' => 'Add area to favourites',
-    'topic.fav_scope_remove' => 'Remove area favourite',
+    'topic.save' => 'Save',
     'topic.removed_title' => 'Content removed',
     'topic.removed_text' => 'This contribution was removed after review by a randomly drawn citizen jury.',
     'topic.your_vote' => 'Your vote: {choice}',
@@ -1920,7 +1909,6 @@ const SW_EN = [
     'vote.for' => 'For',
     'vote.against' => 'Against',
     'vote.withdraw' => 'Withdraw vote',
-    'vote.total' => '{n} votes cast',
     'vote.none_yet' => 'No votes yet.',
     'vote.login_hint' => 'Place your ID card to vote',
     'vote.bar_aria' => 'Voting result',
@@ -1936,9 +1924,8 @@ const SW_EN = [
     'topic.end_by_target' => 'at a number of votes',
     'topic.end_value_ph' => 'Amount',
     'topic.end_unit' => 'Unit',
-    'topic.end_unit_count' => 'votes',
-    'topic.end_unit_percent' => '% of ID cards',
-    'topic.end_hint' => 'Both possible – whichever comes first ends it.',
+    'topic.end_unit_count' => 'X votes',
+    'topic.end_unit_percent' => '% votes',
     'topic.err_end' => 'Please set a valid end (future date or target count).',
     'topic.ends_on' => 'Runs until {date}',
     'topic.ends_count' => '{have} of {target} votes',
@@ -1967,7 +1954,6 @@ const SW_EN = [
     'topic.err_category' => 'Please choose a category.',
     'topic.err_scope' => 'Please choose a jurisdiction.',
 
-    'auth.line' => 'Sign in with your ID card via an ID app.',
     'auth.with' => 'Sign in with {app}',
     'testmode.chip' => 'Test mode',
     'testmode.end' => 'End test mode',
@@ -2180,6 +2166,8 @@ a:hover { text-decoration: underline; }
 .action-bar .btn { flex: 1 1 auto; }
 .fav-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.9rem; }
 .fav-chips .btn { background: var(--field); color: var(--ink); font-weight: 500; }
+.fav-chip { display: inline-flex; align-items: center; gap: 0.4rem; }
+.fav-chip .ico { width: 0.95rem; height: 0.95rem; color: var(--accent); }
 .recent-votes { margin-bottom: 1.1rem; }
 .recent-votes h2 { margin-top: 0.6rem; }
 
@@ -2217,6 +2205,27 @@ a:hover { text-decoration: underline; }
 .topic-tools .link-quiet { color: var(--danger); }
 .topic-tools .link-quiet:hover, .topic-tools .btn:hover { text-decoration: none; opacity: 0.85; }
 .link-quiet { color: var(--muted); font-size: 0.92rem; }
+.ico { width: 1.15rem; height: 1.15rem; display: block; }
+.fav-menu { position: relative; }
+.fav-menu > summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  width: 2.15rem; height: 2.15rem; border-radius: 999px; background: var(--field); color: var(--accent);
+}
+.fav-menu > summary::-webkit-details-marker { display: none; }
+.fav-menu > summary::marker { content: ''; }
+.fav-menu[open] > summary { background: var(--accent-soft); }
+.fav-pop {
+  position: absolute; z-index: 60; bottom: calc(100% + 0.4rem); left: 0; min-width: 12rem;
+  background: var(--surface); border-radius: var(--radius-sm); padding: 0.3rem;
+  box-shadow: 0 10px 34px rgba(0,0,0,0.20); display: flex; flex-direction: column;
+}
+.fav-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; width: 100%;
+  background: none; border: 0; font: inherit; font-size: 1rem; color: var(--ink); cursor: pointer;
+  padding: 0.55rem 0.7rem; border-radius: 8px; text-align: left;
+}
+.fav-item:hover { background: var(--field); }
+.fav-item.is-on { color: var(--accent); font-weight: 600; }
 
 .form-stack { display: flex; flex-direction: column; gap: 0.85rem; }
 .form-stack > label { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 600; font-size: 0.92rem; }
@@ -2731,7 +2740,6 @@ function topic_end_fields(array $old): string
         . '<option value="count"' . ($unit === 'count' ? ' selected' : '') . '>' . e(t('topic.end_unit_count')) . '</option>'
         . '<option value="percent"' . ($unit === 'percent' ? ' selected' : '') . '>' . e(t('topic.end_unit_percent')) . '</option>'
         . '</select></div>'
-        . '<small class="muted">' . e(t('topic.end_hint')) . '</small>'
         . '</fieldset>';
 }
 
@@ -2827,7 +2835,7 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
             $label = $parts[0] === 'bund' || !isset($parts[1]) ? t('scope.bund') : $parts[1];
             $href = url('/') . '?gebiet=' . rawurlencode($gebiet);
         }
-        $chips .= '<a class="btn btn-ghost btn-sm" href="' . e($href) . '">&#9733; ' . e($label) . '</a>';
+        $chips .= '<a class="btn btn-ghost btn-sm fav-chip" href="' . e($href) . '">' . icon_bookmark(true) . e($label) . '</a>';
     }
     if ($chips !== '') {
         $html .= '<div class="fav-chips">' . $chips . '</div>';
@@ -2937,6 +2945,37 @@ function topic_end_text(array $topic): string
     return '';
 }
 
+function fav_menu(int $userId, int $topicId, string $catRef, string $catLabel, string $scopeRef, string $scopeLabel): string
+{
+    $back = '/topic/' . $topicId;
+    $items = [
+        ['category', $catRef, $catLabel, fav_is($userId, 'category', $catRef)],
+        ['scope', $scopeRef, $scopeLabel, fav_is($userId, 'scope', $scopeRef)],
+    ];
+    $any = $items[0][3] || $items[1][3];
+    $html = '<details class="fav-menu"><summary class="fav-toggle' . ($any ? ' is-on' : '')
+        . '" title="' . e(t('topic.save')) . '" aria-label="' . e(t('topic.save')) . '" role="button">'
+        . icon_bookmark($any) . '</summary><div class="fav-pop">';
+    foreach ($items as [$kind, $ref, $label, $on]) {
+        $html .= '<form method="post" action="' . e(url('/favorite')) . '">' . csrf_field()
+            . '<input type="hidden" name="kind" value="' . e($kind) . '">'
+            . '<input type="hidden" name="ref" value="' . e($ref) . '">'
+            . '<input type="hidden" name="return" value="' . e($back) . '">'
+            . '<button type="submit" class="fav-item' . ($on ? ' is-on' : '') . '">'
+            . '<span>' . e($label) . '</span>' . ($on ? icon_bookmark(true) : '')
+            . '</button></form>';
+    }
+    return $html . '</div></details>';
+}
+
+function icon_bookmark(bool $filled): string
+{
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . '<path d="M6.5 3h11a1 1 0 0 1 1 1v17l-6.5-4.4L5.5 21V4a1 1 0 0 1 1-1z"'
+        . ' fill="' . ($filled ? 'currentColor' : 'none') . '" stroke="currentColor"'
+        . ' stroke-width="1.9" stroke-linejoin="round"/></svg>';
+}
+
 function v_topic(int $id): void
 {
     $topic = topic_find($id);
@@ -2966,7 +3005,7 @@ function v_topic(int $id): void
         . ($closed ? '<span class="badge badge-danger">' . e(t('topic.ended')) . '</span>' : '')
         . '</div>'
         . '<h1>' . e((string) $topic['title']) . '</h1>'
-        . '<p class="muted">' . e(t('topic.created', ['date' => Clock::displayLocal((string) $topic['created_at'], t('common.date_format'))]))
+        . '<p class="muted">' . e(Clock::displayLocal((string) $topic['created_at'], t('common.date_format')))
         . ' · ' . e(topic_end_text($topic)) . '</p>'
         . '<section class="card"><h2 class="field-label">' . e(t('topic.goal_label')) . '</h2>'
         . '<p>' . nl2br(e((string) $topic['goal'])) . '</p>'
@@ -2976,9 +3015,6 @@ function v_topic(int $id): void
     $barFor = (int) $topic['votes_for'];
     $barAgainst = (int) $topic['votes_against'];
     $html .= '<section class="card">' . p_votebar($barFor, $barAgainst);
-    if (($barFor + $barAgainst) > 0) {
-        $html .= '<p class="muted">' . e(t('vote.total', ['n' => num($barFor + $barAgainst)])) . '</p>';
-    }
     if ($user === null) {
         $html .= '<p><a class="btn btn-primary" href="' . e(url('/auth')) . '">' . e(t('vote.login_hint')) . '</a></p>';
     } elseif ($closed) {
@@ -3006,18 +3042,14 @@ function v_topic(int $id): void
     }
     $html .= '</section><section class="topic-tools">';
     if ($user !== null) {
-        $isCatFav = fav_is((int) $user['id'], 'category', (string) $topic['category_slug']);
-        $isScopeFav = fav_is((int) $user['id'], 'scope', $scopeRef);
-        $html .= '<form method="post" action="' . e(url('/favorite')) . '">' . csrf_field()
-            . '<input type="hidden" name="kind" value="category">'
-            . '<input type="hidden" name="ref" value="' . e((string) $topic['category_slug']) . '">'
-            . '<input type="hidden" name="return" value="/topic/' . (int) $topic['id'] . '">'
-            . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t($isCatFav ? 'topic.fav_remove' : 'topic.fav_add')) . '</button></form>'
-            . '<form method="post" action="' . e(url('/favorite')) . '">' . csrf_field()
-            . '<input type="hidden" name="kind" value="scope">'
-            . '<input type="hidden" name="ref" value="' . e($scopeRef) . '">'
-            . '<input type="hidden" name="return" value="/topic/' . (int) $topic['id'] . '">'
-            . '<button type="submit" class="btn btn-ghost btn-sm">' . e(t($isScopeFav ? 'topic.fav_scope_remove' : 'topic.fav_scope_add')) . '</button></form>';
+        $html .= fav_menu(
+            (int) $user['id'],
+            (int) $topic['id'],
+            (string) $topic['category_slug'],
+            cat_name($topic),
+            $scopeRef,
+            scope_text($topic)
+        );
     }
     if ($isAuthor) {
         $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topic/' . (int) $topic['id'] . '/edit')) . '">' . e(t('topic.edit')) . '</a>'
@@ -3101,8 +3133,7 @@ function v_auth(): void
     $ready = $mode !== 'eid' && $card !== null && authorized_contains(card_identity($card));
 
     $html = '<section class="card auth-card">' . $pictogram
-        . '<h1>' . e(t('auth.title')) . '</h1>'
-        . '<p class="muted">' . e(t('auth.line')) . '</p>';
+        . '<h1>' . e(t('auth.title')) . '</h1>';
 
     if (test_mode()) {
 
