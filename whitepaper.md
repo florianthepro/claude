@@ -29,7 +29,7 @@ mit deutschem Personalausweis kann:
 - **abstimmen** — dafür oder dagegen; wer sich enthält, stimmt schlicht nicht ab,
 - **rechtswidrige Inhalte melden** — geprüft nicht von einer Redaktion, sondern von
   einer zufällig ausgelosten **Bürger-Jury** (1 % aller aktiven Ausweis-Pseudonyme),
-- **seine Gesamtansicht abrufen** — durch Anhalten des Ausweises (NFC) erscheinen alle
+- **seine Gesamtansicht abrufen** — durch Auflegen des Ausweises (NFC) erscheinen alle
   eigenen Themen, Stimmen und Favoriten.
 
 Die Identität wird ausschließlich über die **eID-Funktion des Personalausweises**
@@ -76,9 +76,9 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
 3. **Hell/Dunkel automatisch:** Das Design folgt ausschließlich der
    Systemeinstellung (`prefers-color-scheme`) — es wird bewusst nichts im
    Browser gespeichert, auch keine Design-Präferenz.
-4. **Symbolhafter Einstieg:** Beim ersten Aufruf nur die Sprachwahl über
-   zwei Flaggen (Deutsch/English); die Anmeldung führt ein Ausweis-Piktogramm
-   mit NFC-Wellen an, Text bleibt minimal.
+4. **Symbolhafter Einstieg:** Beim Sitzungsbeginn nur Marken-Icon und
+   Sprachwahl (Deutsch/English als Textknöpfe, keine Flaggen); die Anmeldung
+   führt ein Ausweis-Piktogramm mit NFC-Wellen an, Text bleibt minimal.
 5. **Responsiv:** eine Codebasis für Smartphone, Tablet, PC und Terminals; alle
    Funktionen sind ohne JavaScript nutzbar (JavaScript verbessert nur Details:
    Countdown und NFC-Auslösung am Smartphone).
@@ -127,10 +127,10 @@ Bewusste Abgrenzung:
   keine Passwörter existieren, kann bedenkenlos das Gerät einer anderen Person
   genutzt werden.
 
-Sprachen: **Deutsch und Englisch**. Die Wahl erfolgt symbolhaft über zwei
-Flaggen beim Sitzungsbeginn, gilt für die Sitzung und wird **nirgends
-gespeichert** — weder im Browser noch am Konto. Ohne angehaltenen Ausweis
-ist die Seite nicht sichtbar (nur Anmeldung und Rechtliches sind offen).
+Sprachen: **Deutsch und Englisch**. Die Wahl erfolgt beim Sitzungsbeginn,
+gilt für die Sitzung und wird **nirgends gespeichert** — weder im Browser noch
+am Konto. Ohne aufgelegten Ausweis ist die Seite nicht sichtbar (nur Anmeldung
+und Rechtliches sind offen).
 
 ---
 
