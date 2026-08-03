@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Nyx</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app" id="app" data-view="liste">
+
+  <aside class="sidebar">
+    <div class="me">
+      <div class="me-label">Eigene Adresse</div>
+      <div class="me-address" id="meine-adresse" title="Zum Kopieren anklicken">—</div>
+    </div>
+
+    <div class="contacts" id="kontakte"></div>
+
+    <div class="sidebar-actions">
+      <button id="btn-neuer-kontakt">Kontakt hinzufügen</button>
+      <button class="quiet" id="btn-einstellungen">Einstellungen</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <button class="quiet" id="btn-zurueck" hidden>Zurück</button>
+      <h1 id="titel">Nyx</h1>
+      <button class="quiet" id="btn-anrufen" hidden>Anrufen</button>
+      <button class="quiet" id="btn-pruefen" hidden>Prüfen</button>
+    </div>
+
+    <div class="status" id="status" hidden></div>
+
+    <div class="call-bar" id="anrufleiste" hidden>
+      <span id="anruf-text" class="grow"></span>
+      <button id="btn-annehmen" class="primary">Annehmen</button>
+      <button id="btn-auflegen">Auflegen</button>
+    </div>
+
+    <div class="empty" id="leer">
+      <strong>Keine Unterhaltung ausgewählt</strong>
+      <p>Adresse eines Kontakts eingeben, um zu beginnen.</p>
+    </div>
+
+    <div class="messages" id="verlauf" hidden></div>
+
+    <form class="composer" id="composer" hidden>
+      <textarea id="eingabe" rows="1" placeholder="Nachricht" autocomplete="off"></textarea>
+      <input type="file" id="datei" hidden>
+      <button type="button" class="quiet" id="btn-datei" title="Datei senden">Datei</button>
+      <button type="submit" class="primary">Senden</button>
+    </form>
+  </main>
+</div>
+
+<!-- Erste Einrichtung -->
+<dialog id="dlg-start">
+  <form method="dialog" class="dialog-body">
+    <h2>Nyx einrichten</h2>
+    <p>Die Identität entsteht auf diesem Gerät. Es gibt keine Registrierung,
+       keine Telefonnummer und keinen Anbieter, bei dem sie hinterlegt wird.</p>
+
+    <div class="field">
+      <label for="start-knoten">Knoten</label>
+      <input type="url" id="start-knoten" value="http://127.0.0.1:8478" required>
+    </div>
+
+    <div class="dialog-actions">
+      <button value="import">Identität einlesen</button>
+      <button value="neu" class="primary">Neue Identität</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Kontakt hinzufügen -->
+<dialog id="dlg-kontakt">
+  <form method="dialog" class="dialog-body">
+    <h2>Kontakt hinzufügen</h2>
+    <p>Die Adresse ist der öffentliche Schlüssel. Wer sie hat, kann schreiben —
+       mehr ist nicht nötig.</p>
+    <div class="field">
+      <label for="kontakt-adresse">Adresse</label>
+      <input type="text" id="kontakt-adresse" spellcheck="false" autocapitalize="off"
+             placeholder="36 Zeichen" required>
+    </div>
+    <div class="dialog-actions">
+      <button value="abbruch">Abbrechen</button>
+      <button value="ok" class="primary">Hinzufügen</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Einstellungen -->
+<dialog id="dlg-einstellungen">
+  <form method="dialog" class="dialog-body">
+    <h2>Einstellungen</h2>
+
+    <div class="field">
+      <label for="einst-knoten">Knoten</label>
+      <input type="url" id="einst-knoten">
+    </div>
+
+    <div class="field">
+      <label>Eigene Identität</label>
+      <div class="mono" id="einst-adresse"></div>
+    </div>
+
+    <div class="field">
+      <label>Sicherung</label>
+      <p style="margin:0">Ohne Sicherung ist die Identität verloren, wenn dieses
+         Gerät verloren geht. Es gibt keine Wiederherstellung durch Dritte.</p>
+    </div>
+
+    <div class="dialog-actions">
+      <button value="export">Identität sichern</button>
+      <button value="loeschen">Alles löschen</button>
+      <button value="ok" class="primary">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Schlüssel prüfen -->
+<dialog id="dlg-pruefen">
+  <form method="dialog" class="dialog-body">
+    <h2>Schlüssel prüfen</h2>
+    <p>Beide Seiten sehen dieselbe Zahlenfolge. Stimmt sie überein, spricht
+       niemand dazwischen. Der Abgleich ist der einzige Test, der ohne
+       Annahme über das Netz auskommt.</p>
+    <div class="field">
+      <div class="mono safety" id="pruef-zahl"></div>
+    </div>
+    <div class="field" id="pruef-verlauf-feld">
+      <label>Schlüsselwechsel im Verzeichnis</label>
+      <div class="mono" id="pruef-verlauf"></div>
+    </div>
+    <div class="dialog-actions">
+      <button value="ok" class="primary">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="import-datei" accept="application/json" hidden>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
