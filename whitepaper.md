@@ -386,8 +386,8 @@ Behördenregister.
   wählbar, nicht mehr bearbeitbar und nicht mehr meldbar, bleibt aber unter
   seiner Adresse erhalten und trägt dort die Kennzeichnung „Archiviert“.
 - **Abgestimmte Themen bleiben unverändert bestehen.** Sobald die erste Stimme
-  abgegeben ist, entfällt auch das Archivieren; die Seite sagt das
-  ausdrücklich. Damit bleibt jedes Thema, über das abgestimmt wurde, dauerhaft
+  abgegeben ist, entfällt auch das Archivieren — der Knopf ist dann schlicht
+  nicht mehr da. Damit bleibt jedes Thema, über das abgestimmt wurde, dauerhaft
   nachvollziehbar. (Davon unberührt ist die Entfernung durch eine Bürger-Jury
   nach festgestelltem Gesetzesverstoß, Kapitel 7.)
 - **Gleiche Titel sind erlaubt, aber sichtbar.** Beim Einbringen zeigt das
@@ -401,8 +401,15 @@ Behördenregister.
   den Tab). Ohne JavaScript bleibt der beim Aufruf gerenderte Stand stehen —
   die Seite funktioniert weiterhin vollständig.
 - Die Darstellung ist überall dieselbe und bewusst knapp: ein Balken, darunter
-  „Dafür n · x %“ und „Dagegen n · y %“ — in der Liste als Haarlinie, auf der
+  „Dafür n / x %“ und „Dagegen n / y %“ — in der Liste als Haarlinie, auf der
   Themenseite kräftiger.
+- **Der eigene Stand steht in den Knöpfen, nicht in einem Satz.** Es gibt
+  keinen erklärenden Text zur eigenen Stimme; ihr Zustand ist an den beiden
+  Knöpfen ablesbar: beide grau, solange nicht gewählt wurde; die gewählte Seite
+  blau, solange sie sich noch ändern lässt; nach Ablauf der 24 Stunden und bei
+  beendeter Abstimmung die gewählte Seite blass-blau, die andere abgedunkelt,
+  beide nicht mehr bedienbar. Serverseitig wird eine dann noch abgesetzte
+  Stimme unabhängig davon abgewiesen.
 
 ### 6.3 Kategorien — Neutralität durch Breite, keine vorbefüllten Themen
 

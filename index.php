@@ -1985,13 +1985,12 @@ const SW_DE = [
     'scope.bund' => 'Deutschland',
     'scope.bundesland' => 'Bundesland',
     'scope.landkreis' => 'Landkreis',
-    'scope.kommune' => 'Kommune',
 
     'topic.goal_label' => 'Ziel',
     'topic.reasoning_label' => 'Begründung',
     'topic.report_link' => 'Inhalt melden',
     'topic.report_open' => 'Gemeinschaftsprüfung läuft.',
-    'topic.save' => 'Merken',
+    'topic.remember' => 'Merken',
     'topic.this' => 'Dieses Thema',
     'topic.removed_title' => 'Inhalt entfernt',
     'topic.removed_text' => 'Dieser Beitrag wurde nach Prüfung durch eine ausgeloste Bürger-Jury entfernt.',
@@ -2000,7 +1999,6 @@ const SW_DE = [
     'vote.for' => 'Dafür',
     'vote.against' => 'Dagegen',
     'vote.withdraw' => 'Stimme zurückziehen',
-    'vote.none_yet' => 'Noch keine Stimmen.',
     'vote.login_hint' => 'Zum Abstimmen Ausweis auflegen',
     'vote.bar_aria' => 'Abstimmungsergebnis',
 
@@ -2010,8 +2008,6 @@ const SW_DE = [
     'common.close' => 'Schließen',
     'topics.clear' => 'Filter zurücksetzen',
     'scope.whole' => 'gesamt',
-    'scope.pick_land' => 'Bundesland wählen …',
-    'scope.pick_kreis' => 'Landkreis/Stadt wählen …',
     'topic.f_end' => 'Ende der Abstimmung',
     'topic.end_by_date' => 'an einem Datum',
     'topic.end_by_target' => 'bei erreichter Stimmenzahl',
@@ -2024,7 +2020,6 @@ const SW_DE = [
     'topic.ends_count' => '{have} von {target} Stimmen',
     'topic.ends_both' => 'Läuft bis {date} oder {have} von {target} Stimmen',
     'topic.ended' => 'beendet',
-    'topic.vote_closed' => 'Die Abstimmung ist beendet.',
     'topic.edit' => 'Thema bearbeiten',
     'topic.save' => 'Änderungen speichern',
     'topic.archive' => 'Thema archivieren',
@@ -2033,7 +2028,6 @@ const SW_DE = [
     'topic.archived_note' => 'Dieses Thema wurde vom Verfasser archiviert.',
     'home.recent_votes' => 'Kürzlich abgestimmt (noch änderbar)',
     'vote.changeable_until' => 'änderbar bis {date}',
-    'vote.locked_note' => 'nach 24 Stunden fest',
     'topic.f_title' => 'Titel',
     'topic.f_goal' => 'Ziel',
     'topic.f_reasoning' => 'Begründung',
@@ -2089,7 +2083,6 @@ const SW_DE = [
     'auth.tap' => 'Ausweis auflegen',
     'auth.test_login' => 'Test-Anmeldung starten',
     'auth.hold' => 'Ausweis an das Gerät halten …',
-    'auth.other_card' => 'Anderen Ausweis verwenden',
 
     'me.jury_upcoming' => 'Ausgelost; Abstimmung ab {date}, 00:00 Uhr.',
 
@@ -2138,7 +2131,6 @@ const SW_DE = [
     'flash.report_no_law' => 'Bitte das verletzte Gesetz auswählen.',
     'flash.not_author' => 'Nur der Verfasser kann dieses Thema ändern.',
     'flash.topic_locked' => 'Sobald abgestimmt wurde, bleibt das Thema dauerhaft bestehen.',
-    'topic.locked_note' => 'Es wurde abgestimmt – dieses Thema bleibt dauerhaft bestehen.',
     'topic.similar' => 'Ähnliche Themen',
     'topic.similar_hint' => 'Zu diesem Titel gibt es bereits ähnliche Themen. Einbringen ist trotzdem möglich.',
     'flash.topic_updated' => 'Thema aktualisiert.',
@@ -2206,13 +2198,12 @@ const SW_EN = [
     'scope.bund' => 'Germany',
     'scope.bundesland' => 'Federal state',
     'scope.landkreis' => 'District',
-    'scope.kommune' => 'Municipality',
 
     'topic.goal_label' => 'Goal',
     'topic.reasoning_label' => 'Reasoning',
     'topic.report_link' => 'Report content',
     'topic.report_open' => 'Community review in progress.',
-    'topic.save' => 'Save',
+    'topic.remember' => 'Save',
     'topic.this' => 'This topic',
     'topic.removed_title' => 'Content removed',
     'topic.removed_text' => 'This contribution was removed after review by a randomly drawn citizen jury.',
@@ -2221,7 +2212,6 @@ const SW_EN = [
     'vote.for' => 'For',
     'vote.against' => 'Against',
     'vote.withdraw' => 'Withdraw vote',
-    'vote.none_yet' => 'No votes yet.',
     'vote.login_hint' => 'Place your ID card to vote',
     'vote.bar_aria' => 'Voting result',
 
@@ -2229,8 +2219,6 @@ const SW_EN = [
     'common.close' => 'Close',
     'topics.clear' => 'Reset filters',
     'scope.whole' => 'whole',
-    'scope.pick_land' => 'Choose federal state …',
-    'scope.pick_kreis' => 'Choose district/city …',
     'topic.f_end' => 'End of voting',
     'topic.end_by_date' => 'on a date',
     'topic.end_by_target' => 'at a number of votes',
@@ -2243,7 +2231,6 @@ const SW_EN = [
     'topic.ends_count' => '{have} of {target} votes',
     'topic.ends_both' => 'Runs until {date} or {have} of {target} votes',
     'topic.ended' => 'ended',
-    'topic.vote_closed' => 'Voting has ended.',
     'topic.edit' => 'Edit topic',
     'topic.save' => 'Save changes',
     'topic.archive' => 'Archive topic',
@@ -2252,7 +2239,6 @@ const SW_EN = [
     'topic.archived_note' => 'This topic was archived by its author.',
     'home.recent_votes' => 'Recently voted (still changeable)',
     'vote.changeable_until' => 'changeable until {date}',
-    'vote.locked_note' => 'fixed after 24 hours',
     'topic.posted_today' => 'You already raised a topic today. The next one is possible from midnight.',
     'topic.next_in' => 'Next topic in',
     'topic.f_title' => 'Title',
@@ -2310,7 +2296,6 @@ const SW_EN = [
     'auth.tap' => 'Place your ID card',
     'auth.test_login' => 'Start test sign-in',
     'auth.hold' => 'Hold your ID card to the device …',
-    'auth.other_card' => 'Use a different ID card',
 
     'me.jury_upcoming' => 'Drawn; voting starts {date}, midnight.',
 
@@ -2359,7 +2344,6 @@ const SW_EN = [
     'flash.report_no_law' => 'Please select the violated law.',
     'flash.not_author' => 'Only the author can change this topic.',
     'flash.topic_locked' => 'Once votes are cast the topic stays permanently.',
-    'topic.locked_note' => 'Votes have been cast – this topic stays permanently.',
     'topic.similar' => 'Similar topics',
     'topic.similar_hint' => 'Similar topics already exist for this title. You can still publish it.',
     'flash.topic_updated' => 'Topic updated.',
@@ -2409,6 +2393,8 @@ const SW_CSS = <<<'CSS'
   --danger: #d70015; --danger-soft: rgba(215,0,21,0.10);
   --vote-for: #3a76f0; --vote-against: #aeaeb2; --track: #e5e5ea;
   --warn-bg: #ffd60a; --warn-ink: #1c1c00;
+  --btn-dim: #dedee4; --btn-dim-ink: #5b5b60;
+  --btn-locked: #e7effd; --btn-locked-ink: #2c60d0;
   --radius: 14px; --radius-sm: 10px;
 }
 @media (prefers-color-scheme: dark) {
@@ -2419,6 +2405,8 @@ const SW_CSS = <<<'CSS'
     --danger: #ff453a; --danger-soft: rgba(255,69,58,0.18);
     --vote-for: #4b86f7; --vote-against: #8e8e93; --track: #2c2c2e;
     --warn-bg: #ffd60a; --warn-ink: #1c1c00;
+    --btn-dim: #0f0f11; --btn-dim-ink: #98989d;
+    --btn-locked: #26334c; --btn-locked-ink: #9dbdfc;
   }
 }
 
@@ -2543,7 +2531,7 @@ a:hover { text-decoration: underline; }
 .votebar-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 0.92rem; margin-top: 0.5rem; color: var(--ink); }
 .votebar-for.w-0, .votebar-against.w-0 { display: none; }
 .votebar-legend b { font-weight: 600; }
-.votebar-legend .pct { color: var(--muted); margin-left: 0.35rem; }
+.votebar-legend .pct { color: var(--muted); margin-left: 0.3rem; white-space: nowrap; }
 .votefig-slim { margin-top: 0.6rem; }
 .votefig-slim .votebar { height: 4px; }
 .votefig-slim .votebar-legend { font-size: 0.88rem; color: var(--muted); margin-top: 0.4rem; }
@@ -2558,6 +2546,9 @@ a:hover { text-decoration: underline; }
 .vote-actions .btn { flex: 1 1 8rem; }
 .vote-btn { background: var(--field); color: var(--ink); }
 .vote-btn.is-active { background: var(--accent); color: var(--accent-ink); }
+.vote-btn.is-locked { background: var(--btn-locked); color: var(--btn-locked-ink); }
+.vote-btn.is-dim { background: var(--btn-dim); color: var(--btn-dim-ink); }
+.vote-btn[disabled] { cursor: default; opacity: 1; }
 .topic-tools { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.8rem; }
 .topic-tools .btn, .topic-tools .link-quiet {
   font-size: 0.9rem; padding: 0.4rem 0.8rem; border-radius: 999px;
@@ -2782,6 +2773,10 @@ const SW_JS = <<<'JS'
     if (figures.length > 0) {
       var ids = [];
       figures.forEach(function (el) { ids.push(el.getAttribute('data-topic')); });
+      var groupSep = document.body.getAttribute('data-group-sep') || '';
+      var groupNum = function (n) {
+        return groupSep === '' ? String(n) : String(n).replace(/\B(?=(\d{3})+(?!\d))/g, groupSep);
+      };
       var setNum = function (el, sel, value) {
         var node = el.querySelector(sel);
         if (node && node.textContent !== value) { node.textContent = value; }
@@ -2801,10 +2796,10 @@ const SW_JS = <<<'JS'
               var ba = el.querySelector('[data-bar="against"]');
               if (bf) { bf.className = 'votebar-for w-' + pf; }
               if (ba) { ba.className = 'votebar-against w-' + pa; }
-              setNum(el, '[data-num="for"]', String(row.f));
-              setNum(el, '[data-num="against"]', String(row.a));
-              setNum(el, '[data-pct="for"]', pf + ' %');
-              setNum(el, '[data-pct="against"]', pa + ' %');
+              setNum(el, '[data-num="for"]', groupNum(row.f));
+              setNum(el, '[data-num="against"]', groupNum(row.a));
+              setNum(el, '[data-pct="for"]', '/ ' + pf + ' %');
+              setNum(el, '[data-pct="against"]', '/ ' + pa + ' %');
             });
           })
           .catch(function () {});
@@ -3062,7 +3057,7 @@ function v_layout(string $title, string $content): string
         . '<link rel="stylesheet" href="' . e(url('/a/app.css')) . '">'
         . icon_links()
         . '<script src="' . e(url('/a/app.js')) . '" defer></script>'
-        . '</head><body data-base="' . e(base_path()) . '"'
+        . '</head><body data-base="' . e(base_path()) . '" data-group-sep="' . e(num(1000) === '1.000' ? '.' : ',') . '"'
         . ($user !== null ? ' data-profile-url="' . e(url('/profil.yaml')) . '"' : '') . '>';
     if (!empty($cfg['show_test_banner'])) {
         $html .= '<div class="test-banner" role="note">' . e(t('banner.test')) . '</div>';
@@ -3125,6 +3120,28 @@ function p_topic_card(array $row): string
     return $html . '</article>';
 }
 
+function p_vote_button(string $choice, ?string $myVote): string
+{
+    $mine = $myVote === $choice;
+    return '<button type="submit" name="choice" value="' . e($choice) . '"'
+        . ' class="btn vote-btn' . ($mine ? ' is-active' : '') . '"'
+        . ' aria-pressed="' . ($mine ? 'true' : 'false') . '">'
+        . e(t($choice === 'for' ? 'vote.for' : 'vote.against')) . '</button>';
+}
+
+function p_vote_locked(?string $myVote): string
+{
+    $html = '<div class="vote-actions">';
+    foreach (['for', 'against'] as $choice) {
+        $mine = $myVote === $choice;
+        $state = $myVote === null ? ' is-dim' : ($mine ? ' is-locked' : ' is-dim');
+        $html .= '<button type="button" class="btn vote-btn' . $state . '" disabled'
+            . ' aria-pressed="' . ($mine ? 'true' : 'false') . '">'
+            . e(t($choice === 'for' ? 'vote.for' : 'vote.against')) . '</button>';
+    }
+    return $html . '</div>';
+}
+
 function p_votebar(int $for, int $against, bool $slim = false): string
 {
     $total = $for + $against;
@@ -3138,10 +3155,10 @@ function p_votebar(int $for, int $against, bool $slim = false): string
         . '</div><div class="votebar-legend">'
         . '<span><span class="dot dot-for" aria-hidden="true"></span>' . e(t('vote.for'))
         . ' <b data-num="for">' . e(num($for)) . '</b>'
-        . '<span class="pct" data-pct="for">' . $pctFor . ' %</span></span>'
+        . '<span class="pct" data-pct="for">/ ' . $pctFor . ' %</span></span>'
         . '<span><span class="dot dot-against" aria-hidden="true"></span>' . e(t('vote.against'))
         . ' <b data-num="against">' . e(num($against)) . '</b>'
-        . '<span class="pct" data-pct="against">' . $pctAgainst . ' %</span></span>'
+        . '<span class="pct" data-pct="against">/ ' . $pctAgainst . ' %</span></span>'
         . '</div></div>';
 }
 
@@ -3406,7 +3423,7 @@ function fav_menu(int $userId, int $topicId, string $catRef, string $catLabel, s
         $any = $any || $item[3];
     }
     $html = '<details class="fav-menu"><summary class="fav-toggle' . ($any ? ' is-on' : '')
-        . '" title="' . e(t('topic.save')) . '" aria-label="' . e(t('topic.save')) . '" role="button">'
+        . '" title="' . e(t('topic.remember')) . '" aria-label="' . e(t('topic.remember')) . '" role="button">'
         . icon_bookmark($any) . '</summary><div class="fav-pop">';
     foreach ($items as [$kind, $ref, $label, $on]) {
         $html .= '<form method="post" action="' . e(url('/favorite')) . '">' . csrf_field()
@@ -3473,28 +3490,16 @@ function v_topic(int $id): void
         $html .= '<p class="muted">' . e(t('topic.archived_note')) . '</p>';
     } elseif ($user === null) {
         $html .= '<p><a class="btn btn-primary" href="' . e(url('/auth')) . '">' . e(t('vote.login_hint')) . '</a></p>';
-    } elseif ($closed) {
-        $html .= '<p class="muted">' . e(t('topic.vote_closed')) . '</p>';
-        if ($myVote !== null) {
-            $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')])) . '</p>';
-        }
-    } elseif ($voteRow !== null && $voteRow['locked']) {
-        $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')]))
-            . ' · ' . e(t('vote.locked_note')) . '</p>';
+    } elseif ($closed || ($voteRow !== null && $voteRow['locked'])) {
+        $html .= p_vote_locked($myVote);
     } else {
         $html .= '<form class="vote-actions" method="post" action="' . e(url('/vote')) . '">' . csrf_field()
             . '<input type="hidden" name="topic_id" value="' . (int) $topic['id'] . '">'
-            . '<button type="submit" name="choice" value="for" class="btn vote-btn' . ($myVote === 'for' ? ' is-active' : '') . '" aria-pressed="' . ($myVote === 'for' ? 'true' : 'false') . '">' . e(t('vote.for')) . '</button>'
-            . '<button type="submit" name="choice" value="against" class="btn vote-btn' . ($myVote === 'against' ? ' is-active' : '') . '" aria-pressed="' . ($myVote === 'against' ? 'true' : 'false') . '">' . e(t('vote.against')) . '</button>';
+            . p_vote_button('for', $myVote) . p_vote_button('against', $myVote);
         if ($myVote !== null) {
             $html .= '<button type="submit" name="choice" value="none" class="btn btn-ghost">' . e(t('vote.withdraw')) . '</button>';
         }
         $html .= '</form>';
-        if ($myVote !== null && $voteRow !== null) {
-            $until = Clock::addHoursStr((string) $voteRow['created_at'], SW_VOTE_CHANGE_HOURS);
-            $html .= '<p class="muted">' . e(t('topic.your_vote', ['choice' => t($myVote === 'for' ? 'vote.for' : 'vote.against')]))
-                . ' · ' . e(t('vote.changeable_until', ['date' => Clock::displayLocal($until, t('common.datetime_format'))])) . '</p>';
-        }
     }
     $html .= '</section><section class="topic-tools">';
     if ($user !== null) {
@@ -3518,9 +3523,6 @@ function v_topic(int $id): void
         $html .= '<span class="muted">' . e(t('topic.report_open')) . '</span>';
     } elseif ($user !== null && !$isAuthor && !$closed) {
         $html .= '<a class="link-quiet" href="' . e(url('/report/' . (int) $topic['id'])) . '">' . e(t('topic.report_link')) . '</a>';
-    }
-    if ($isAuthor && $locked && !$archived) {
-        $html .= '<span class="muted">' . e(t('topic.locked_note')) . '</span>';
     }
     $html .= '</section>';
     $similar = topics_similar((string) $topic['title'], (int) $topic['id'], 4);
@@ -4836,13 +4838,13 @@ function cli_selftest(): int
     mkdir($tmpDir, 0700, true);
     $pass = 0;
     $fail = 0;
-    $check = static function (string $description, bool $ok) use (&$pass, &$fail): void {
+    $check = static function (string $description, bool $ok, string $note = '') use (&$pass, &$fail): void {
         if ($ok) {
             $pass++;
             echo "  ok  {$description}\n";
         } else {
             $fail++;
-            echo "FAIL  {$description}\n";
+            echo "FAIL  {$description}" . ($note !== '' ? ': ' . $note : '') . "\n";
         }
     };
     SW::$pepper = bin2hex(random_bytes(32));
@@ -5326,6 +5328,41 @@ function cli_selftest(): int
     SW::$testMode = true;
 
     echo "== Sprachtabellen ==\n";
+    $dupes = static function (string $const): array {
+        $src = file_get_contents(__FILE__);
+        $start = strpos($src, 'const ' . $const . ' = [');
+        $end = strpos($src, "\n];", $start);
+        $body = substr($src, $start, $end - $start);
+        preg_match_all("/^ {4}'([a-z0-9_.]+)' =>/m", $body, $m);
+        $seen = [];
+        $twice = [];
+        foreach ($m[1] as $key) {
+            if (isset($seen[$key])) {
+                $twice[] = $key;
+            }
+            $seen[$key] = true;
+        }
+        return $twice;
+    };
+    $check('Keine doppelten Schlüssel in SW_DE', $dupes('SW_DE') === []);
+    $check('Keine doppelten Schlüssel in SW_EN', $dupes('SW_EN') === []);
+    $outside = static function (): string {
+        $src = file_get_contents(__FILE__);
+        $out = '';
+        $cursor = 0;
+        foreach (['SW_DE', 'SW_EN'] as $const) {
+            $start = strpos($src, 'const ' . $const . ' = [');
+            $end = strpos($src, "\n];", $start) + 3;
+            $out .= substr($src, $cursor, $start - $cursor);
+            $cursor = $end;
+        }
+        return $out . substr($src, $cursor);
+    };
+    $body = $outside();
+    $orphans = array_values(array_filter(array_keys(SW_DE), static function (string $key) use ($body): bool {
+        return strpos($body, "'" . $key . "'") === false;
+    }));
+    $check('Keine verwaisten Textschlüssel', $orphans === [], implode(', ', $orphans));
     $missingEn = array_diff(array_keys(SW_DE), array_keys(SW_EN));
     $missingDe = array_diff(array_keys(SW_EN), array_keys(SW_DE));
     $check('Deutsch und Englisch decken dieselben Schlüssel ab',
