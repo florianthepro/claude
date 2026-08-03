@@ -85,9 +85,11 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
    Anmeldung führt ein Ausweis-Piktogramm mit NFC-Wellen an, Text bleibt
    minimal. Die Kopfzeile der Seite trägt weder Wortmarke noch Anmeldestatus,
    sondern nur die nötigen Bedienelemente; die Fußzeile nur Impressum und
-   Datenschutz.
+   Datenschutz. Das Impressum ist im Prototyp bewusst leer (ein `*` als
+   Überschrift und als Text) — es ist vor einem echten Betrieb mit den
+   Pflichtangaben des Betreibers zu füllen.
 
-   **Bildmarke (Tab-/App-Icon):** ein **Wahlkreuz im Feld** — scharfe Kanten,
+   **Bildmarke (Tab-/App-Icon):** ein **Häkchen im Feld** — scharfe Kanten,
    keine abgerundeten Ecken, keine Farbe. Als SVG folgt es der
    Systemeinstellung (schwarze Fläche mit weißem Kreuz im Hellmodus, weiße
    Fläche mit schwarzem Kreuz im Dunkelmodus); PNG und ICO für Safari/iOS
@@ -377,9 +379,25 @@ Behördenregister.
   Abstimmung, **was zuerst eintritt**. Prozentangaben werden beim Anlegen in
   eine absolute Zahl umgerechnet (mindestens 10 Stimmen), damit das Ziel im
   Verlauf nicht mit der Nutzerzahl wandert. Danach ist das Thema beendet;
-  Verfasser können ihr Thema **bearbeiten und löschen**.
-- Ergebnisse sind live sichtbar (Anzahl dafür/dagegen, Anteil, Balkendarstellung mit
-  Textbeschriftung).
+  Verfasser können ihr Thema **bearbeiten**.
+- **Abgestimmte Themen bleiben dauerhaft.** Sobald die erste Stimme abgegeben
+  ist, kann auch der Verfasser das Thema nicht mehr löschen; die Seite sagt das
+  ausdrücklich. Löschbar bleibt nur ein Thema, zu dem noch niemand abgestimmt
+  hat. (Davon unberührt ist die Entfernung durch eine Bürger-Jury nach
+  festgestelltem Gesetzesverstoß, Kapitel 7.)
+- **Gleiche Titel sind erlaubt, aber sichtbar.** Beim Einbringen zeigt das
+  Formular schon während des Tippens, ob es bereits ähnliche Themen gibt, und
+  verlinkt sie; einbringen lässt sich das Thema trotzdem. Auf der Themenseite
+  steht dieselbe Liste unter „Ähnliche Themen“. Der Abgleich vergleicht die
+  bedeutungstragenden Wörter des Titels, nicht die Zeichenkette.
+- **Ergebnisse aktualisieren sich ohne Neuladen.** Ein schlanker JSON-Endpunkt
+  liefert Stimmenstände; Liste und Themenseite schreiben Balken, Zahlen und
+  Anteile im Hintergrund fort (alle zwölf Sekunden und beim Zurückkehren auf
+  den Tab). Ohne JavaScript bleibt der beim Aufruf gerenderte Stand stehen —
+  die Seite funktioniert weiterhin vollständig.
+- Die Darstellung ist überall dieselbe und bewusst knapp: ein Balken, darunter
+  „Dafür n · x %“ und „Dagegen n · y %“ — in der Liste als Haarlinie, auf der
+  Themenseite kräftiger.
 
 ### 6.3 Kategorien — Neutralität durch Breite, keine vorbefüllten Themen
 
@@ -401,11 +419,13 @@ Verbraucherschutz · Kommunales & Ehrenamt · Demokratie & Beteiligung
 
 ### 6.4 Favoriten und Gesamtansicht („Meine Übersicht“)
 
-- Kategorien und Gebiete lassen sich **merken**: Am Thema steht dafür ein
-  **Lesezeichen-Symbol**, das ein kleines Auswahlfeld mit den beiden konkreten
-  Namen öffnet (Kategorie und Gebiet); Gemerktes ist im Feld hervorgehoben und
-  wird durch erneutes Antippen wieder entfernt. Gemerkte Einträge filtern die
-  Themenlisten und stehen — am Schlüssel gespeichert — auf jedem Gerät bereit.
+- **Einzelne Themen, Kategorien und Gebiete lassen sich merken**: Am Thema
+  steht dafür ein **Lesezeichen-Symbol**, das ein kleines Auswahlfeld mit drei
+  Einträgen öffnet — dieses Thema, seine Kategorie, sein Gebiet. Gemerktes ist
+  im Feld hervorgehoben und wird durch erneutes Antippen wieder entfernt.
+  Gemerkte Themen führen direkt zurück zum Thema, gemerkte Kategorien und
+  Gebiete filtern die Themenliste; alles ist am Schlüssel gespeichert und steht
+  auf jedem Gerät bereit.
 - Nach dem Anhalten des Ausweises zeigt **„Meine Übersicht“**:
   - alle Themen, für die man gestimmt hat (mit eigener Stimme und aktuellem Stand),
   - alle selbst eingebrachten Themen (mit Status),
@@ -541,7 +561,7 @@ konservativ gebaut: wenig Code, wenig Abhängigkeiten, restriktive Standardwerte
 | Eingaben | Whitelist-Validierung (Enums, Längen, UTF-8-Prüfung, Kontrollzeichen-Filter); keine Datei-Uploads |
 | Fehlerbilder | Keine Stacktraces oder Pfade nach außen; generische Fehlerseiten; Sicherheitsereignisse werden ohne personenbezogene Daten protokolliert |
 | Struktur | Nur `public/` liegt im Webroot; Datenbank, Geheimnisse und Logs außerhalb; `.htaccess`-Fallback verweigert Verzeichnislisten |
-| Betrieb | Selbsttest (`php index.php selftest`, 112 Prüfungen) deckt die Kernregeln automatisiert ab: Tagesgrenze, Abstimmungsende, Jury-Ausschlüsse, Quorum, Fristen, Karenz, Freigabeliste, Einrichtung des Echtbetriebs, Sprachtabellen |
+| Betrieb | Selbsttest (`php index.php selftest`, 116 Prüfungen) deckt die Kernregeln automatisiert ab: Tagesgrenze, Abstimmungsende, Jury-Ausschlüsse, Quorum, Fristen, Karenz, Freigabeliste, Dauerhaftigkeit abgestimmter Themen, Ähnlichkeitssuche, Einrichtung des Echtbetriebs, Sprachtabellen |
 
 ### 8.3 Bedrohungsmodell (Auszug)
 
@@ -695,7 +715,7 @@ Wartung und Prüfung laufen über dieselbe Datei auf der Kommandozeile:
 
 | Aufruf | Zweck |
 |---|---|
-| `php index.php selftest` | 112 automatisierte Prüfungen der Fachregeln |
+| `php index.php selftest` | 116 automatisierte Prüfungen der Fachregeln |
 | `php index.php cron` | Wartungslauf (sonst beiläufig bei Seitenaufrufen) |
 | `php index.php seed 400` | Demo-Stimmen, anonym wie im Echtbetrieb |
 | `php index.php jurysim` | Demo-Jury stimmt in laufenden Prüfungen ab |

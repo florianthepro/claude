@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS votes (
 );
 CREATE TABLE IF NOT EXISTS favorites (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    kind       TEXT    NOT NULL CHECK (kind IN ('category','scope')),
+    kind       TEXT    NOT NULL CHECK (kind IN ('category','scope','topic')),
     ref        TEXT    NOT NULL,
     created_at TEXT    NOT NULL,
     PRIMARY KEY (user_id, kind, ref)
@@ -306,6 +306,21 @@ final class Db
         $this->pdo->exec(SW_SCHEMA);
         if ($exists === null) {
             $this->run("INSERT INTO schema_info (k, v) VALUES ('version', '1'), ('created_at', ?)", [Clock::nowStr()]);
+        }
+        $favSql = (string) ($this->val("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'favorites'") ?? '');
+        if ($favSql !== '' && strpos($favSql, "'topic'") === false) {
+            $this->pdo->exec(
+                "CREATE TABLE favorites_new (
+                    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    kind       TEXT    NOT NULL CHECK (kind IN ('category','scope','topic')),
+                    ref        TEXT    NOT NULL,
+                    created_at TEXT    NOT NULL,
+                    PRIMARY KEY (user_id, kind, ref)
+                );
+                INSERT INTO favorites_new SELECT user_id, kind, ref, created_at FROM favorites;
+                DROP TABLE favorites;
+                ALTER TABLE favorites_new RENAME TO favorites;"
+            );
         }
     }
 }
@@ -1281,7 +1296,63 @@ function topic_delete(int $topicId, int $userId): void
     if ($topic === null || (int) $topic['author_id'] !== $userId) {
         throw new DomainException('flash.not_author');
     }
+    if (topic_has_votes($topicId)) {
+        throw new DomainException('flash.topic_locked');
+    }
     SW::$db->run('DELETE FROM topics WHERE id = ?', [$topicId]);
+}
+
+function topic_has_votes(int $topicId): bool
+{
+    return (int) SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ?', [$topicId]) > 0;
+}
+
+function topic_title_words(string $title): array
+{
+    $clean = preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($title));
+    $words = [];
+    foreach (preg_split('/\s+/', (string) $clean) as $word) {
+        if (mb_strlen($word) >= 4) {
+            $words[$word] = true;
+        }
+    }
+    return array_slice(array_keys($words), 0, 8);
+}
+
+function topics_similar(string $title, ?int $excludeId = null, int $limit = 5): array
+{
+    $words = topic_title_words($title);
+    if ($words === []) {
+        return [];
+    }
+    $where = [];
+    $args = [];
+    foreach ($words as $word) {
+        $where[] = 'lower(t.title) LIKE ?';
+        $args[] = '%' . $word . '%';
+    }
+    $sql = 'SELECT t.id, t.title FROM topics t WHERE t.status != \'removed\' AND (' . implode(' OR ', $where) . ')';
+    if ($excludeId !== null) {
+        $sql .= ' AND t.id != ?';
+        $args[] = $excludeId;
+    }
+    $sql .= ' ORDER BY t.created_at DESC LIMIT 60';
+    $scored = [];
+    foreach (SW::$db->all($sql, $args) as $row) {
+        $other = topic_title_words((string) $row['title']);
+        $shared = count(array_intersect($words, $other));
+        if ($shared === 0) {
+            continue;
+        }
+        $row['score'] = $shared / max(1, min(count($words), count($other)));
+        $scored[] = $row;
+    }
+    usort($scored, static function (array $a, array $b): int {
+        return $b['score'] <=> $a['score'];
+    });
+    return array_slice(array_filter($scored, static function (array $r): bool {
+        return $r['score'] >= 0.5;
+    }), 0, $limit);
 }
 
 function parse_topic_end(): ?array
@@ -1506,6 +1577,10 @@ function vote_cast(int $userId, int $topicId, string $choice): void
 
 function fav_valid(string $kind, string $ref): bool
 {
+    if ($kind === 'topic') {
+        return preg_match('/^\d{1,10}$/', $ref) === 1
+            && null !== SW::$db->one('SELECT 1 FROM topics WHERE id = ?', [(int) $ref]);
+    }
     if ($kind === 'category') {
         return null !== SW::$db->one('SELECT 1 FROM categories WHERE slug = ?', [$ref]);
     }
@@ -1557,9 +1632,10 @@ function fav_is(int $userId, string $kind, string $ref): bool
 function fav_list(int $userId): array
 {
     return SW::$db->all(
-        'SELECT f.kind, f.ref, c.name_de, c.name_en
+        'SELECT f.kind, f.ref, c.name_de, c.name_en, t.title AS topic_title, t.status AS topic_status
          FROM favorites f
          LEFT JOIN categories c ON f.kind = \'category\' AND c.slug = f.ref
+         LEFT JOIN topics t ON f.kind = \'topic\' AND t.id = CAST(f.ref AS INTEGER)
          WHERE f.user_id = ?
          ORDER BY f.kind, f.ref',
         [$userId]
@@ -1913,6 +1989,7 @@ const SW_DE = [
     'topic.report_link' => 'Inhalt melden',
     'topic.report_open' => 'Gemeinschaftsprüfung läuft.',
     'topic.save' => 'Merken',
+    'topic.this' => 'Dieses Thema',
     'topic.removed_title' => 'Inhalt entfernt',
     'topic.removed_text' => 'Dieser Beitrag wurde nach Prüfung durch eine ausgeloste Bürger-Jury entfernt.',
     'topic.your_vote' => 'Ihre Stimme: {choice}',
@@ -2055,6 +2132,10 @@ const SW_DE = [
     'flash.report_too_few_users' => 'Für eine Jury sind derzeit zu wenige Teilnehmende registriert.',
     'flash.report_no_law' => 'Bitte das verletzte Gesetz auswählen.',
     'flash.not_author' => 'Nur der Verfasser kann dieses Thema ändern.',
+    'flash.topic_locked' => 'Sobald abgestimmt wurde, bleibt das Thema dauerhaft bestehen.',
+    'topic.locked_note' => 'Es wurde abgestimmt – dieses Thema bleibt dauerhaft bestehen.',
+    'topic.similar' => 'Ähnliche Themen',
+    'topic.similar_hint' => 'Zu diesem Titel gibt es bereits ähnliche Themen. Einbringen ist trotzdem möglich.',
     'flash.topic_updated' => 'Thema aktualisiert.',
     'flash.topic_deleted' => 'Thema gelöscht.',
     'flash.vote_locked' => 'Diese Stimme ist nach 24 Stunden nicht mehr änderbar.',
@@ -2081,9 +2162,8 @@ const SW_DE = [
     'footer.imprint' => 'Impressum',
     'footer.privacy' => 'Datenschutz',
 
-    'imprint.h' => 'Impressum',
-    'imprint.p1' => 'Musterangaben – vor Aufnahme eines echten Betriebs vollständig auszufüllen (Betreiber, Anschrift, Vertretungsberechtigte, Kontakt, Aufsicht).',
-    'imprint.p2' => 'Dieses Projekt befindet sich im Testbetrieb und ist keine offizielle Seite der Bundesregierung oder einer Behörde.',
+    'imprint.h' => '*',
+    'imprint.p1' => '*',
 
     'privacy.h' => 'Datenschutz',
     'privacy.p1' => 'Es werden weder Name noch Anschrift, Geburtsdatum oder E-Mail-Adresse verarbeitet.',
@@ -2128,6 +2208,7 @@ const SW_EN = [
     'topic.report_link' => 'Report content',
     'topic.report_open' => 'Community review in progress.',
     'topic.save' => 'Save',
+    'topic.this' => 'This topic',
     'topic.removed_title' => 'Content removed',
     'topic.removed_text' => 'This contribution was removed after review by a randomly drawn citizen jury.',
     'topic.your_vote' => 'Your vote: {choice}',
@@ -2270,6 +2351,10 @@ const SW_EN = [
     'flash.report_too_few_users' => 'Too few participants are registered for a jury at the moment.',
     'flash.report_no_law' => 'Please select the violated law.',
     'flash.not_author' => 'Only the author can change this topic.',
+    'flash.topic_locked' => 'Once votes are cast the topic stays permanently.',
+    'topic.locked_note' => 'Votes have been cast – this topic stays permanently.',
+    'topic.similar' => 'Similar topics',
+    'topic.similar_hint' => 'Similar topics already exist for this title. You can still publish it.',
     'flash.topic_updated' => 'Topic updated.',
     'flash.topic_deleted' => 'Topic deleted.',
     'flash.vote_locked' => 'This vote can no longer be changed after 24 hours.',
@@ -2296,9 +2381,8 @@ const SW_EN = [
     'footer.imprint' => 'Legal notice',
     'footer.privacy' => 'Privacy',
 
-    'imprint.h' => 'Legal notice',
-    'imprint.p1' => 'Placeholder details – to be completed before any real operation (operator, address, authorised representatives, contact, supervision).',
-    'imprint.p2' => 'This project is in test operation and is not an official website of the German federal government or any public authority.',
+    'imprint.h' => '*',
+    'imprint.p1' => '*',
 
     'privacy.h' => 'Privacy',
     'privacy.p1' => 'Neither name, address, date of birth nor e-mail address are processed.',
@@ -2450,6 +2534,18 @@ a:hover { text-decoration: underline; }
 .votebar-for { background: var(--vote-for); }
 .votebar-against { background: var(--vote-against); }
 .votebar-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 0.92rem; margin-top: 0.5rem; color: var(--ink); }
+.votebar-legend b { font-weight: 600; }
+.votebar-legend .pct { color: var(--muted); margin-left: 0.35rem; }
+.votefig-slim { margin-top: 0.6rem; }
+.votefig-slim .votebar { height: 4px; }
+.votefig-slim .votebar-legend { font-size: 0.88rem; color: var(--muted); margin-top: 0.4rem; }
+.votefig-slim .votebar-legend b { color: var(--ink); }
+.topic-card-mine { font-size: 0.88rem; color: var(--accent); margin: 0.35rem 0 0; }
+.similar-hint { background: var(--field); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; font-size: 0.9rem; }
+.similar-hint p { margin: 0 0 0.35rem; }
+.similar-hint .plain-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.similar { margin-top: 1rem; }
+.similar .plain-list { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.95rem; }
 .vote-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
 .vote-actions .btn { flex: 1 1 8rem; }
 .vote-btn { background: var(--field); color: var(--ink); }
@@ -2673,6 +2769,84 @@ const SW_JS = <<<'JS'
       }
     });
 
+    var base = document.body.getAttribute('data-base') || '';
+    var figures = document.querySelectorAll('[data-topic]');
+    if (figures.length > 0) {
+      var ids = [];
+      figures.forEach(function (el) { ids.push(el.getAttribute('data-topic')); });
+      var setNum = function (el, sel, value) {
+        var node = el.querySelector(sel);
+        if (node && node.textContent !== value) { node.textContent = value; }
+      };
+      var refresh = function () {
+        fetch(base + '/api/topics?ids=' + encodeURIComponent(ids.join(',')), { credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (!data) { return; }
+            figures.forEach(function (el) {
+              var row = data[el.getAttribute('data-topic')];
+              if (!row) { return; }
+              var total = row.f + row.a;
+              var pf = total > 0 ? Math.round(row.f * 100 / total) : 0;
+              var pa = total > 0 ? 100 - pf : 0;
+              var bf = el.querySelector('[data-bar="for"]');
+              var ba = el.querySelector('[data-bar="against"]');
+              if (bf) { bf.className = 'votebar-for w-' + pf; }
+              if (ba) { ba.className = 'votebar-against w-' + pa; }
+              setNum(el, '[data-num="for"]', String(row.f));
+              setNum(el, '[data-num="against"]', String(row.a));
+              setNum(el, '[data-pct="for"]', pf + ' %');
+              setNum(el, '[data-pct="against"]', pa + ' %');
+            });
+          })
+          .catch(function () {});
+      };
+      var timer = setInterval(refresh, 12000);
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') { refresh(); }
+      });
+      window.addEventListener('pagehide', function () { clearInterval(timer); });
+    }
+
+    document.querySelectorAll('[data-similar-for]').forEach(function (box) {
+      var input = document.querySelector(box.getAttribute('data-similar-for'));
+      if (!input) { return; }
+      var exclude = box.getAttribute('data-similar-not') || '';
+      var wait = null;
+      var lookup = function () {
+        var q = input.value.trim();
+        if (q.length < 6) { box.hidden = true; box.innerHTML = ''; return; }
+        fetch(base + '/api/similar?q=' + encodeURIComponent(q) + (exclude ? '&not=' + encodeURIComponent(exclude) : ''),
+              { credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (rows) {
+            if (!rows || rows.length === 0) { box.hidden = true; box.innerHTML = ''; return; }
+            var list = document.createElement('ul');
+            list.className = 'plain-list';
+            rows.forEach(function (row) {
+              var li = document.createElement('li');
+              var a = document.createElement('a');
+              a.href = base + '/topic/' + row.id;
+              a.textContent = row.title;
+              li.appendChild(a);
+              list.appendChild(li);
+            });
+            var head = document.createElement('p');
+            head.className = 'muted';
+            head.textContent = box.getAttribute('data-similar-label') || '';
+            box.innerHTML = '';
+            box.appendChild(head);
+            box.appendChild(list);
+            box.hidden = false;
+          })
+          .catch(function () {});
+      };
+      input.addEventListener('input', function () {
+        clearTimeout(wait);
+        wait = setTimeout(lookup, 400);
+      });
+    });
+
     var profileUrl = document.body.getAttribute('data-profile-url');
     if (profileUrl) {
       fetch(profileUrl, { credentials: 'same-origin' })
@@ -2733,7 +2907,7 @@ const SW_ICON = <<<'SVG'
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <style>.t{fill:#111111}.m{stroke:#ffffff}@media(prefers-color-scheme:dark){.t{fill:#ffffff}.m{stroke:#111111}}</style>
   <rect class="t" width="24" height="24"/>
-  <path class="m" d="M7 7l10 10M17 7L7 17" fill="none" stroke-width="2.8" stroke-linecap="square"/>
+  <path class="m" d="M6.4 12.3l3.9 3.9 7.3-8.1" fill="none" stroke-width="2.8" stroke-linecap="square" stroke-linejoin="miter"/>
 </svg>
 SVG;
 
@@ -2773,11 +2947,11 @@ function icon_png(int $size): string
     $n = $size * $ss;
     $bg = [17, 17, 17];
     $fg = [255, 255, 255];
-    $a1 = [0.28 * $n, 0.28 * $n];
-    $b1 = [0.72 * $n, 0.72 * $n];
-    $a2 = [0.72 * $n, 0.28 * $n];
-    $b2 = [0.28 * $n, 0.72 * $n];
-    $half = 0.062 * $n;
+    $a1 = [0.265 * $n, 0.515 * $n];
+    $b1 = [0.430 * $n, 0.680 * $n];
+    $a2 = [0.430 * $n, 0.680 * $n];
+    $b2 = [0.735 * $n, 0.340 * $n];
+    $half = 0.058 * $n;
 
     $inBar = static function (float $px, float $py, array $a, array $b, float $half): bool {
         $vx = $b[0] - $a[0];
@@ -2880,7 +3054,8 @@ function v_layout(string $title, string $content): string
         . '<link rel="stylesheet" href="' . e(url('/a/app.css')) . '">'
         . icon_links()
         . '<script src="' . e(url('/a/app.js')) . '" defer></script>'
-        . '</head><body' . ($user !== null ? ' data-profile-url="' . e(url('/profil.yaml')) . '"' : '') . '>';
+        . '</head><body data-base="' . e(base_path()) . '"'
+        . ($user !== null ? ' data-profile-url="' . e(url('/profil.yaml')) . '"' : '') . '>';
     if (!empty($cfg['show_test_banner'])) {
         $html .= '<div class="test-banner" role="note">' . e(t('banner.test')) . '</div>';
     }
@@ -2929,43 +3104,37 @@ function scope_text(array $row): string
 
 function p_topic_card(array $row): string
 {
-    $html = '<article class="card topic-card"><div class="topic-card-meta">'
+    $html = '<article class="card topic-card" data-topic="' . (int) $row['id'] . '"><div class="topic-card-meta">'
         . '<span class="badge">' . e(cat_name($row)) . '</span>'
         . '<span class="badge">' . e(scope_text($row)) . '</span></div>'
         . '<h3 class="topic-card-title"><a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a></h3>'
         . '<p class="topic-card-goal">' . e((string) $row['goal']) . '</p>'
-        . '<div class="topic-card-votes">'
-        . '<span class="dot dot-for" aria-hidden="true"></span>' . e(t('vote.for')) . ' ' . e(num((int) $row['votes_for']))
-        . '<span class="vote-sep" aria-hidden="true">·</span>'
-        . '<span class="dot dot-against" aria-hidden="true"></span>' . e(t('vote.against')) . ' ' . e(num((int) $row['votes_against']));
+        . p_votebar((int) $row['votes_for'], (int) $row['votes_against'], true);
     if (!empty($row['my_choice'])) {
-        $html .= '<span class="vote-sep" aria-hidden="true">·</span>'
-            . e(t('topic.your_vote', ['choice' => t($row['my_choice'] === 'for' ? 'vote.for' : 'vote.against')]));
+        $html .= '<p class="topic-card-mine">'
+            . e(t('topic.your_vote', ['choice' => t($row['my_choice'] === 'for' ? 'vote.for' : 'vote.against')])) . '</p>';
     }
-    return $html . '</div></article>';
+    return $html . '</article>';
 }
 
-function p_votebar(int $for, int $against): string
+function p_votebar(int $for, int $against, bool $slim = false): string
 {
     $total = $for + $against;
-    if ($total === 0) {
-        return '<p class="muted">' . e(t('vote.none_yet')) . '</p>';
-    }
-    $pctFor = (int) round($for * 100 / $total);
-    $pctAgainst = 100 - $pctFor;
-    $html = '<div class="votebar" role="img" aria-label="' . e(t('vote.bar_aria')) . ': '
-        . e(t('vote.for')) . ' ' . e(num($for)) . ', ' . e(t('vote.against')) . ' ' . e(num($against)) . '">';
-    if ($for > 0) {
-        $html .= '<span class="votebar-for w-' . $pctFor . '"></span>';
-    }
-    if ($against > 0) {
-        $html .= '<span class="votebar-against w-' . $pctAgainst . '"></span>';
-    }
-    $html .= '</div><div class="votebar-legend">'
-        . '<span><span class="dot dot-for" aria-hidden="true"></span>' . e(t('vote.for')) . ' ' . $pctFor . ' % · ' . e(num($for)) . '</span>'
-        . '<span><span class="dot dot-against" aria-hidden="true"></span>' . e(t('vote.against')) . ' ' . $pctAgainst . ' % · ' . e(num($against)) . '</span>'
-        . '</div>';
-    return $html;
+    $pctFor = $total > 0 ? (int) round($for * 100 / $total) : 0;
+    $pctAgainst = $total > 0 ? 100 - $pctFor : 0;
+    $cls = $slim ? 'votefig votefig-slim' : 'votefig';
+    return '<div class="' . $cls . '" data-fig>'
+        . '<div class="votebar" role="img" aria-label="' . e(t('vote.bar_aria')) . '">'
+        . '<span class="votebar-for w-' . $pctFor . '" data-bar="for"></span>'
+        . '<span class="votebar-against w-' . $pctAgainst . '" data-bar="against"></span>'
+        . '</div><div class="votebar-legend">'
+        . '<span><span class="dot dot-for" aria-hidden="true"></span>' . e(t('vote.for'))
+        . ' <b data-num="for">' . e(num($for)) . '</b>'
+        . '<span class="pct" data-pct="for">' . $pctFor . ' %</span></span>'
+        . '<span><span class="dot dot-against" aria-hidden="true"></span>' . e(t('vote.against'))
+        . ' <b data-num="against">' . e(num($against)) . '</b>'
+        . '<span class="pct" data-pct="against">' . $pctAgainst . ' %</span></span>'
+        . '</div></div>';
 }
 
 function topic_end_fields(array $old): string
@@ -2998,8 +3167,9 @@ function topic_end_fields(array $old): string
         . '</fieldset>';
 }
 
-function topic_form_html(array $errors, array $old, string $action, string $submitKey): string
+function topic_form_html(array $errors, array $old, string $action, string $submitKey, ?int $selfId = null): string
 {
+    $formId = $selfId === null ? 'new' : ('e' . $selfId);
     $html = '';
     if ($errors !== []) {
         $html .= '<div class="flash flash-error" role="alert"><ul class="plain-list">';
@@ -3010,7 +3180,10 @@ function topic_form_html(array $errors, array $old, string $action, string $subm
     }
     $html .= '<form class="form-stack" method="post" action="' . e(url($action)) . '">' . csrf_field()
         . '<label><span>' . e(t('topic.f_title')) . '</span>'
-        . '<input type="text" name="title" required minlength="' . SW_TITLE_MIN . '" maxlength="' . SW_TITLE_MAX . '" value="' . e((string) $old['title']) . '"></label>'
+        . '<input type="text" id="title-' . e($formId) . '" name="title" required minlength="' . SW_TITLE_MIN . '" maxlength="' . SW_TITLE_MAX . '" value="' . e((string) $old['title']) . '"></label>'
+        . '<div class="similar-hint" hidden data-similar-for="#title-' . e($formId) . '"'
+        . ($selfId !== null ? ' data-similar-not="' . (int) $selfId . '"' : '')
+        . ' data-similar-label="' . e(t('topic.similar_hint')) . '"></div>'
         . '<label><span>' . e(t('topic.f_goal')) . '</span>'
         . '<textarea name="goal" rows="3" required minlength="' . SW_GOAL_MIN . '" maxlength="' . SW_GOAL_MAX . '">' . e((string) $old['goal']) . '</textarea></label>'
         . '<label><span>' . e(t('topic.f_reasoning')) . '</span>'
@@ -3078,7 +3251,16 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
 
     $chips = '';
     foreach (fav_list($userId) as $favorite) {
-        if ($favorite['kind'] === 'category') {
+        if ($favorite['kind'] === 'topic') {
+            if (($favorite['topic_title'] ?? null) === null) {
+                continue;
+            }
+            $label = (string) $favorite['topic_title'];
+            if (mb_strlen($label) > 34) {
+                $label = mb_substr($label, 0, 33) . '…';
+            }
+            $href = url('/topic/' . (int) $favorite['ref']);
+        } elseif ($favorite['kind'] === 'category') {
             $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
             $href = url('/') . '?category=' . rawurlencode((string) $favorite['ref']);
         } else {
@@ -3204,10 +3386,14 @@ function fav_menu(int $userId, int $topicId, string $catRef, string $catLabel, s
 {
     $back = '/topic/' . $topicId;
     $items = [
+        ['topic', (string) $topicId, t('topic.this'), fav_is($userId, 'topic', (string) $topicId)],
         ['category', $catRef, $catLabel, fav_is($userId, 'category', $catRef)],
         ['scope', $scopeRef, $scopeLabel, fav_is($userId, 'scope', $scopeRef)],
     ];
-    $any = $items[0][3] || $items[1][3];
+    $any = false;
+    foreach ($items as $item) {
+        $any = $any || $item[3];
+    }
     $html = '<details class="fav-menu"><summary class="fav-toggle' . ($any ? ' is-on' : '')
         . '" title="' . e(t('topic.save')) . '" aria-label="' . e(t('topic.save')) . '" role="button">'
         . icon_bookmark($any) . '</summary><div class="fav-pop">';
@@ -3269,7 +3455,7 @@ function v_topic(int $id): void
 
     $barFor = (int) $topic['votes_for'];
     $barAgainst = (int) $topic['votes_against'];
-    $html .= '<section class="card">' . p_votebar($barFor, $barAgainst);
+    $html .= '<section class="card" data-topic="' . (int) $topic['id'] . '">' . p_votebar($barFor, $barAgainst);
     if ($user === null) {
         $html .= '<p><a class="btn btn-primary" href="' . e(url('/auth')) . '">' . e(t('vote.login_hint')) . '</a></p>';
     } elseif ($closed) {
@@ -3306,18 +3492,33 @@ function v_topic(int $id): void
             scope_text($topic)
         );
     }
+    $locked = topic_has_votes((int) $topic['id']);
     if ($isAuthor) {
-        $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topic/' . (int) $topic['id'] . '/edit')) . '">' . e(t('topic.edit')) . '</a>'
-            . '<a class="link-quiet" href="#modal-del">' . e(t('topic.delete')) . '</a>';
+        $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topic/' . (int) $topic['id'] . '/edit')) . '">' . e(t('topic.edit')) . '</a>';
+        if (!$locked) {
+            $html .= '<a class="link-quiet" href="#modal-del">' . e(t('topic.delete')) . '</a>';
+        }
     }
     if ($openReport !== null) {
         $html .= '<span class="muted">' . e(t('topic.report_open')) . '</span>';
     } elseif ($user !== null && !$isAuthor && !$closed) {
         $html .= '<a class="link-quiet" href="' . e(url('/report/' . (int) $topic['id'])) . '">' . e(t('topic.report_link')) . '</a>';
     }
-    $html .= '</section></article>';
+    if ($isAuthor && $locked) {
+        $html .= '<span class="muted">' . e(t('topic.locked_note')) . '</span>';
+    }
+    $html .= '</section>';
+    $similar = topics_similar((string) $topic['title'], (int) $topic['id'], 4);
+    if ($similar !== []) {
+        $html .= '<section class="similar"><h2 class="card-h">' . e(t('topic.similar')) . '</h2><ul class="plain-list">';
+        foreach ($similar as $row) {
+            $html .= '<li><a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a></li>';
+        }
+        $html .= '</ul></section>';
+    }
+    $html .= '</article>';
 
-    if ($isAuthor) {
+    if ($isAuthor && !$locked) {
         $delInner = '<p class="muted">' . e(t('topic.delete_confirm')) . '</p>'
             . '<form method="post" action="' . e(url('/topic/' . (int) $topic['id'] . '/delete')) . '">' . csrf_field()
             . '<div class="btn-row"><button type="submit" class="btn btn-danger">' . e(t('topic.delete')) . '</button>'
@@ -3364,9 +3565,70 @@ function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
         ];
     }
     $html = '<h1>' . e(t('topic.edit')) . '</h1>'
-        . '<div class="card">' . topic_form_html($errors, $old, '/topic/' . $id . '/edit', 'topic.save')
+        . '<div class="card">' . topic_form_html($errors, $old, '/topic/' . $id . '/edit', 'topic.save', $id)
         . '<p><a class="link-quiet" href="' . e(url('/topic/' . $id)) . '">' . e(t('report.cancel')) . '</a></p></div>';
     render(t('topic.edit'), $html);
+}
+
+function h_api_topics(): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('X-Content-Type-Options: nosniff');
+    if (auth_user() === null) {
+        http_response_code(401);
+        echo '{}';
+        exit;
+    }
+    $ids = [];
+    foreach (explode(',', query_str('ids', 400)) as $raw) {
+        if (preg_match('/^\d{1,10}$/', trim($raw)) === 1) {
+            $ids[] = (int) $raw;
+        }
+    }
+    $ids = array_slice(array_unique($ids), 0, 50);
+    if ($ids === []) {
+        echo '{}';
+        exit;
+    }
+    $marks = implode(',', array_fill(0, count($ids), '?'));
+    $rows = SW::$db->all(
+        "SELECT t.id, t.status,
+                (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'for') AS votes_for,
+                (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against') AS votes_against
+         FROM topics t WHERE t.id IN ($marks)",
+        $ids
+    );
+    $out = [];
+    foreach ($rows as $row) {
+        $out[(string) $row['id']] = [
+            'f' => (int) $row['votes_for'],
+            'a' => (int) $row['votes_against'],
+            's' => (string) $row['status'],
+        ];
+    }
+    echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function h_api_similar(): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('X-Content-Type-Options: nosniff');
+    if (auth_user() === null) {
+        http_response_code(401);
+        echo '[]';
+        exit;
+    }
+    $title = query_str('q', SW_TITLE_MAX);
+    $exclude = query_str('not', 10);
+    $out = [];
+    foreach (topics_similar($title, $exclude === '' ? null : (int) $exclude, 4) as $row) {
+        $out[] = ['id' => (int) $row['id'], 'title' => (string) $row['title']];
+    }
+    echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }
 
 function v_setup(array $errors = [], ?array $old = null): void
@@ -3803,7 +4065,8 @@ function profile_yaml(array $user): string
         $y = substr($y, 0, -1) . " []\n";
     }
     foreach ($favorites as $favorite) {
-        $y .= "    - art: " . yq($favorite['kind'] === 'category' ? 'kategorie' : 'gebiet') . "\n";
+        $art = ['category' => 'kategorie', 'topic' => 'thema'][$favorite['kind']] ?? 'gebiet';
+        $y .= "    - art: " . yq($art) . "\n";
         $y .= "      wert: " . yq((string) $favorite['ref']) . "\n";
     }
     $y .= "  meldungen:\n";
@@ -4388,7 +4651,8 @@ function web_main(): void
         $langChosen = is_string($_SESSION['lang'] ?? null) || $user !== null;
         if (!$langChosen && ($method === 'GET' || $method === 'HEAD')
             && !in_array($path, ['/start', '/imprint', '/privacy'], true)
-            && strpos($path, '/eid/') !== 0) {
+            && strpos($path, '/eid/') !== 0
+            && strpos($path, '/api/') !== 0) {
             redirect('/start');
         }
         if ($path === '/start' && ($method === 'GET' || $method === 'HEAD')) {
@@ -4414,7 +4678,7 @@ function web_main(): void
         $isGet = $method === 'GET' || $method === 'HEAD';
 
         if ($user === null && $isGet
-            && !in_array($path, ['/auth', '/imprint', '/privacy'], true)
+            && !in_array($path, ['/auth', '/imprint', '/privacy', '/api/topics', '/api/similar'], true)
             && strpos($path, '/claim/') !== 0
             && strpos($path, '/eid/') !== 0) {
             redirect('/auth');
@@ -4494,6 +4758,12 @@ function web_main(): void
         if ($path === '/logout' && $method === 'POST') {
             h_logout();
         }
+        if ($path === '/api/topics' && $isGet) {
+            h_api_topics();
+        }
+        if ($path === '/api/similar' && $isGet) {
+            h_api_similar();
+        }
         if ($path === '/setup' && $isGet) {
             v_setup();
         }
@@ -4504,7 +4774,7 @@ function web_main(): void
             h_setup_finish();
         }
         if ($path === '/imprint' && $isGet) {
-            v_static('imprint.h', ['imprint.p1', 'imprint.p2']);
+            v_static('imprint.h', ['imprint.p1']);
         }
         if ($path === '/privacy' && $isGet) {
             v_static('privacy.h', ['privacy.p1', 'privacy.p2', 'privacy.p3', 'privacy.p4', 'privacy.p5']);
@@ -4654,9 +4924,26 @@ function cli_selftest(): int
         $check('Nicht-Autor kann nicht bearbeiten', $e->getMessage() === 'flash.not_author');
     }
     vote_cast($c1, $ownTopic, 'for');
-    topic_delete($ownTopic, $au2);
-    $check('Autor kann löschen (Thema weg)', SW::$db->val('SELECT COUNT(*) FROM topics WHERE id = ?', [$ownTopic]) == 0);
-    $check('Stimmen des gelöschten Themas entfernt', SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ?', [$ownTopic]) == 0);
+    try {
+        topic_delete($ownTopic, $au2);
+        $check('Abgestimmtes Thema bleibt dauerhaft bestehen', false);
+    } catch (DomainException $e) {
+        $check('Abgestimmtes Thema bleibt dauerhaft bestehen', $e->getMessage() === 'flash.topic_locked');
+    }
+    $check('Abgestimmtes Thema weiterhin vorhanden',
+        SW::$db->val('SELECT COUNT(*) FROM topics WHERE id = ?', [$ownTopic]) == 1);
+    $warp('+1 day');
+    $freshTopic = cli_make_topic($au2, 'Thema ohne Stimmen zum Löschen');
+    topic_delete($freshTopic, $au2);
+    $check('Thema ohne Stimmen bleibt löschbar',
+        SW::$db->val('SELECT COUNT(*) FROM topics WHERE id = ?', [$freshTopic]) == 0);
+    $warp('-1 day');
+    $similar = topics_similar('Neuer Titel nach Bearbeitung', null, 5);
+    $check('Ähnliches Thema wird gefunden', $similar !== [] && (int) $similar[0]['id'] === $ownTopic);
+    $check('Unähnlicher Titel liefert nichts',
+        topics_similar('Vollkommen anderes Anliegen ohne Bezug', null, 5) === []);
+    $check('Eigenes Thema wird bei der Suche ausgeblendet',
+        topics_similar('Neuer Titel nach Bearbeitung', $ownTopic, 5) === []);
 
     echo "== Profil: verschlüsselt an Public Key + Server-Signatur ==\n";
     if (card_supports_sodium()) {
