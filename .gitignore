@@ -1,4 +1,0 @@
-# Zur Laufzeit von index.php selbst erzeugte Dateien – niemals einchecken
-/data/
-/.htaccess
-/robots.txt

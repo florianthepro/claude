@@ -78,11 +78,18 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
 3. **Hell/Dunkel automatisch:** Das Design folgt ausschließlich der
    Systemeinstellung (`prefers-color-scheme`) — es wird bewusst nichts im
    Browser gespeichert, auch keine Design-Präferenz.
-4. **Symbolhafter Einstieg:** Beim Sitzungsbeginn nur Marken-Icon und
-   Sprachwahl — **Deutsch/English als Knöpfe mit Flagge**; die Anmeldung
-   führt ein Ausweis-Piktogramm mit NFC-Wellen an, Text bleibt minimal. Die
-   Kopfzeile der Seite trägt danach **keine Wortmarke** und keinen
-   Anmeldestatus, sondern nur die nötigen Bedienelemente.
+4. **Symbolhafter Einstieg:** Beim Sitzungsbeginn nur der Schriftzug und die
+   Sprachwahl — **Deutsch/English als Knöpfe mit Flagge**, ohne Bildmarke; die
+   Anmeldung führt ein Ausweis-Piktogramm mit NFC-Wellen an, Text bleibt
+   minimal. Die Kopfzeile der Seite trägt weder Wortmarke noch Anmeldestatus,
+   sondern nur die nötigen Bedienelemente; die Fußzeile nur Impressum und
+   Datenschutz.
+
+   **Bildmarke (Tab-/App-Icon):** ein **Wahlkreuz im Feld** — scharfe Kanten,
+   keine abgerundeten Ecken, keine Farbe. Als SVG folgt es der
+   Systemeinstellung (schwarze Fläche mit weißem Kreuz im Hellmodus, weiße
+   Fläche mit schwarzem Kreuz im Dunkelmodus); PNG und ICO für Safari/iOS
+   liefern dieselbe Marke als geschlossene dunkle Kachel.
 5. **Responsiv:** eine Codebasis für Smartphone, Tablet, PC und Terminals; alle
    Funktionen sind ohne JavaScript nutzbar (JavaScript verbessert nur Details:
    Countdown und NFC-Auslösung am Smartphone).
@@ -613,7 +620,37 @@ Gebietsdaten (amtliche Gemeindeschlüssel AGS/ARS statt Freitext-Gebieten).
 
 ---
 
-*Anhang: Der technische Prototyp ist eine einzige Datei (`index.php`),
-die beim ersten Aufruf Datenverzeichnis, Zugriffsschutz und Datenbank
-selbst anlegt; Installations-, Betriebs- und Sicherheitshinweise in
-`README.md`.*
+## Anhang: Installation und Betrieb
+
+Der technische Prototyp ist **eine einzige Datei**. Es genügt ein Webserver
+mit PHP — kein Framework, kein Paketmanager, keine externen Dienste.
+
+1. `index.php` in das Webverzeichnis legen (Hauptverzeichnis oder Unterordner;
+   der Basispfad wird erkannt).
+2. PHP **8.0 oder neuer** mit `pdo_sqlite`, `mbstring` und `sodium` — alle drei
+   gehören zur Standardausstattung.
+3. Seite aufrufen. Beim ersten Aufruf legt die Datei selbst an: `data/`
+   (SQLite-Datenbank, Server-Geheimnis, Protokolle, Zugriffssperre),
+   `.htaccess` (saubere Adressen und Schutz interner Dateien) und `robots.txt`.
+
+Meldet die Seite „Fast geschafft“, fehlen dem Verzeichnis Schreibrechte
+(755/775 setzen, neu laden). Ohne `.htaccess`-Unterstützung — etwa unter nginx —
+arbeitet die Anwendung über automatisch erzeugte `/index.php/…`-Adressen
+weiter; eine gleichwertige `try_files`-Regel stellt die sauberen Adressen her.
+
+Der Auslieferungszustand ist der **Testmodus** (Kapitel 5.3b): ein Knopf meldet
+ohne Ausweis an, damit sich die Plattform vorführen lässt. Das Beenden über die
+Oberfläche löscht alle dabei entstandenen Daten und schaltet dauerhaft auf die
+strenge Ausweisprüfung um.
+
+Wartung und Prüfung laufen über dieselbe Datei auf der Kommandozeile:
+
+| Aufruf | Zweck |
+|---|---|
+| `php index.php selftest` | 97 automatisierte Prüfungen der Fachregeln |
+| `php index.php cron` | Wartungslauf (sonst beiläufig bei Seitenaufrufen) |
+| `php index.php seed 400` | Demo-Stimmen, anonym wie im Echtbetrieb |
+| `php index.php jurysim` | Demo-Jury stimmt in laufenden Prüfungen ab |
+| `php index.php issue-card 3` | autorisierte Demo-Ausweise samt Abhol-Verweis |
+| `php index.php sync-keys` | Allowlist aus der konfigurierten Trust-Liste |
+| `php -S 127.0.0.1:8080 index.php` | lokale Vorführung ohne Webserver |

@@ -2,24 +2,6 @@
 
 declare(strict_types=1);
 
-/**
- * Stimmwerk – digitale Bürgerbeteiligung mit dem Personalausweis.
- * Ein-Datei-Version: Diese Datei ist die gesamte Anwendung. Beim ersten
- * Aufruf legt sie selbst an: data/ (SQLite, Server-Geheimnis, Logs,
- * Zugriffssperre), .htaccess (Routing + Schutz) und robots.txt.
- * CSS, JavaScript und Favicon liefert sie ebenfalls selbst aus.
- *
- * Identität: Der Ausweis(-Chip) hält einen privaten Schlüssel; beim
- * Anhalten signiert er eine Zufallsnachricht, der Server prüft die
- * Signatur gegen den öffentlichen Schlüssel und kennt nur ein daraus
- * abgeleitetes Pseudonym. Im Testbetrieb simuliert eine im Browser
- * hinterlegte Testkarte den Chip (echtes Signieren/Prüfen via libsodium).
- * Jede Änderung (Stimme, Thema, Meldung, Jury, Favorit, Löschung)
- * erfordert die Karte erneut.
- *
- * CLI: php index.php selftest | cron | seed [n] | jurysim
- */
-
 if (PHP_VERSION_ID < 80000) {
     if (PHP_SAPI === 'cli') {
         fwrite(STDERR, "Benoetigt PHP 8.0+, gefunden: " . PHP_VERSION . "\n");
@@ -35,51 +17,21 @@ if (PHP_VERSION_ID < 80000) {
     exit;
 }
 
-/* ============================== Konfiguration ============================= */
-
 const SW_CONFIG = [
     'app_name' => 'Stimmwerk',
     'domain'   => 'stimmwerk.de',
 
-    // Testbetrieb-Banner: solange true, zeigt jede Seite den Hinweis, dass
-    // dies keine offizielle Seite der Bundesregierung oder Behörde ist.
-    // (Der Testmodus selbst ist KEINE Konfiguration mehr – er ist bei einer
-    //  frischen Installation aktiv und wird über die Oberfläche beendet.)
     'show_test_banner' => true,
 
-    // Anmeldemodus:
-    //   'demo' = Ausweise werden per CLI ausgegeben (issue-card) und in die
-    //            Allowlist aufgenommen; NUR gelistete Schlüssel können sich
-    //            anmelden. Kein Ausweis / fremder Schlüssel => abgewiesen.
-    //   'eid'  = echter eID-Server nach BSI TR-03130 (AusweisApp). Ohne
-    //            konfigurierten Server schlägt die Anmeldung bewusst FEHL
-    //            (fail-closed) – niemand kommt ohne echten Ausweis hinein.
     'eid_mode' => 'demo',
-    // Integrationsstelle zum Aktualisieren der Allowlist (sync-keys). Standard
-    // leer: In Deutschland gibt es KEINE staatliche Liste aller
-    // Ausweis-Schlüssel; echte Prüfung läuft über die BSI-Zertifikatskette im
-    // eID-Server. Diese URL ist der Anschlusspunkt für eine eigene Trust-Liste.
+
     'authorized_keys_url' => '',
 
-    // Anmelde-Anbieter (Ausweis-Apps). 'start' ist die vom Betreiber
-    // konfigurierte Startadresse des jeweiligen Flows:
-    //  - AusweisApp: URL des eigenen eID-Servers (TR-03130), der eine
-    //    tcTokenURL erzeugt und die AusweisApp öffnet.
-    //  - Nect: Start-URL des Nect-Ident-Flows (Nect Wallet).
-    // Leer = nicht konfiguriert; der Anbieter meldet dann sauber „nicht
-    // eingerichtet“ (fail-closed), es kommt niemand ohne echte Prüfung hinein.
-    // Aktivierungsadresse des eID-Clients nach BSI TR-03124. Die AusweisApp
-    // (oder ein anderer eID-Client) lauscht lokal auf diesem Port; der Aufruf
-    // mit tcTokenURL startet die Ausweis-Prüfung direkt auf dem Gerät. Dieser
-    // Teil braucht KEINE Konfiguration – Apache + diese Datei genügen.
     'eid_client_url' => 'http://127.0.0.1:24727/eID-Client',
-    // eID-Server nach BSI TR-03130 (SOAP-Endpunkt useID/getResult). Nur ein
-    // Betreiber mit Berechtigungszertifikat des BVA kann so einen Server
-    // betreiben; ohne Eintrag liefert /eid/tctoken einen sauberen Fehler an die
-    // AusweisApp zurück und niemand wird angemeldet (fail-closed).
+
     'eid_server_url'  => '',
-    'eid_server_cert' => '', // Client-Zertifikat (PEM) für die mTLS-Verbindung
-    'eid_server_key'  => '', // zugehöriger privater Schlüssel (PEM)
+    'eid_server_cert' => '',
+    'eid_server_key'  => '',
     'eid_providers' => [
         'ausweisapp' => ['label' => 'AusweisApp', 'start' => ''],
         'nect'       => ['label' => 'Nect Wallet', 'start' => ''],
@@ -89,23 +41,20 @@ const SW_CONFIG = [
     'default_lang' => 'de',
     'langs'        => ['de', 'en'],
 
-    // Bürger-Jury
-    'jury_share'         => 0.01,  // 1 % der Nutzerschaft je Meldung
+    'jury_share'         => 0.01,
     'jury_min'           => 5,
-    'quorum_share'       => 0.005, // 0,5 % der Nutzerschaft
+    'quorum_share'       => 0.005,
     'quorum_min'         => 3,
     'report_vote_hours'  => 24,
     'jury_cooldown_days' => 3,
     'reports_per_day'    => 3,
 
-    // Sitzungen (öffentliche Terminals)
     'session_idle_minutes' => 30,
     'session_max_hours'    => 8,
 
     'page_size' => 20,
 ];
 
-/** Zentrale, bewusst kleine Registry (eine Datei, ein Zustand). */
 final class SW
 {
     public static array $cfg = SW_CONFIG;
@@ -115,14 +64,12 @@ final class SW
     public static string $serverSign = '';
     public static ?bool $testMode = null;
     public static string $lang = 'de';
-    /** @var array<string,string> */
+
     public static array $tActive = [];
     public static ?array $user = null;
     public static string $base = '';
     public static string $path = '/';
 }
-
-/* ============================== Zeit ====================================== */
 
 final class Clock
 {
@@ -150,13 +97,11 @@ final class Clock
         return self::now()->format(self::FORMAT);
     }
 
-    /** Heutiges Datum (YYYY-MM-DD) in der Bezugszeitzone. */
     public static function localDate(): string
     {
         return self::now()->setTimezone(new DateTimeZone(self::$tz))->format('Y-m-d');
     }
 
-    /** Nächste Mitternacht (00:00) der Bezugszeitzone, als UTC-String. */
     public static function nextLocalMidnightUtcStr(): string
     {
         $local = self::now()->setTimezone(new DateTimeZone(self::$tz));
@@ -184,8 +129,6 @@ final class Clock
         return self::fromStr($utc)->setTimezone(new DateTimeZone(self::$tz))->format($format);
     }
 }
-
-/* ============================== Datenbank ================================= */
 
 const SW_SCHEMA = <<<'SQL'
 CREATE TABLE IF NOT EXISTS schema_info (
@@ -229,10 +172,7 @@ CREATE TABLE IF NOT EXISTS topics (
 CREATE INDEX IF NOT EXISTS ix_topics_status_created ON topics(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS ix_topics_category       ON topics(category_id);
 CREATE INDEX IF NOT EXISTS ix_topics_scope          ON topics(scope_level, scope_name);
--- Stimmen sind bewusst NICHT mit dem Ausweis verknüpft: voter_tag ist ein
--- HMAC aus Thema + öffentlichem Schlüssel mit Server-Geheimnis. Ohne das
--- Geheimnis lässt sich nicht rückschließen, welcher Ausweis was gewählt hat;
--- Doppelstimmen bleiben trotzdem ausgeschlossen (Primärschlüssel).
+
 CREATE TABLE IF NOT EXISTS votes (
     topic_id   INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
     voter_tag  TEXT    NOT NULL,
@@ -280,8 +220,6 @@ CREATE TABLE IF NOT EXISTS rate_limits (
     cnt          INTEGER NOT NULL
 );
 
--- Laufende Ausweis-App-Vorgänge (TR-03124). Die AusweisApp holt das tcToken
--- ohne Browser-Cookie ab; der Einmal-Nonce in der tcTokenURL verbindet beides.
 CREATE TABLE IF NOT EXISTS eid_flows (
     nonce      TEXT    PRIMARY KEY,
     session_id TEXT    NOT NULL,
@@ -290,7 +228,6 @@ CREATE TABLE IF NOT EXISTS eid_flows (
 );
 SQL;
 
-/** Schmale PDO-Hülle: ausschließlich Prepared Statements. */
 final class Db
 {
     private PDO $pdo;
@@ -364,9 +301,7 @@ final class Db
 
     public function migrate(): void
     {
-        // Das Schema besteht ausschließlich aus IF-NOT-EXISTS-Anweisungen und
-        // wird daher bei jedem Start angewandt: neue Tabellen erscheinen auch
-        // in bestehenden Datenbanken, vorhandene Daten bleiben unberührt.
+
         $exists = $this->val("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_info'");
         $this->pdo->exec(SW_SCHEMA);
         if ($exists === null) {
@@ -375,9 +310,6 @@ final class Db
     }
 }
 
-/* ===================== Selbst-Einrichtung (erster Aufruf) ================= */
-
-/** Sperr-.htaccess für interne Verzeichnisse (Apache 2.2/2.4, LiteSpeed). */
 const SW_HTACCESS_DENY = <<<'TXT'
 <IfModule mod_authz_core.c>
     Require all denied
@@ -388,9 +320,8 @@ const SW_HTACCESS_DENY = <<<'TXT'
 </IfModule>
 TXT;
 
-/** Root-.htaccess: saubere Pfade (/…) an index.php, ohne /index.php in der URL. */
 const SW_HTACCESS_ROOT = <<<'TXT'
-# Stimmwerk (automatisch erzeugt) - bei Bedarf loeschen, wird neu angelegt.
+
 Options -Indexes -MultiViews
 DirectoryIndex index.php
 <IfModule mod_rewrite.c>
@@ -419,7 +350,6 @@ DirectoryIndex index.php
 </FilesMatch>
 TXT;
 
-/** Legt data/, Schutzdateien, Geheimnis und Datenbank an (idempotent). */
 function sw_setup(): void
 {
     Clock::setTimezone((string) SW::$cfg['timezone']);
@@ -438,8 +368,7 @@ function sw_setup(): void
     if (!is_file($dataHt)) {
         @file_put_contents($dataHt, SW_HTACCESS_DENY . "\n", LOCK_EX);
     }
-    // Root-Schutz/-Routing: nur erzeugen, wenn nicht vorhanden. Schlaegt das
-    // Schreiben fehl, laeuft die Anwendung ueber /index.php/...-Links weiter.
+
     $rootHt = __DIR__ . '/.htaccess';
     if (!is_file($rootHt)) {
         @file_put_contents($rootHt, SW_HTACCESS_ROOT . "\n", LOCK_EX);
@@ -462,8 +391,6 @@ function sw_setup(): void
     }
     SW::$pepper = $pepper;
 
-    // Server-Signaturschlüssel (Ed25519): signiert das ausgelieferte Profil,
-    // damit Manipulation erkennbar ist. Öffentlicher Teil ist abrufbar.
     if (card_supports_sodium()) {
         $srvFile = SW::$dataDir . '/server_sign.key';
         if (!is_file($srvFile)) {
@@ -487,11 +414,6 @@ function sw_hmac(string $value): string
     return hash_hmac('sha256', $value, SW::$pepper);
 }
 
-/* ---- Testmodus ---------------------------------------------------------- *
- * Kein Konfigurationsschalter: Eine frische Installation startet IM
- * Testmodus, damit sie sofort ohne eID-Server nutzbar ist. Beenden erfolgt
- * einmalig über die Oberfläche; dabei werden alle im Testbetrieb erzeugten
- * Inhalte gelöscht. Danach gilt ausschließlich die echte Ausweis-Prüfung. */
 function test_mode(): bool
 {
     if (SW::$testMode === null) {
@@ -501,7 +423,6 @@ function test_mode(): bool
     return SW::$testMode;
 }
 
-/** Beendet den Testmodus und löscht alle im Testbetrieb erzeugten Inhalte. */
 function test_mode_end(): void
 {
     SW::$db->tx(function (): void {
@@ -519,7 +440,7 @@ function test_mode_end(): void
         );
     });
     SW::$testMode = false;
-    // Testausweise und deren Freigaben verwerfen.
+
     @unlink(authorized_file());
     foreach (glob(SW::$dataDir . '/issued/*.key') ?: [] as $f) {
         @unlink($f);
@@ -527,15 +448,11 @@ function test_mode_end(): void
     log_line('SECURITY', 'test_mode_ended', []);
 }
 
-/* ============================== Hilfsfunktionen =========================== */
-
-/** HTML-Escaping für JEDE Ausgabe von Nutzerdaten. */
 function e($value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-/** Übersetzung mit {platzhalter}-Ersetzung. */
 function t(string $key, array $repl = []): string
 {
     $text = SW::$tActive[$key] ?? SW_DE[$key] ?? $key;
@@ -545,15 +462,11 @@ function t(string $key, array $repl = []): string
     return $text;
 }
 
-/** Zahlformat je Sprache (1.234 / 1,234). */
 function num(int $n): string
 {
     return SW::$lang === 'de' ? number_format($n, 0, ',', '.') : number_format($n);
 }
 
-/** URL-Präfix. Die Anwendung erzeugt IMMER saubere Pfade (/topics, nie
- *  /index.php/...). Voraussetzung ist die mitgelieferte .htaccess-Umschreibung
- *  (Apache/LiteSpeed; für nginx eine gleichwertige try_files-Regel). */
 function base_path(): string
 {
     return SW::$base;
@@ -565,7 +478,6 @@ function url(string $path): string
     return $full === '' ? '/' : $full;
 }
 
-/** Interner Redirect – ausschließlich auf eigene, interne Pfade. */
 function redirect(string $path): void
 {
     if ($path === '' || $path[0] !== '/' || strpos($path, '//') === 0) {
@@ -638,8 +550,6 @@ function log_line(string $level, string $event, array $context = []): void
     @file_put_contents(SW::$dataDir . '/app.log', $line, FILE_APPEND | LOCK_EX);
 }
 
-/* ============================== Sitzung & CSRF ============================ */
-
 function sw_is_https(): bool
 {
     return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
@@ -686,12 +596,6 @@ function take_flashes(): array
     return is_array($flashes) ? $flashes : [];
 }
 
-/**
- * Einmal-Token: Jedes Formular trägt ein eigenes, einmalig gültiges Token
- * (serverseitig in der Sitzung geführt, beim Einlösen verbraucht).
- * Das deckt CSRF ab UND verhindert jede Wiederholung einer Aktion –
- * jede Aktion ist genau einmal gültig.
- */
 function csrf_field(): string
 {
     $token = bin2hex(random_bytes(16));
@@ -710,11 +614,10 @@ function csrf_ok(): bool
     if (!is_string($sent) || !isset($_SESSION['ot']) || !is_array($_SESSION['ot']) || !isset($_SESSION['ot'][$sent])) {
         return false;
     }
-    unset($_SESSION['ot'][$sent]); // einmalig: verbraucht ist verbraucht
+    unset($_SESSION['ot'][$sent]);
     return true;
 }
 
-/** Festfenster-Ratenbegrenzung je Schlüssel; keine Klar-IP-Speicherung. */
 function rate_allow(string $key, int $max, int $windowSeconds): bool
 {
     $now = Clock::now()->getTimestamp();
@@ -747,38 +650,16 @@ function ip_key(): string
     return substr(sw_hmac('ip|' . Clock::localDate() . '|' . $ip), 0, 24);
 }
 
-/* ================= Ausweis-Simulation (Schlüssel & Signatur) ============== */
-/* Der echte Ausweis-Chip hält einen privaten Schlüssel, der die Karte nie
-   verlässt; der Server prüft Signaturen gegen den öffentlichen Schlüssel
-   (Zertifikatskette des Staates, BSI TR-03110/-03130). Im Testbetrieb
-   simuliert der Server den Chip mit einem echten Ed25519-Schlüsselpaar
-   (libsodium), das ausschließlich serverseitig in der Sitzung liegt –
-   im Browser wird NICHTS gespeichert (einziges Cookie: die Sitzungs-ID).
-   Jede Anmeldung und jede Änderung wird durch Signatur + Prüfung gegen den
-   öffentlichen Schlüssel bestätigt. Am Smartphone löst der NFC-Kontakt den
-   Vorgang direkt aus (Web NFC, mit Rückfall auf Knopfdruck). Produktion:
-   Austausch dieses Blocks gegen die eID-Server-Anbindung (TR-03130). */
-
 function card_supports_sodium(): bool
 {
     return function_exists('sodium_crypto_sign_keypair');
 }
-
-/* ---- Allowlist autorisierter Ausweis-Schlüssel -------------------------- *
- * Die Allowlist (data/authorized_keys.yaml) enthält die öffentlichen Schlüssel,
- * die zu von der Behörde ausgegebenen Ausweisen gehören. Anmelden kann sich
- * NUR, wessen Schlüssel hier steht UND wer den passenden privaten Schlüssel
- * besitzt (Signatur-Challenge). So kommt niemand mit fehlendem oder fremdem
- * Ausweis hinein. Aktualisiert wird die Liste über sync-keys bzw. issue-card;
- * im Echtbetrieb ersetzt der eID-Server (TR-03130) diese Liste durch die
- * Prüfung gegen die staatliche Zertifikatskette (TR-03110). */
 
 function authorized_file(): string
 {
     return SW::$dataDir . '/authorized_keys.yaml';
 }
 
-/** @return array<string,bool> Menge autorisierter Public-Keys (hex, lowercase). */
 function authorized_load(): array
 {
     $file = authorized_file();
@@ -800,7 +681,6 @@ function authorized_contains(string $pkHex): bool
     return isset(authorized_load()[strtolower($pkHex)]);
 }
 
-/** Fügt Public-Keys hinzu (idempotent) und schreibt die YAML neu. */
 function authorized_add(array $pkHexList, string $source): int
 {
     $set = authorized_load();
@@ -828,7 +708,6 @@ function authorized_add(array $pkHexList, string $source): int
     return $added;
 }
 
-/** Liest die simulierte Karte der laufenden Sitzung. @return array{secret:string,pk:string}|null */
 function card_load(): ?array
 {
     $raw = $_SESSION['card'] ?? '';
@@ -851,7 +730,6 @@ function card_load(): ?array
     return ['secret' => $secret, 'pk' => hash('sha256', 'pk|' . $secret, true)];
 }
 
-/** Erzeugt eine neue simulierte Karte – nur serverseitig in der Sitzung. */
 function card_create(): array
 {
     if (card_supports_sodium()) {
@@ -871,39 +749,29 @@ function card_forget(): void
     unset($_SESSION['card']);
 }
 
-/** Identität „on the go“: der öffentliche Schlüssel selbst (hex) – es wird
- *  kein abgeleitetes Pseudonym erzeugt oder zugeordnet. */
 function card_identity(array $card): string
 {
     return bin2hex($card['pk']);
 }
 
-/* TOTP-artige Zeitbindung: Alle Nachweise gelten nur für ein kurzes
-   Zeitfenster – dieselbe Aktion ergibt zu anderer Zeit einen anderen,
-   nicht wiederverwendbaren Nachweis. */
-const SW_SLOT_SECONDS = 300; // Fensterlänge (5 Minuten)
-const SW_AUTH_SLOTS = 2;     // Anmeldung gilt für aktuelles + folgendes Fenster
+const SW_SLOT_SECONDS = 300;
+const SW_AUTH_SLOTS = 2;
 
 function time_slot(): int
 {
     return intdiv(Clock::now()->getTimestamp(), SW_SLOT_SECONDS);
 }
 
-/** Versiegelter Aktions-Umschlag: Die Karte signiert/versiegelt Aktion +
- *  Zeitfenster mit ihrem privaten Schlüssel (kombinierter Signaturmodus);
- *  der Server ÖFFNET den Umschlag mit dem öffentlichen Schlüssel. */
 function card_seal(array $card, string $action): string
 {
     $payload = json_encode(['a' => $action, 'slot' => time_slot(), 'n' => bin2hex(random_bytes(8))]);
     if (card_supports_sodium()) {
         return sodium_crypto_sign($payload, $card['secret']);
     }
-    // Rückfall ohne sodium: an den öffentlichen Schlüssel gebundene Prüfsumme.
+
     return $payload . '.' . hash('sha256', 'seal|' . $card['pk'] . '|' . $payload);
 }
 
-/** Öffnet den Umschlag mit dem öffentlichen Schlüssel und prüft Aktion und
- *  Zeitfenster (aktuelles oder unmittelbar vorheriges). */
 function card_open(string $pk, string $sealed, string $action): bool
 {
     if (card_supports_sodium()) {
@@ -930,8 +798,6 @@ function card_open(string $pk, string $sealed, string $action): bool
     $current = time_slot();
     return $slot === $current || $slot === $current - 1;
 }
-
-/* ============================== Konto & Anmeldung ========================= */
 
 function auth_login(string $pseudonymHash): array
 {
@@ -969,8 +835,7 @@ function auth_user(): ?array
     if (!is_int($id)) {
         return null;
     }
-    // Zeitfenster abgelaufen -> Identitätsnachweis verfällt, erneut auflegen.
-    // Im Testmodus entfällt auch das (keine Ausweis-Aufforderungen).
+
     $slot = $_SESSION['auth_slot'] ?? null;
     if (!test_mode() && is_int($slot) && (time_slot() - $slot) >= SW_AUTH_SLOTS) {
         unset($_SESSION['user_id'], $_SESSION['auth_time'], $_SESSION['auth_slot']);
@@ -993,19 +858,10 @@ function require_user(): array
     return $user;
 }
 
-/** Jede Änderung läuft unabhängig von der Profil-Anmeldung über einen
- *  eigenen, zeitgebundenen versiegelten Umschlag: Die Karte versiegelt die
- *  Aktion, der Server öffnet mit dem öffentlichen Schlüssel und trägt das
- *  Ergebnis für genau diesen Schlüssel ein. Ein alter Umschlag (anderes
- *  Zeitfenster) wird abgelehnt. */
-/** Strenge Prüfung einer Änderung (rein, damit automatisiert testbar):
- *  Ohne Testmodus MUSS ein Ausweis vorliegen, zum angemeldeten Schlüssel
- *  gehören und einen gültigen, zeitgebundenen Umschlag liefern.
- *  Im Testmodus entfallen alle Ausweis-Aufforderungen. */
 function card_confirm_ok(array $user, ?array $card, string $action): bool
 {
     if (test_mode()) {
-        return true; // Testmodus: keine Ausweis-Bestätigung bei Änderungen
+        return true;
     }
     if ($card === null) {
         return false;
@@ -1031,8 +887,6 @@ function short_id(array $user): string
     return strtoupper(substr((string) $user['pseudonym_hash'], 0, 8));
 }
 
-/* ============================== Fachlogik: Themen ========================= */
-
 const SW_TITLE_MIN = 8;
 const SW_TITLE_MAX = 120;
 const SW_GOAL_MIN = 10;
@@ -1040,10 +894,6 @@ const SW_GOAL_MAX = 500;
 const SW_REASONING_MIN = 10;
 const SW_REASONING_MAX = 4000;
 
-/** Amtliche Verwaltungsgliederung: 16 Länder mit ihren Landkreisen und
-    kreisfreien Städten – Auswahl statt Freitext. Vor einem Echtbetrieb
-    gegen das amtliche Gemeindeverzeichnis (Destatis, ARS) abgleichen;
-    die Gemeindeebene folgt in der Ausbaustufe über dasselbe Verzeichnis. */
 const SW_REGIONS = [
     'Baden-Württemberg' => ['Alb-Donau-Kreis', 'Baden-Baden (Stadt)', 'Bodenseekreis', 'Enzkreis', 'Freiburg im Breisgau (Stadt)', 'Heidelberg (Stadt)', 'Heilbronn (Stadt)', 'Hohenlohekreis', 'Karlsruhe (Stadt)', 'Landkreis Biberach', 'Landkreis Breisgau-Hochschwarzwald', 'Landkreis Böblingen', 'Landkreis Calw', 'Landkreis Emmendingen', 'Landkreis Esslingen', 'Landkreis Freudenstadt', 'Landkreis Göppingen', 'Landkreis Heidenheim', 'Landkreis Heilbronn', 'Landkreis Karlsruhe', 'Landkreis Konstanz', 'Landkreis Ludwigsburg', 'Landkreis Lörrach', 'Landkreis Rastatt', 'Landkreis Ravensburg', 'Landkreis Reutlingen', 'Landkreis Rottweil', 'Landkreis Schwäbisch Hall', 'Landkreis Sigmaringen', 'Landkreis Tuttlingen', 'Landkreis Tübingen', 'Landkreis Waldshut', 'Main-Tauber-Kreis', 'Mannheim (Stadt)', 'Neckar-Odenwald-Kreis', 'Ortenaukreis', 'Ostalbkreis', 'Pforzheim (Stadt)', 'Rems-Murr-Kreis', 'Rhein-Neckar-Kreis', 'Schwarzwald-Baar-Kreis', 'Stuttgart (Stadt)', 'Ulm (Stadt)', 'Zollernalbkreis'],
     'Bayern' => ['Amberg (Stadt)', 'Ansbach (Stadt)', 'Aschaffenburg (Stadt)', 'Augsburg (Stadt)', 'Bamberg (Stadt)', 'Bayreuth (Stadt)', 'Coburg (Stadt)', 'Erlangen (Stadt)', 'Fürth (Stadt)', 'Hof (Stadt)', 'Ingolstadt (Stadt)', 'Kaufbeuren (Stadt)', 'Kempten (Allgäu) (Stadt)', 'Landkreis Aichach-Friedberg', 'Landkreis Altötting', 'Landkreis Amberg-Sulzbach', 'Landkreis Ansbach', 'Landkreis Aschaffenburg', 'Landkreis Augsburg', 'Landkreis Bad Kissingen', 'Landkreis Bad Tölz-Wolfratshausen', 'Landkreis Bamberg', 'Landkreis Bayreuth', 'Landkreis Berchtesgadener Land', 'Landkreis Cham', 'Landkreis Coburg', 'Landkreis Dachau', 'Landkreis Deggendorf', 'Landkreis Dillingen a.d.Donau', 'Landkreis Dingolfing-Landau', 'Landkreis Donau-Ries', 'Landkreis Ebersberg', 'Landkreis Eichstätt', 'Landkreis Erding', 'Landkreis Erlangen-Höchstadt', 'Landkreis Forchheim', 'Landkreis Freising', 'Landkreis Freyung-Grafenau', 'Landkreis Fürstenfeldbruck', 'Landkreis Fürth', 'Landkreis Garmisch-Partenkirchen', 'Landkreis Günzburg', 'Landkreis Haßberge', 'Landkreis Hof', 'Landkreis Kelheim', 'Landkreis Kitzingen', 'Landkreis Kronach', 'Landkreis Kulmbach', 'Landkreis Landsberg am Lech', 'Landkreis Landshut', 'Landkreis Lichtenfels', 'Landkreis Lindau (Bodensee)', 'Landkreis Main-Spessart', 'Landkreis Miesbach', 'Landkreis Miltenberg', 'Landkreis Mühldorf a.Inn', 'Landkreis München', 'Landkreis Neu-Ulm', 'Landkreis Neuburg-Schrobenhausen', 'Landkreis Neumarkt i.d.OPf.', 'Landkreis Neustadt a.d.Aisch-Bad Windsheim', 'Landkreis Neustadt a.d.Waldnaab', 'Landkreis Nürnberger Land', 'Landkreis Oberallgäu', 'Landkreis Ostallgäu', 'Landkreis Passau', 'Landkreis Pfaffenhofen a.d.Ilm', 'Landkreis Regen', 'Landkreis Regensburg', 'Landkreis Rhön-Grabfeld', 'Landkreis Rosenheim', 'Landkreis Roth', 'Landkreis Rottal-Inn', 'Landkreis Schwandorf', 'Landkreis Schweinfurt', 'Landkreis Starnberg', 'Landkreis Straubing-Bogen', 'Landkreis Tirschenreuth', 'Landkreis Traunstein', 'Landkreis Unterallgäu', 'Landkreis Weilheim-Schongau', 'Landkreis Weißenburg-Gunzenhausen', 'Landkreis Wunsiedel i.Fichtelgebirge', 'Landkreis Würzburg', 'Landshut (Stadt)', 'Memmingen (Stadt)', 'München (Stadt)', 'Nürnberg (Stadt)', 'Passau (Stadt)', 'Regensburg (Stadt)', 'Rosenheim (Stadt)', 'Schwabach (Stadt)', 'Schweinfurt (Stadt)', 'Straubing (Stadt)', 'Weiden i.d.OPf. (Stadt)', 'Würzburg (Stadt)'],
@@ -1063,8 +913,6 @@ const SW_REGIONS = [
     'Thüringen' => ['Erfurt (Stadt)', 'Gera (Stadt)', 'Ilm-Kreis', 'Jena (Stadt)', 'Kyffhäuserkreis', 'Landkreis Altenburger Land', 'Landkreis Eichsfeld', 'Landkreis Gotha', 'Landkreis Greiz', 'Landkreis Hildburghausen', 'Landkreis Nordhausen', 'Landkreis Saalfeld-Rudolstadt', 'Landkreis Schmalkalden-Meiningen', 'Landkreis Sonneberg', 'Landkreis Sömmerda', 'Landkreis Weimarer Land', 'Saale-Holzland-Kreis', 'Saale-Orla-Kreis', 'Suhl (Stadt)', 'Unstrut-Hainich-Kreis', 'Wartburgkreis', 'Weimar (Stadt)'],
 ];
 
-/** Kodierte Geltungsbereich-Werte: 'de' | 'bl:<Land>' | 'kr:<Land>:<Kreis>'.
- *  @return array{0:string,1:?string}|null [scope_level, scope_name] */
 function scope_decode(string $value): ?array
 {
     if ($value === 'de') {
@@ -1085,8 +933,6 @@ function scope_decode(string $value): ?array
     return null;
 }
 
-/** Gebiets-Favorit ('bund' | 'bundesland:X' | 'landkreis:Y') als
- *  Filterwert der Themenliste ('de' | 'bl:X' | 'kr:Land:Y'). */
 function fav_to_gebiet(string $ref): ?string
 {
     if ($ref === 'bund') {
@@ -1109,9 +955,6 @@ function fav_to_gebiet(string $ref): ?string
     return null;
 }
 
-/** Geltungsbereich-Auswahl. Baseline (ohne JS): ein gruppiertes Auswahlfeld.
- *  Mit JS ersetzt app.js es durch eine kompakte zweistufige Auswahl
- *  (Ebene → Land → Kreis), damit keine lange Liste nötig ist. */
 function scope_picker(string $name, string $selected, bool $withAll): string
 {
     $html = '<select name="' . e($name) . '" data-scope-native'
@@ -1164,7 +1007,6 @@ const SW_CATEGORIES = [
     ['demokratie', 'Demokratie & Beteiligung', 'Democracy & Participation'],
 ];
 
-/** Grunddaten: nur Kategorien + System-Konto. Themen werden nie vorbefüllt. */
 function sw_seed_categories(): void
 {
     if ((int) SW::$db->val('SELECT COUNT(*) FROM categories') > 0) {
@@ -1202,7 +1044,6 @@ function topic_has_posted_today(int $userId): bool
     );
 }
 
-/** @throws DomainException mit Übersetzungsschlüssel */
 function topic_create(int $userId, string $title, string $goal, string $reasoning, int $categoryId, string $scopeLevel, ?string $scopeName, string $endMode, ?string $endDate, ?int $endTarget): int
 {
     if (topic_has_posted_today($userId)) {
@@ -1224,7 +1065,6 @@ function topic_create(int $userId, string $title, string $goal, string $reasonin
     return SW::$db->lastId();
 }
 
-/** Bearbeiten durch den Autor. @throws DomainException */
 function topic_update(int $topicId, int $userId, string $title, string $goal, string $reasoning, int $categoryId, string $scopeLevel, ?string $scopeName, string $endMode, ?string $endDate, ?int $endTarget): void
 {
     $topic = SW::$db->one('SELECT * FROM topics WHERE id = ?', [$topicId]);
@@ -1240,7 +1080,6 @@ function topic_update(int $topicId, int $userId, string $title, string $goal, st
     );
 }
 
-/** Löschen durch den Autor (Stimmen und Meldungen fallen mit). @throws DomainException */
 function topic_delete(int $topicId, int $userId): void
 {
     $topic = SW::$db->one('SELECT author_id FROM topics WHERE id = ?', [$topicId]);
@@ -1250,12 +1089,6 @@ function topic_delete(int $topicId, int $userId): void
     SW::$db->run('DELETE FROM topics WHERE id = ?', [$topicId]);
 }
 
-/**
- * Ende-Angaben aus dem Formular lesen und prüfen. Datum und Zielwert sind
- * frei kombinierbar; mindestens eines muss gesetzt sein. Was zuerst
- * eintritt, beendet die Abstimmung.
- * @return array{0:string,1:?string,2:?int}|null [mode, date, target]
- */
 function parse_topic_end(): ?array
 {
     $useDate = isset($_POST['end_by_date']);
@@ -1306,7 +1139,6 @@ const SW_TOPIC_SELECT = "
     FROM topics t
     JOIN categories c ON c.id = t.category_id";
 
-/** @return array{rows:array,total:int} */
 function topics_list(array $filters, int $page, int $perPage, ?int $userId): array
 {
     $where = ["t.status IN ('active','closed')"];
@@ -1332,8 +1164,7 @@ function topics_list(array $filters, int $page, int $perPage, ?int $userId): arr
         'SELECT COUNT(*) FROM topics t JOIN categories c ON c.id = t.category_id' . $whereSql,
         $params
     );
-    // Standard: Netto-Zustimmung (dafür minus dagegen) absteigend; bei
-    // Suchtreffern steht damit das Thema mit dem größten Vorsprung oben.
+
     $netExpr = "((SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'for')"
         . " - (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against'))";
     $sortMode = $filters['sort'] ?? 'net';
@@ -1372,7 +1203,6 @@ function topic_user_vote(int $topicId, int $userId): ?string
     return $row === null ? null : (string) $row['choice'];
 }
 
-/** @return array{choice:string,created_at:string,locked:bool}|null */
 function topic_user_vote_row(int $topicId, int $userId): ?array
 {
     $tag = vote_tag($topicId, user_pk($userId));
@@ -1389,8 +1219,6 @@ function topics_by_author(int $userId): array
     return SW::$db->all(SW_TOPIC_SELECT . ' WHERE t.author_id = ? ORDER BY t.created_at DESC', [$userId]);
 }
 
-/** Eigene Stimmen per Tag-Sondierung – die Stimmen-Tabelle selbst kennt
- *  keinen Ausweis-Bezug. */
 function topics_voted_by(int $userId): array
 {
     $pk = user_pk($userId);
@@ -1417,11 +1245,8 @@ function site_stats(): array
     ];
 }
 
-/* ============================== Stimmen & Favoriten ======================= */
+const SW_VOTE_CHANGE_HOURS = 24;
 
-const SW_VOTE_CHANGE_HOURS = 24; // danach ist die eigene Stimme fest
-
-/** Entkoppelter Stimm-Marker: HMAC aus Thema + öffentlichem Schlüssel. */
 function vote_tag(int $topicId, string $pkHex): string
 {
     return sw_hmac('vote|' . $topicId . '|' . $pkHex);
@@ -1432,13 +1257,12 @@ function user_pk(int $userId): string
     return (string) SW::$db->val('SELECT pseudonym_hash FROM users WHERE id = ?', [$userId]);
 }
 
-/** Schließt ein Thema, sobald Enddatum überschritten oder Zielzahl erreicht. */
 function topic_close_if_due(array $topic): string
 {
     if ($topic['status'] !== 'active') {
         return (string) $topic['status'];
     }
-    // Datum und Zielwert sind frei kombinierbar: Was zuerst eintritt, beendet.
+
     $close = false;
     if ($topic['end_date'] !== null && Clock::localDate() > (string) $topic['end_date']) {
         $close = true;
@@ -1456,7 +1280,6 @@ function topic_close_if_due(array $topic): string
     return 'active';
 }
 
-/** @throws DomainException */
 function vote_cast(int $userId, int $topicId, string $choice): void
 {
     if (!in_array($choice, ['for', 'against', 'none'], true)) {
@@ -1514,7 +1337,6 @@ function fav_valid(string $kind, string $ref): bool
     return false;
 }
 
-/** @throws DomainException */
 function fav_toggle(int $userId, string $kind, string $ref): bool
 {
     if (!fav_valid($kind, $ref)) {
@@ -1549,11 +1371,6 @@ function fav_list(int $userId): array
     );
 }
 
-/* ============================== Meldungen & Jury ========================== */
-
-/** Der einzige Meldegrund ist der Verstoß gegen ein Gesetz. Der verletzte
- *  Paragraph wird 1:1 zitiert. Texte nach bestem Wissen übernommen – vor
- *  einem Echtbetrieb wortgleich gegen gesetze-im-internet.de abgleichen. */
 const SW_LAWS = [
     'stgb-130-1' => [
         'norm' => '§ 130 Abs. 1 StGB', 'titel' => 'Volksverhetzung',
@@ -1602,7 +1419,6 @@ const SW_LAWS = [
     ],
 ];
 
-/** Schlagwort-/Paragraphensuche im Gesetzesregister. @return array<string,array> */
 function law_search(string $q): array
 {
     $q = mb_strtolower(trim($q));
@@ -1648,8 +1464,6 @@ function reports_today_by(int $reporterId): int
     );
 }
 
-/** Jury-Auslosung: 1 % der Nutzerschaft (mind. jury_min), CSPRNG-Mischung.
- *  Ausgeschlossen: Melder, Autor, aktive Juroren offener Meldungen, Karenz. */
 function jury_draw(int $reporterId, int $authorId, int $totalUsers): array
 {
     $eligible = SW::$db->all(
@@ -1681,7 +1495,6 @@ function jury_draw(int $reporterId, int $authorId, int $totalUsers): array
     return array_slice($ids, 0, $target);
 }
 
-/** @throws DomainException */
 function report_create(int $topicId, int $reporterId, string $lawId): int
 {
     if (!isset(SW_LAWS[$lawId])) {
@@ -1751,7 +1564,6 @@ function jury_upcoming_for(int $userId): ?array
     );
 }
 
-/** @return array{seats:int,cast:int,confirm:int,reject:int,neutral:int} */
 function jury_tally(int $reportId): array
 {
     $row = SW::$db->one(
@@ -1776,7 +1588,6 @@ function jury_deadline(array $report): string
     return Clock::addHoursStr((string) $report['voting_starts_at'], (int) SW::$cfg['report_vote_hours']);
 }
 
-/** Zählt aus und entscheidet, wenn Frist abgelaufen und Quorum erreicht. */
 function jury_decide_if_due(array $report): void
 {
     if (Clock::nowStr() < jury_deadline($report)) {
@@ -1804,7 +1615,6 @@ function jury_decide_if_due(array $report): void
     );
 }
 
-/** @throws DomainException */
 function jury_cast(int $reportId, int $userId, string $vote): void
 {
     if (!in_array($vote, ['confirm', 'reject', 'neutral'], true)) {
@@ -1830,7 +1640,6 @@ function jury_cast(int $reportId, int $userId, string $vote): void
     });
 }
 
-/** Idempotenter Wartungslauf: 00:00-Starts, fällige Entscheidungen, Aufräumen. */
 function maintenance_tick(): void
 {
     SW::$db->run(
@@ -1865,9 +1674,6 @@ function maintenance_tick_throttled(): void
     maintenance_tick();
 }
 
-/** Kontolöschung (DSGVO, nur Backend/CLI): Favoriten und Jury-Sitze werden
- *  gelöscht, Beiträge entkoppelt. Stimmen sind bereits konstruktiv anonym
- *  (kein Ausweis-Bezug in der Tabelle) und bleiben als Zählwerte erhalten. */
 function account_delete(int $userId): void
 {
     SW::$db->tx(function () use ($userId): void {
@@ -1876,8 +1682,6 @@ function account_delete(int $userId): void
         SW::$db->run('DELETE FROM users WHERE id = ?', [$userId]);
     });
 }
-
-/* ============================== Sprachen ================================= */
 
 const SW_DE = [
     'app.tagline' => 'Digitale Bürgerbeteiligung',
@@ -1890,7 +1694,6 @@ const SW_DE = [
     'common.date_format' => 'd.m.Y',
     'common.datetime_format' => 'd.m.Y, H:i',
     'common.back_home' => 'Zur Startseite',
-
 
     'topics.filter_category' => 'Kategorie',
         'topics.filter_all' => 'Alle',
@@ -2012,7 +1815,6 @@ const SW_DE = [
     'report.submit' => 'Meldung abschicken',
     'report.cancel' => 'Abbrechen',
 
-
     'flash.session_expired' => 'Sitzung beendet. Bitte Ausweis erneut auflegen.',
     'flash.auth_expired' => 'Anmeldung abgelaufen – bitte Ausweis erneut auflegen.',
     'flash.login_required' => 'Bitte zuerst den Ausweis auflegen.',
@@ -2059,7 +1861,6 @@ const SW_DE = [
 
     'footer.imprint' => 'Impressum',
     'footer.privacy' => 'Datenschutz',
-    'footer.note' => 'Konzept- und Demonstrationsprojekt',
 
     'imprint.h' => 'Impressum',
     'imprint.p1' => 'Musterangaben – vor Aufnahme eines echten Betriebs vollständig auszufüllen (Betreiber, Anschrift, Vertretungsberechtigte, Kontakt, Aufsicht).',
@@ -2084,7 +1885,6 @@ const SW_EN = [
     'common.date_format' => 'Y-m-d',
     'common.datetime_format' => 'Y-m-d, H:i',
     'common.back_home' => 'Back to start page',
-
 
     'topics.filter_category' => 'Category',
         'topics.filter_all' => 'All',
@@ -2206,7 +2006,6 @@ const SW_EN = [
     'report.submit' => 'Submit report',
     'report.cancel' => 'Cancel',
 
-
     'flash.session_expired' => 'Session ended. Please tap your ID card again.',
     'flash.auth_expired' => 'Sign-in expired – please tap your ID card again.',
     'flash.login_required' => 'Please tap your ID card first.',
@@ -2253,7 +2052,6 @@ const SW_EN = [
 
     'footer.imprint' => 'Legal notice',
     'footer.privacy' => 'Privacy',
-    'footer.note' => 'Concept and demonstration project',
 
     'imprint.h' => 'Legal notice',
     'imprint.p1' => 'Placeholder details – to be completed before any real operation (operator, address, authorised representatives, contact, supervision).',
@@ -2267,14 +2065,8 @@ const SW_EN = [
     'privacy.p5' => 'The account can be deleted at any time in “My overview”.',
 ];
 
-/* ============================== Assets =================================== */
-
 const SW_CSS = <<<'CSS'
-/* Stimmwerk - schlichtes App-Design in der Formensprache von iOS/Signal:
-   graue Flaeche, weisse Karten mit weichen Ecken, Haarlinien, ein blauer
-   Akzent, Systemschrift. Hell/Dunkel folgt der Systemeinstellung.
-   Dafuer/Dagegen: Akzent gegen Neutralgrau - deutlich in Helligkeit UND
-   Farbton getrennt (CVD-geprueft) und immer zusaetzlich beschriftet. */
+
 :root {
   color-scheme: light dark;
   --page: #f2f2f7; --surface: #ffffff; --field: #efeff4;
@@ -2301,7 +2093,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
-  font-size: 1.0625rem;            /* 17px - iOS Body, verhindert Zoom bei Fokus */
+  font-size: 1.0625rem;
   line-height: 1.45;
   color: var(--ink);
   background: var(--page);
@@ -2331,7 +2123,6 @@ a:hover { text-decoration: underline; }
   padding: 0.3rem 0.9rem; letter-spacing: -0.01em;
 }
 
-/* ---------- Kopfzeile ---------- */
 .site-header { background: var(--surface); border-bottom: 1px solid var(--sep); position: sticky; top: 0; z-index: 50; }
 .header-inner { display: flex; align-items: center; gap: 0.6rem; min-height: 3rem; padding-top: 0.4rem; padding-bottom: 0.4rem; }
 .brand { display: inline-flex; align-items: center; gap: 0.45rem; color: var(--ink); font-weight: 650; font-size: 1.05rem; letter-spacing: -0.01em; }
@@ -2345,7 +2136,6 @@ a:hover { text-decoration: underline; }
 .nav-duty:hover { text-decoration: none; }
 .duty-dot { display: inline-block; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--danger); margin-left: 0.35rem; vertical-align: middle; }
 
-/* ---------- Schaltflaechen (iOS: gefuellt / getoent / schlicht) ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
   border: 0; border-radius: 12px; font: inherit; font-weight: 600; font-size: 1rem;
@@ -2363,7 +2153,6 @@ a:hover { text-decoration: underline; }
 .btn-danger { background: var(--danger-soft); color: var(--danger); }
 .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 
-/* ---------- Karten & Listen ---------- */
 .card { background: var(--surface); border-radius: var(--radius); padding: 0.95rem 1.05rem; margin: 0.7rem 0; }
 .badge {
   display: inline-block; font-size: 0.78rem; font-weight: 600; letter-spacing: -0.01em;
@@ -2387,7 +2176,6 @@ a:hover { text-decoration: underline; }
 .row-main { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; min-width: 0; }
 .row-side { display: flex; align-items: center; gap: 0.35rem; font-size: 0.92rem; flex-wrap: wrap; color: var(--ink); }
 
-/* ---------- Aktionsleiste, Chips, Themenliste ---------- */
 .action-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.2rem 0 0.9rem; }
 .action-bar .btn { flex: 1 1 auto; }
 .fav-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.9rem; }
@@ -2406,7 +2194,6 @@ a:hover { text-decoration: underline; }
 .vote-sep { margin: 0 0.35rem; }
 .pagination { display: flex; align-items: center; gap: 0.8rem; justify-content: center; margin: 1.3rem 0 0; }
 
-/* ---------- Themendetail & Abstimmung ---------- */
 .topic-detail h1 { margin-top: 0.4rem; }
 .field-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); margin: 0.9rem 0 0.2rem; }
 .card .field-label:first-child { margin-top: 0; }
@@ -2431,7 +2218,6 @@ a:hover { text-decoration: underline; }
 .topic-tools .link-quiet:hover, .topic-tools .btn:hover { text-decoration: none; opacity: 0.85; }
 .link-quiet { color: var(--muted); font-size: 0.92rem; }
 
-/* ---------- Formulare ---------- */
 .form-stack { display: flex; flex-direction: column; gap: 0.85rem; }
 .form-stack > label { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 600; font-size: 0.92rem; }
 .form-stack small { font-weight: 400; }
@@ -2461,7 +2247,6 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .law-quote { font-size: 0.92rem; color: var(--muted); display: block; margin-top: 0.25rem; }
 .hr-soft { border: 0; border-top: 1px solid var(--sep); margin: 1rem 0 0.6rem; }
 
-/* ---------- Anmeldung & Start ---------- */
 .auth-card { max-width: 24rem; margin: 1.6rem auto; text-align: center; padding: 1.4rem 1.2rem 1.2rem; }
 .auth-card h1 { font-size: 1.4rem; }
 .auth-action { display: flex; justify-content: center; margin: 0.9rem 0 0.2rem; }
@@ -2472,8 +2257,6 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .tap-status { font-weight: 600; color: var(--accent); }
 
 .start-gate { min-height: 82vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.9rem; padding: 2rem 1.2rem; }
-.start-mark { color: var(--accent); }
-.brand-icon { width: 4.2rem; height: 4.2rem; display: block; }
 .start-brand { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
 .start-langs { display: flex; gap: 0.8rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
 .start-langs form { display: flex; }
@@ -2485,18 +2268,16 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .lang-btn:active { opacity: 0.7; }
 .flag { width: 4.2rem; height: auto; display: block; border-radius: 4px; }
 
-/* ---------- Sonstiges ---------- */
 .error-card { max-width: 26rem; margin: 3rem auto; text-align: center; }
 .prose { max-width: 40rem; }
 .prose p { color: var(--muted); }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 600; margin-left: 0.4rem; }
 
 .site-footer { border-top: 1px solid var(--sep); background: var(--surface); font-size: 0.85rem; color: var(--muted); }
-.footer-inner { display: flex; justify-content: space-between; gap: 0.5rem 1.2rem; flex-wrap: wrap; padding-top: 0.9rem; padding-bottom: 0.9rem; }
+.footer-inner { display: flex; gap: 0.5rem 1.2rem; flex-wrap: wrap; padding-top: 0.9rem; padding-bottom: 0.9rem; }
 .footer-nav { display: flex; gap: 1rem; }
 .footer-nav a { color: var(--muted); }
 
-/* ---------- Fenster: iOS-Sheet unten, Dialog ab Tablet ---------- */
 .modal { position: fixed; inset: 0; z-index: 200; display: none; }
 .modal:target { display: flex; align-items: flex-end; justify-content: center; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
@@ -2524,14 +2305,11 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 CSS;
 
 const SW_JS = <<<'JS'
-/* Progressive Verbesserungen - alles laeuft auch ohne JavaScript.
-   Einzige bewusste Ablage im Browser: die profil.yaml (sessionStorage),
-   die der Abmelde-Knopf wieder loescht. Sonst: Countdown und - am
-   Smartphone - das direkte Ausloesen der Anmeldung per NFC (Web NFC). */
+
 (function () {
   'use strict';
   var init = function () {
-    /* Countdown (z. B. bis zum naechsten moeglichen Thema um 00:00) */
+
     var nodes = document.querySelectorAll('[data-countdown-to]');
     if (nodes.length > 0) {
       var pad = function (n) { return n < 10 ? '0' + n : String(n); };
@@ -2547,8 +2325,6 @@ const SW_JS = <<<'JS'
       setInterval(update, 1000);
     }
 
-    /* Geltungsbereich: gruppiertes Auswahlfeld -> zweistufig (Ebene/Land/Kreis).
-       Ohne JS bleibt die gruppierte Liste - voll funktionsfaehig. */
     document.querySelectorAll('select[data-scope-native]').forEach(function (native) {
       var current = native.value;
       var level = 'de', land = '', kreis = '';
@@ -2609,7 +2385,6 @@ const SW_JS = <<<'JS'
       sync();
     });
 
-    /* Ende-Felder: Datum und/oder Zielwert einblenden */
     document.querySelectorAll('[data-end-fields]').forEach(function (fs) {
       fs.querySelectorAll('[data-end-toggle]').forEach(function (box) {
         var part = fs.querySelector('[data-end-part="' + box.getAttribute('data-end-toggle') + '"]');
@@ -2619,15 +2394,12 @@ const SW_JS = <<<'JS'
       });
     });
 
-    /* Fenster (:target-Modal) per Escape schliessen */
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape' && location.hash && document.querySelector(location.hash + '.modal')) {
         location.hash = '';
       }
     });
 
-    /* profil.yaml: bei jedem Seitenaufruf frisch angefordert und nur im
-       Browser gehalten; der Abmelde-Knopf loescht sie wieder. */
     var profileUrl = document.body.getAttribute('data-profile-url');
     if (profileUrl) {
       fetch(profileUrl, { credentials: 'same-origin' })
@@ -2646,10 +2418,6 @@ const SW_JS = <<<'JS'
       });
     });
 
-    /* NFC direkt vom Handy: Knopf startet den Leser; das Anhalten der Karte
-       loest die Anmeldung aus. Der Personalausweis ist kein NDEF-Tag, daher
-       zaehlt auch "readingerror" als Kontakt. Ohne Web NFC (iOS, Desktop)
-       oder nach 15 s sendet der Knopf normal ab. */
     var tapForm = document.getElementById('tap-form');
     if (tapForm && 'NDEFReader' in window) {
       var status = document.getElementById('tap-status');
@@ -2663,18 +2431,15 @@ const SW_JS = <<<'JS'
         reader.addEventListener('readingerror', go);
         return reader.scan();
       };
-      /* Leser sofort scharf: Perso auflegen genuegt. Verlangt der Browser
-         erst eine Nutzergeste (Berechtigung), uebernimmt der Knopf. */
+
       try {
         startScan().then(function () {
-          // NFC laeuft: kein Knopf noetig - nur die Aufforderung zum Auflegen.
+
           if (status) { status.hidden = false; }
           tapForm.querySelectorAll('[data-nfc-hide]').forEach(function (b) { b.hidden = true; });
-        }).catch(function () { /* Knopf-Fallback */ });
-      } catch (e) { /* Knopf-Fallback */ }
-      /* Auf NFC-Geraeten loest NUR der Kartenkontakt aus - kein Zeit-Rueckfall.
-         Schlaegt der Lesestart fehl (Berechtigung verweigert), sendet der
-         Knopf direkt. */
+        }).catch(function () {  });
+      } catch (e) {  }
+
       tapForm.addEventListener('submit', function (ev) {
         if (tapForm.getAttribute('data-armed') === '1') { return; }
         ev.preventDefault();
@@ -2693,12 +2458,12 @@ JS;
 
 const SW_ICON = <<<'SVG'
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <rect x="0.5" y="0.5" width="23" height="23" rx="5" fill="#111111"/>
-  <path d="M6.5 12.3l3.6 3.5 7.4-7.6" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <style>.t{fill:#111111}.m{stroke:#ffffff}@media(prefers-color-scheme:dark){.t{fill:#ffffff}.m{stroke:#111111}}</style>
+  <rect class="t" width="24" height="24"/>
+  <path class="m" d="M7 7l10 10M17 7L7 17" fill="none" stroke-width="2.8" stroke-linecap="square"/>
 </svg>
 SVG;
 
-/** Flagge Deutschland (Sprachauswahl). */
 function flag_de(): string
 {
     return '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
@@ -2707,7 +2472,6 @@ function flag_de(): string
         . '<rect width="60" height="12" y="24" fill="#ffcc00"/></svg>';
 }
 
-/** Flagge Vereinigtes Königreich (Sprachauswahl Englisch). */
 function flag_en(): string
 {
     return '<svg class="flag" viewBox="0 0 60 36" aria-hidden="true" focusable="false">'
@@ -2718,7 +2482,6 @@ function flag_en(): string
         . '<path d="M30 0V36M0 18H60" stroke="#c8102e" stroke-width="7"/></svg>';
 }
 
-/** Icon-Verweise für alle Browser (SVG modern, PNG/ICO für Safari/iOS). */
 function icon_links(): string
 {
     return '<link rel="icon" type="image/svg+xml" href="' . e(url('/a/icon.svg')) . '">'
@@ -2726,79 +2489,56 @@ function icon_links(): string
         . '<link rel="apple-touch-icon" sizes="180x180" href="' . e(url('/apple-touch-icon.png')) . '">';
 }
 
-/** Größeres, monochromes Marken-Icon (Häkchen im Feld) für Start/Anmeldung. */
-function brand_icon(string $class): string
-{
-    return '<svg class="' . e($class) . '" viewBox="0 0 48 48" aria-hidden="true" focusable="false">'
-        . '<rect x="2" y="2" width="44" height="44" rx="10" fill="none" stroke="currentColor" stroke-width="3"/>'
-        . '<path d="M14 25l7 7 14-15" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'
-        . '</svg>';
-}
-
-/* ---- Icons: PNG ohne GD (nur zlib) ------------------------------------- *
- * Safari/iOS zeigt keine SVG-Favicons; deshalb erzeugt die Datei die Icons
- * zusätzlich als echtes PNG (und als ICO-Container) – ohne Bibliotheken. */
-
-/** Ein PNG-Chunk mit Länge, Typ, Daten und CRC. */
 function png_chunk(string $type, string $data): string
 {
     return pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
 }
 
-/** Zeichnet das Marken-Icon (dunkles Feld + weißes Häkchen) als PNG. */
-function icon_png(int $size, bool $rounded = true): string
+function icon_png(int $size): string
 {
-    $ss = 3;                       // Kantenglättung per Überabtastung
+    $ss = 3;
     $n = $size * $ss;
-    $bg = [17, 17, 17];            // #111111
+    $bg = [17, 17, 17];
     $fg = [255, 255, 255];
-    $radius = $rounded ? 0.22 * $n : 0.0;
-    // Häkchen als zwei Strecken (relativ zur Kantenlänge)
-    $pts = [[0.28 * $n, 0.53 * $n], [0.44 * $n, 0.69 * $n], [0.74 * $n, 0.34 * $n]];
-    $stroke = 0.085 * $n;
+    $a1 = [0.28 * $n, 0.28 * $n];
+    $b1 = [0.72 * $n, 0.72 * $n];
+    $a2 = [0.72 * $n, 0.28 * $n];
+    $b2 = [0.28 * $n, 0.72 * $n];
+    $half = 0.062 * $n;
 
-    $distSeg = static function (float $px, float $py, array $a, array $b): float {
+    $inBar = static function (float $px, float $py, array $a, array $b, float $half): bool {
         $vx = $b[0] - $a[0];
         $vy = $b[1] - $a[1];
+        $len = sqrt($vx * $vx + $vy * $vy);
+        if ($len <= 0.0) {
+            return false;
+        }
+        $ux = $vx / $len;
+        $uy = $vy / $len;
         $wx = $px - $a[0];
         $wy = $py - $a[1];
-        $len = $vx * $vx + $vy * $vy;
-        $tt = $len > 0 ? max(0.0, min(1.0, ($wx * $vx + $wy * $vy) / $len)) : 0.0;
-        $dx = $wx - $tt * $vx;
-        $dy = $wy - $tt * $vy;
-        return sqrt($dx * $dx + $dy * $dy);
-    };
-    $inRounded = static function (float $x, float $y, float $n, float $r): bool {
-        if ($r <= 0.0) {
-            return true;
-        }
-        $cx = min(max($x, $r), $n - $r);
-        $cy = min(max($y, $r), $n - $r);
-        $dx = $x - $cx;
-        $dy = $y - $cy;
-        return ($dx * $dx + $dy * $dy) <= $r * $r;
+        $along = $wx * $ux + $wy * $uy;
+        $perp = abs($wx * -$uy + $wy * $ux);
+        return $perp <= $half && $along >= -$half && $along <= $len + $half;
     };
 
     $raw = '';
     for ($y = 0; $y < $size; $y++) {
         $raw .= "\x00";
         for ($x = 0; $x < $size; $x++) {
-            $rSum = 0; $gSum = 0; $bSum = 0; $aSum = 0;
+            $rSum = 0; $gSum = 0; $bSum = 0;
             for ($sy = 0; $sy < $ss; $sy++) {
                 for ($sx = 0; $sx < $ss; $sx++) {
                     $px = $x * $ss + $sx + 0.5;
                     $py = $y * $ss + $sy + 0.5;
-                    if (!$inRounded($px, $py, (float) $n, $radius)) {
-                        continue; // außerhalb: transparent
-                    }
-                    $d = min($distSeg($px, $py, $pts[0], $pts[1]), $distSeg($px, $py, $pts[1], $pts[2]));
-                    $col = $d <= $stroke / 2 ? $fg : $bg;
-                    $rSum += $col[0]; $gSum += $col[1]; $bSum += $col[2]; $aSum += 255;
+                    $on = $inBar($px, $py, $a1, $b1, $half) || $inBar($px, $py, $a2, $b2, $half);
+                    $col = $on ? $fg : $bg;
+                    $rSum += $col[0]; $gSum += $col[1]; $bSum += $col[2];
                 }
             }
             $total = $ss * $ss;
             $raw .= chr((int) round($rSum / $total)) . chr((int) round($gSum / $total))
-                . chr((int) round($bSum / $total)) . chr((int) round($aSum / $total));
+                . chr((int) round($bSum / $total)) . chr(255);
         }
     }
     $ihdr = pack('NN', $size, $size) . chr(8) . chr(6) . chr(0) . chr(0) . chr(0);
@@ -2808,10 +2548,9 @@ function icon_png(int $size, bool $rounded = true): string
         . png_chunk('IEND', '');
 }
 
-/** ICO-Container mit eingebettetem PNG (moderne Browser lesen das). */
 function icon_ico(int $size = 32): string
 {
-    $png = icon_png($size, true);
+    $png = icon_png($size);
     $dim = $size >= 256 ? 0 : $size;
     return pack('vvv', 0, 1, 1)
         . chr($dim) . chr($dim) . chr(0) . chr(0)
@@ -2836,15 +2575,13 @@ function serve_asset(string $kind): void
     header('X-Content-Type-Options: nosniff');
     echo $map[$kind][1];
     if ($kind === 'css') {
-        // Balkenbreiten CSP-konform als Klassen (statt Inline-Styles).
+
         for ($i = 0; $i <= 100; $i++) {
             echo "\n.w-" . $i . ' { flex-grow: ' . $i . '; }';
         }
     }
     exit;
 }
-
-/* ============================== Ansichten ================================= */
 
 function render(string $title, string $content, int $status = 200): void
 {
@@ -2861,7 +2598,7 @@ function v_layout(string $title, string $content): string
     $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
     $returnValue = SW::$path . ($query !== '' ? '?' . $query : '');
     $b = base_path();
-    $a = SW::$base; /* Assets laufen ebenfalls durch index.php */
+    $a = SW::$base;
 
     $html = '<!DOCTYPE html><html lang="' . e(SW::$lang) . '"><head>'
         . '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -2878,13 +2615,11 @@ function v_layout(string $title, string $content): string
         . '<header class="site-header"><div class="shell header-inner">'
         . '<div class="header-controls">';
     if (test_mode() && $user !== null) {
-        // Testmodus beenden – nur solange er läuft und nur für angemeldete
-        // Sitzungen; die Anmeldeseite bleibt bei genau einem Knopf.
+
         $html .= '<a class="testmode-chip" href="#modal-testend">' . e(t('testmode.chip')) . '</a>';
     }
     if ($user === null) {
-        // Auf der Anmeldeseite selbst KEIN zweiter Anmelde-Knopf in der
-        // Kopfzeile – der Ausweis-Knopf steht dort genau einmal, mittig.
+
         if (SW::$path !== '/auth') {
             $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
         }
@@ -2915,7 +2650,6 @@ function v_layout(string $title, string $content): string
     }
     $html .= '<main id="main" class="shell site-main">' . $content . '</main>'
         . '<footer class="site-footer"><div class="shell footer-inner">'
-        . '<span>' . e((string) $cfg['app_name']) . ' · ' . e(t('footer.note')) . '</span>'
         . '<nav class="footer-nav" aria-label="Footer">'
         . '<a href="' . e(url('/imprint')) . '">' . e(t('footer.imprint')) . '</a>'
         . '<a href="' . e(url('/privacy')) . '">' . e(t('footer.privacy')) . '</a>'
@@ -2923,8 +2657,6 @@ function v_layout(string $title, string $content): string
     return $html;
 }
 
-/** Anzeigename des Geltungsbereichs. Die Gebietsnamen tragen die Ebene
- *  bereits ("Landkreis Harburg", "München (Stadt)"), deshalb ohne Präfix. */
 function scope_text(array $row): string
 {
     $name = (string) ($row['scope_name'] ?? '');
@@ -2972,8 +2704,6 @@ function p_votebar(int $for, int $against): string
     return $html;
 }
 
-/** Ende-Auswahl im Themenformular: Datum und/oder Zielwert (Stimmenzahl oder
- *  Prozent der Ausweise). Beides ankreuzbar – es gilt, was zuerst eintritt. */
 function topic_end_fields(array $old): string
 {
     $byDate = (bool) ($old['end_by_date'] ?? true);
@@ -3005,7 +2735,6 @@ function topic_end_fields(array $old): string
         . '</fieldset>';
 }
 
-/** Themenformular (Neu und Bearbeiten). */
 function topic_form_html(array $errors, array $old, string $action, string $submitKey): string
 {
     $html = '';
@@ -3038,7 +2767,6 @@ function topic_form_html(array $errors, array $old, string $action, string $subm
     return $html;
 }
 
-/** Modal per :target (funktioniert ohne JavaScript). */
 function modal(string $id, string $title, string $inner): string
 {
     return '<div class="modal" id="' . e($id) . '" role="dialog" aria-modal="true" aria-label="' . e($title) . '">'
@@ -3048,7 +2776,6 @@ function modal(string $id, string $title, string $inner): string
         . '<div class="modal-body">' . $inner . '</div></div></div>';
 }
 
-/** Die eine Hauptseite: Thema einbringen, Themen wählen, kürzliche Stimmen. */
 function v_main(array $formErrors = [], ?array $formOld = null): void
 {
     $user = require_user();
@@ -3060,7 +2787,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         $html .= '<div class="flash">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))])) . '</div>';
     }
 
-    // Filterwerte
     $scopeValue = query_str('gebiet', 160);
     $scopeDecoded = $scopeValue === '' ? null : scope_decode($scopeValue);
     if ($scopeDecoded === null) {
@@ -3079,7 +2805,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
     $result = topics_list($filters, $page, $perPage, $userId);
     $pages = max(1, (int) ceil($result['total'] / $perPage));
 
-    // Aktionsleiste: zwei Knöpfe öffnen je ein eigenes Fenster
     $html .= '<div class="action-bar">'
         . '<a class="btn btn-primary" href="#modal-new">' . e(t('topic.new_title')) . '</a>'
         . '<a class="btn btn-outline" href="#modal-search">' . e(t('topics.search')) . '</a>';
@@ -3088,7 +2813,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
     }
     $html .= '</div>';
 
-    // Favoriten-Schnellfilter
     $chips = '';
     foreach (fav_list($userId) as $favorite) {
         if ($favorite['kind'] === 'category') {
@@ -3109,7 +2833,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         $html .= '<div class="fav-chips">' . $chips . '</div>';
     }
 
-    // Kürzliche eigene Stimmen (noch änderbar) als eigene Gruppe
     $recent = [];
     foreach (topics_voted_by($userId) as $row) {
         if ($row['status'] !== 'removed' && empty($row['locked'])) {
@@ -3129,7 +2852,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         $html .= '</ul></section>';
     }
 
-    // Themenliste
     if ($result['rows'] === []) {
         $html .= '<p class="muted">' . e(t('topics.none')) . '</p>';
     } else {
@@ -3159,7 +2881,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         $html .= '</nav>';
     }
 
-    // Fenster: Thema einbringen
     $old = $formOld ?? ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0, 'scope' => 'de',
                         'end_by_date' => true, 'end_date' => '', 'end_by_target' => false,
                         'end_value' => '', 'end_unit' => 'count'];
@@ -3171,7 +2892,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
     }
     $html .= modal('modal-new', t('topic.new_title'), $newInner);
 
-    // Fenster: Suche/Filter
     $searchInner = '<form class="form-stack" method="get" action="' . e(url('/')) . '">'
         . '<label><span>' . e(t('topics.search')) . '</span><input type="search" name="q" maxlength="80" value="' . e($filters['q']) . '"></label>'
         . '<label><span>' . e(t('topics.filter_category')) . '</span><select name="category">'
@@ -3195,7 +2915,6 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
     render(t('app.tagline'), $html);
 }
 
-/** Wie lange läuft die Abstimmung noch? Datum, Zielwert oder beides. */
 function topic_end_text(array $topic): string
 {
     if ($topic['status'] === 'closed') {
@@ -3321,7 +3040,6 @@ function v_topic(int $id): void
     render((string) $topic['title'], $html);
 }
 
-/** Bearbeiten-Seite (nur Autor). */
 function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
 {
     $user = require_user();
@@ -3336,7 +3054,7 @@ function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
     if ($old === null) {
         $scopeVal = $topic['scope_level'] === 'bund' ? 'de'
             : ($topic['scope_level'] === 'bundesland' ? 'bl:' . $topic['scope_name'] : 'kr:');
-        // Land für Kreis rekonstruieren
+
         if ($topic['scope_level'] === 'landkreis') {
             foreach (SW_REGIONS as $land => $kreise) {
                 if (in_array((string) $topic['scope_name'], $kreise, true)) {
@@ -3369,9 +3087,7 @@ function v_auth(): void
     if (auth_user() !== null) {
         redirect('/me');
     }
-    // Symbolhafter Einstieg: Ausweis-Piktogramm mit NFC-Wellen, ein Satz,
-    // ein Knopf. Am Smartphone startet der Knopf den NFC-Leser (Web NFC);
-    // das Anhalten der Karte löst die Anmeldung direkt aus.
+
     $pictogram = '<svg class="tap-icon" viewBox="0 0 96 64" aria-hidden="true" focusable="false">'
         . '<rect x="4" y="10" width="56" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="3"/>'
         . '<rect x="11" y="19" width="14" height="11" rx="2" fill="currentColor"/>'
@@ -3389,11 +3105,11 @@ function v_auth(): void
         . '<p class="muted">' . e(t('auth.line')) . '</p>';
 
     if (test_mode()) {
-        // Testmodus: GENAU EIN zentrierter Knopf, keine Ausweis-Aufforderung.
+
         $html .= '<form class="auth-action" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
             . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.test_login')) . '</button></form>';
     } else {
-        // Anmelde-Anbieter (Ausweis-Apps): AusweisApp und Nect Wallet.
+
         $html .= '<div class="provider-list">';
         foreach ((array) SW::$cfg['eid_providers'] as $key => $prov) {
             $html .= '<a class="btn btn-primary provider-btn" href="' . e(url('/eid/start?provider=' . rawurlencode($key))) . '">'
@@ -3401,9 +3117,7 @@ function v_auth(): void
         }
         $html .= '</div>';
         if ($ready) {
-            // Ein autorisierter Ausweis liegt vor. Mit NFC genügt das Auflegen –
-            // dann wird der Knopf ausgeblendet (data-nfc-hide). Ohne NFC bleibt
-            // genau ein sauber zentrierter Knopf stehen.
+
             $html .= '<hr class="hr-soft">'
                 . '<form id="tap-form" class="auth-action" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
                 . '<button type="submit" class="btn btn-outline btn-big" data-nfc-hide>' . e(t('auth.tap')) . '</button></form>'
@@ -3414,7 +3128,6 @@ function v_auth(): void
     render(t('auth.title'), $html);
 }
 
-/** Absolute Adresse dieser Installation (für tcToken/Rücksprünge). */
 function site_url(string $path = ''): string
 {
     $scheme = sw_is_https() ? 'https' : 'http';
@@ -3422,16 +3135,6 @@ function site_url(string $path = ''): string
     return $scheme . '://' . $host . base_path() . $path;
 }
 
-/** Startet den Anmelde-Flow eines Anbieters.
- *
- *  AusweisApp: direkte Aktivierung des eID-Clients nach BSI TR-03124 – der
- *  Browser wird auf http://127.0.0.1:24727/eID-Client?tcTokenURL=… geleitet.
- *  Die AusweisApp (Desktop wie Smartphone) fängt diese Adresse ab, holt das
- *  tcToken hier ab und beginnt das Auslesen des Ausweises. Dafür ist keine
- *  Konfiguration nötig; es genügt der Apache mit dieser Datei.
- *
- *  Andere Anbieter (Nect) starten über ihre konfigurierte Start-URL. Fehlt
- *  sie, schlägt es sauber fehl (fail-closed). */
 function h_eid_start(): void
 {
     $key = query_str('provider', 30);
@@ -3445,9 +3148,7 @@ function h_eid_start(): void
         redirect('/auth');
     }
     if ($key === 'ausweisapp') {
-        // Einmal-Nonce in der tcTokenURL: Die AusweisApp holt das Token als
-        // eigener HTTP-Client OHNE Browser-Cookie ab – der Nonce ist die
-        // einzige Klammer zwischen Browsersitzung und Ausweis-Vorgang.
+
         $nonce = bin2hex(random_bytes(16));
         eid_flow_start($nonce);
         $tcToken = site_url('/eid/tctoken?s=' . $nonce);
@@ -3458,23 +3159,16 @@ function h_eid_start(): void
     }
     $start = (string) ($providers[$key]['start'] ?? '');
     if ($start === '' || preg_match('#^https://#', $start) !== 1) {
-        // Anbieter vorhanden, aber (noch) nicht eingerichtet.
+
         flash('error', 'flash.eid_provider_off');
         redirect('/auth');
     }
-    // Konfiguriert: an den echten Flow des Anbieters übergeben. Dieser prüft
-    // den Ausweis (Nect) und ruft anschließend /eid/callback auf.
+
     $sep = strpos($start, '?') === false ? '?' : '&';
     header('Location: ' . $start . $sep . 'redirect=' . rawurlencode(site_url('/eid/callback')), true, 303);
     exit;
 }
 
-/** tcToken nach BSI TR-03124 – wird von der AusweisApp abgeholt.
- *
- *  Mit eingerichtetem eID-Server (TR-03130) enthält es dessen PAOS-Adresse und
- *  die Sitzungskennung aus `useID`. Ohne eID-Server wird bewusst nur eine
- *  CommunicationErrorAddress geliefert: Die AusweisApp bricht sauber ab und
- *  schickt den Browser zurück – angemeldet wird niemand (fail-closed). */
 function h_eid_tctoken(): void
 {
     header('Content-Type: text/xml; charset=utf-8');
@@ -3490,7 +3184,7 @@ function h_eid_tctoken(): void
     }
     $session = eid_server_useid();
     if ($session === null) {
-        // Kein eID-Server hinterlegt (oder nicht erreichbar): sauberer Abbruch.
+
         log_line('SECURITY', 'eid_tctoken_unconfigured', []);
         echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
             . '<TCTokenType><CommunicationErrorAddress>' . e($errorUrl)
@@ -3509,7 +3203,6 @@ function h_eid_tctoken(): void
     exit;
 }
 
-/** Ausweis-Vorgang vormerken: Nonce ↔ Browsersitzung, 10 Minuten gültig. */
 function eid_flow_start(string $nonce): void
 {
     SW::$db->run('DELETE FROM eid_flows WHERE created_at < ?', [Clock::now()->getTimestamp() - 600]);
@@ -3519,7 +3212,6 @@ function eid_flow_start(string $nonce): void
     );
 }
 
-/** Vorgang zum Nonce holen (nur frische Vorgänge). */
 function eid_flow_find(string $nonce): ?array
 {
     if (preg_match('/^[a-f0-9]{32}$/', $nonce) !== 1) {
@@ -3532,16 +3224,11 @@ function eid_flow_find(string $nonce): ?array
     return $row;
 }
 
-/** eID-Server-Sitzung am Vorgang vermerken (für den späteren Rücksprung). */
 function eid_flow_bind(string $nonce, string $ref): void
 {
     SW::$db->run('UPDATE eid_flows SET eid_ref = ? WHERE nonce = ?', [$ref, $nonce]);
 }
 
-/** Sitzung beim eID-Server anfordern (TR-03130 `useID`). Ohne konfigurierten
- *  Server gibt es hier bewusst nichts zurück – das ist der Anschlusspunkt für
- *  einen Betreiber mit Berechtigungszertifikat.
- *  @return array{paos:string,session:string}|null */
 function eid_server_useid(): ?array
 {
     $url = (string) SW::$cfg['eid_server_url'];
@@ -3583,15 +3270,12 @@ function eid_server_useid(): ?array
     return ['paos' => $paos, 'session' => $session];
 }
 
-/** Ein Element aus einer SOAP-Antwort lesen (namensraum-tolerant). */
 function eid_xml_value(string $xml, string $name): string
 {
     $pattern = '#<(?:[A-Za-z0-9_.-]+:)?' . preg_quote($name, '#') . '(?:\s[^>]*)?>([^<]*)</#';
     return preg_match($pattern, $xml, $m) === 1 ? trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')) : '';
 }
 
-/** Rücksprung aus der Ausweis-App. Vertraut wird NUR einem serverseitig
- *  geprüften Ergebnis; ohne eingerichteten eID-Server passiert nichts. */
 function h_eid_callback(): void
 {
     $flow = SW::$db->one(
@@ -3603,15 +3287,12 @@ function h_eid_callback(): void
         flash('error', 'flash.eid_required');
         redirect('/auth');
     }
-    // Hier holt ein Betreiber mit eID-Server das Ergebnis ab (TR-03130
-    // `getResult`), prüft die Signatur der Zusicherung und entnimmt ihr die
-    // geprüfte Kennung. Ohne diese Prüfung wird niemand angemeldet.
+
     log_line('SECURITY', 'eid_callback_unverified', []);
     flash('error', 'flash.eid_required');
     redirect('/auth');
 }
 
-/** Sprachwahl beim Sitzungsbeginn: klares Icon, zwei Knöpfe mit Flagge. */
 function v_start(): void
 {
     http_response_code(200);
@@ -3626,7 +3307,6 @@ function v_start(): void
         . icon_links()
         . '</head><body>' . $banner
         . '<main class="start-gate">'
-        . '<div class="start-mark">' . brand_icon('brand-icon') . '</div>'
         . '<p class="start-brand">' . e((string) SW::$cfg['app_name']) . '</p>'
         . '<div class="start-langs">'
         . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
@@ -3667,14 +3347,11 @@ function v_static(string $titleKey, array $paraKeys): void
     render(t($titleKey), $html);
 }
 
-/** Einfache, sichere YAML-Ausgabe (Werte stets in Anführungszeichen). */
 function yq(string $v): string
 {
     return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $v) . '"';
 }
 
-/** profil.yaml: die Gesamtansicht der Person – wird beim Anhalten geladen,
- *  im Browser gehalten und beim Abmelden dort gelöscht. */
 function profile_yaml(array $user): string
 {
     $userId = (int) $user['id'];
@@ -3724,7 +3401,6 @@ function profile_yaml(array $user): string
     return $y;
 }
 
-/** Öffentlicher Server-Signaturschlüssel (hex) oder '' ohne sodium. */
 function server_sign_pk_hex(): string
 {
     if (!card_supports_sodium() || SW::$serverSign === '') {
@@ -3733,25 +3409,19 @@ function server_sign_pk_hex(): string
     return bin2hex(sodium_crypto_sign_publickey_from_secretkey(SW::$serverSign));
 }
 
-/**
- * Versiegeltes Profil: an den öffentlichen Ausweis-Schlüssel VERSCHLÜSSELT
- * (nur der Karteninhaber kann es öffnen) und mit dem Server-Schlüssel
- * SIGNIERT (Manipulation ist erkennbar). Enthält keine Zuordnung, wer wie
- * gestimmt hat – die Stimmen selbst sind bereits entkoppelt gespeichert.
- */
 function profile_sealed(array $user): string
 {
     $plain = profile_yaml($user);
     $pkHex = (string) $user['pseudonym_hash'];
     if (!card_supports_sodium() || SW::$serverSign === '' || strlen(@hex2bin($pkHex) ?: '') !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
-        // Rückfall ohne sodium: Klartext + HMAC-Integritätssiegel.
+
         $sig = sw_hmac('profil|' . $plain);
         return $plain . "# integritaet(hmac-sha256): " . $sig . "\n";
     }
     $edPk = hex2bin($pkHex);
     $curvePk = sodium_crypto_sign_ed25519_pk_to_curve25519($edPk);
-    $cipher = sodium_crypto_box_seal($plain, $curvePk);          // an Public Key verschlüsselt
-    $sig = sodium_crypto_sign_detached($cipher, SW::$serverSign); // Server-Signatur
+    $cipher = sodium_crypto_box_seal($plain, $curvePk);
+    $sig = sodium_crypto_sign_detached($cipher, SW::$serverSign);
     $out = "stimmwerk_versiegeltes_profil:\n";
     $out .= "  hinweis: " . yq('An oeffentlichen Ausweis-Schluessel verschluesselt; nur mit dem Ausweis lesbar.') . "\n";
     $out .= "  verschluesselt_fuer: " . yq($pkHex) . "\n";
@@ -3857,8 +3527,6 @@ function v_report(int $topicId): void
     render(t('report.title'), $html);
 }
 
-/* ============================== Schreib-Aktionen ========================== */
-
 function safe_return(string $fallback): string
 {
     $return = post_str('return', 200);
@@ -3875,29 +3543,24 @@ function h_tap(): void
         redirect('/auth');
     }
     if (test_mode()) {
-        // TESTMODUS: erzeugt eine zufällige Sitzung und behandelt sie als
-        // gültig (die App tut so, als läge ein echter Ausweis an). Der zufällige
-        // Schlüssel wird dazu autorisiert – die Prüfungen unten laufen normal.
+
         $card = card_create();
         authorized_add([card_identity($card)], 'test-login');
     } else {
-        // Echtbetrieb: der eID-Server (AusweisApp, TR-03130) übernimmt. Ist er
-        // nicht konfiguriert, schlägt die Anmeldung bewusst fehl – niemand kommt
-        // ohne echten Ausweis hinein.
+
         if ((string) SW::$cfg['eid_mode'] === 'eid') {
             log_line('SECURITY', 'eid_not_configured', []);
             flash('error', 'flash.eid_required');
             redirect('/auth');
         }
-        // Es muss ein Ausweis vorliegen (per Ausgabe-Link in die Sitzung geladen);
-        // ein Knopfdruck allein erzeugt KEINE Identität.
+
         $card = card_load();
         if ($card === null) {
             flash('error', 'flash.no_card');
             redirect('/auth');
         }
     }
-    // 1) Besitz des privaten Schlüssels beweisen (zeitgebundene Signatur).
+
     $identity = card_identity($card);
     $sealed = card_seal($card, 'login:' . $identity);
     if (!card_open($card['pk'], $sealed, 'login:' . $identity)) {
@@ -3905,7 +3568,7 @@ function h_tap(): void
         flash('error', 'flash.auth_failed');
         redirect('/auth');
     }
-    // 2) Schlüssel muss autorisiert (in der Allowlist) sein.
+
     if (!authorized_contains($identity)) {
         log_line('SECURITY', 'card_not_authorized', []);
         card_forget();
@@ -3917,7 +3580,6 @@ function h_tap(): void
     redirect('/');
 }
 
-/** Ausgabe-Link (nur Demo): lädt einen autorisierten Ausweis in die Sitzung. */
 function h_claim(string $handle): void
 {
     if ((string) SW::$cfg['eid_mode'] === 'eid') {
@@ -3950,7 +3612,6 @@ function h_card_new(): void
     redirect('/auth');
 }
 
-/** Beendet den Testmodus über die Oberfläche (löscht alle Testinhalte). */
 function h_testmode_end(): void
 {
     require_user();
@@ -4043,8 +3704,6 @@ function h_topic_create(): void
     redirect('/topic/' . $topicId);
 }
 
-/** Gemeinsames Einlesen/Prüfen des Themenformulars (Neu und Bearbeiten).
- *  @return array{0:list<string>,1:array,2:?array,3:?array} */
 function topic_form_read(): array
 {
     $old = [
@@ -4086,7 +3745,6 @@ function topic_form_read(): array
     return [$errors, $old, $scope, $end];
 }
 
-/** Bearbeiten (nur Autor). */
 function h_topic_edit(int $topicId): void
 {
     $user = require_user();
@@ -4117,7 +3775,6 @@ function h_topic_edit(int $topicId): void
     redirect('/topic/' . $topicId);
 }
 
-/** Löschen (nur Autor). */
 function h_topic_delete(int $topicId): void
 {
     $user = require_user();
@@ -4204,8 +3861,6 @@ function h_jury_vote(): void
     redirect('/jury');
 }
 
-/* ============================== Web-Hauptlauf ============================= */
-
 function send_security_headers(): void
 {
     header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; "
@@ -4241,7 +3896,6 @@ function web_main(): void
         exit;
     }
 
-    // Basispfad + Link-Stil (siehe base_path()).
     $scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php')));
     $base = rtrim($scriptDir, '/');
     if ($base !== '' && preg_match('#^(/[A-Za-z0-9._~\-]+)+$#', $base) !== 1) {
@@ -4249,7 +3903,6 @@ function web_main(): void
     }
     SW::$base = $base;
 
-    // Interner Pfad: PATH_INFO (/index.php/topics) oder REQUEST_URI ohne Basis.
     $rawPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?? '/');
     $pathInfo = (string) ($_SERVER['PATH_INFO'] ?? '');
     if ($pathInfo !== '' && $pathInfo[0] === '/') {
@@ -4266,9 +3919,6 @@ function web_main(): void
     SW::$path = $path === '' ? '/' : $path;
     $path = SW::$path;
 
-    // Kanonisch immer sauber: eine direkt aufgerufene /index.php[/…] wird
-    // (bei GET) dauerhaft auf den sauberen Pfad umgeleitet, damit die Adresse
-    // bei /… bleibt und nie /index.php zeigt.
     $method0 = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if (($method0 === 'GET' || $method0 === 'HEAD') && strpos($rawPath, '/index.php') !== false) {
         $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
@@ -4276,7 +3926,6 @@ function web_main(): void
         exit;
     }
 
-    // Statische Eigen-Assets: ohne Session, mit Cache.
     if (preg_match('#^/a/(app\.css|app\.js|icon\.svg)$#', $path, $m) === 1) {
         $kindMap = ['app.css' => 'css', 'app.js' => 'js', 'icon.svg' => 'icon'];
         serve_asset($kindMap[$m[1]]);
@@ -4286,8 +3935,7 @@ function web_main(): void
         echo "User-agent: *\nDisallow: /\n";
         exit;
     }
-    // Icons: ohne Sitzung abrufbar, mit Cache. PNG/ICO für Safari/iOS,
-    // SVG für moderne Browser.
+
     if (preg_match('#^/(favicon\.ico|favicon\.png|apple-touch-icon(?:-precomposed)?\.png|icon-192\.png)$#', $path, $mIcon) === 1) {
         $name = $mIcon[1];
         header('Cache-Control: public, max-age=86400');
@@ -4298,12 +3946,11 @@ function web_main(): void
         } else {
             $size = $name === 'favicon.png' ? 32 : ($name === 'icon-192.png' ? 192 : 180);
             header('Content-Type: image/png');
-            // Apple-Touch-Icon ohne runde Ecken (iOS maskiert selbst).
-            echo icon_png($size, strpos($name, 'apple-touch') !== 0);
+            echo icon_png($size);
         }
         exit;
     }
-    // Öffentlicher Server-Signaturschlüssel: ohne Sitzung/Sprache abrufbar.
+
     if ($path === '/server.pub') {
         header('Content-Type: text/plain; charset=utf-8');
         echo server_sign_pk_hex() . "\n";
@@ -4313,7 +3960,6 @@ function web_main(): void
     send_security_headers();
     session_boot();
 
-    // Sprache: nur Sitzung (Wahl beim Start); nichts wird am Konto gespeichert.
     $user = auth_user();
     $lang = is_string($_SESSION['lang'] ?? null) ? (string) $_SESSION['lang'] : '';
     if (!in_array($lang, (array) SW::$cfg['langs'], true)) {
@@ -4331,9 +3977,6 @@ function web_main(): void
             v_error(405, 'error.method');
         }
 
-        // Allererster Aufruf: Sprachwahl über Flaggen, danach die Seite.
-        // Ausgenommen sind die /eid/-Endpunkte: Das tcToken holt die
-        // Ausweis-App als eigener HTTP-Client ohne Sitzung und ohne Sprache ab.
         $langChosen = is_string($_SESSION['lang'] ?? null) || $user !== null;
         if (!$langChosen && ($method === 'GET' || $method === 'HEAD')
             && !in_array($path, ['/start', '/imprint', '/privacy'], true)
@@ -4346,13 +3989,13 @@ function web_main(): void
             }
             v_start();
         }
-        // Zentrale CSRF-Prüfung: ausnahmslos jede POST-Anfrage.
+
         if ($method === 'POST' && !csrf_ok()) {
             log_line('SECURITY', 'csrf_failed', ['path' => $path]);
             flash('error', 'flash.csrf');
             redirect('/');
         }
-        // Jury-Gate: offene Jury-Aufgabe -> zuerst dorthin.
+
         if ($user !== null && jury_pending_for((int) $user['id']) !== null) {
             $gateAllowed = ['/jury', '/jury/vote', '/logout', '/lang', '/imprint', '/privacy'];
             if (!in_array($path, $gateAllowed, true)) {
@@ -4362,8 +4005,6 @@ function web_main(): void
 
         $isGet = $method === 'GET' || $method === 'HEAD';
 
-        // Ohne gescannten Ausweis ist die Seite nicht sichtbar:
-        // nur Anmeldung und Rechtliches sind offen.
         if ($user === null && $isGet
             && !in_array($path, ['/auth', '/imprint', '/privacy'], true)
             && strpos($path, '/claim/') !== 0
@@ -4460,8 +4101,6 @@ function web_main(): void
         v_error(500, 'error.generic');
     }
 }
-
-/* ============================== CLI (Wartung & Selbsttest) ================ */
 
 function cli_switch_db(string $tmpDir, string $name): void
 {
@@ -4614,7 +4253,7 @@ function cli_selftest(): int
         $sealed = profile_sealed($pu);
         $check('Ausgeliefertes Profil enthält keinen Klartext-Schlüssel im Inhalt',
             strpos($sealed, 'stimmwerk_versiegeltes_profil') === 0);
-        // Chiffre extrahieren und mit dem privaten Schlüssel entschlüsseln
+
         preg_match('/chiffre_b64: "([^"]+)"/', $sealed, $cm);
         preg_match('/server_signatur_b64: "([^"]+)"/', $sealed, $sm);
         $cipher = base64_decode($cm[1]);
@@ -4816,10 +4455,10 @@ function cli_selftest(): int
     $sb = cli_add_users(1, 'sb')[0];
     $highNet = topic_create($sb, 'Radweg-Vorschlag mit klarer Mehrheit', 'Ziel des zweiten Sortier-Themas hier.', 'Begründung des zweiten Sortier-Themas hier.', $catS, 'bund', null, 'date', substr(Clock::addDaysStr(Clock::nowStr(), 30), 0, 10), null);
     $sv = cli_add_users(6, 'sv');
-    // lowNet: 1 dafür, 1 dagegen -> netto 0
+
     vote_cast($sv[0], $lowNet, 'for');
     vote_cast($sv[1], $lowNet, 'against');
-    // highNet: 3 dafür, 0 dagegen -> netto +3
+
     vote_cast($sv[2], $highNet, 'for');
     vote_cast($sv[3], $highNet, 'for');
     vote_cast($sv[4], $highNet, 'for');
@@ -4939,7 +4578,7 @@ function cli_seed(int $count): void
                     continue;
                 }
                 $choice = random_int(1, 100) <= $forShare ? 'for' : 'against';
-                // Wie im Echtbetrieb: ohne Ausweis-Bezug, nur unter dem Marker.
+
                 SW::$db->run(
                     'INSERT OR IGNORE INTO votes (topic_id, voter_tag, choice, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
                     [(int) $topic['id'], vote_tag((int) $topic['id'], user_pk($userId)), $choice, $now, $now]
@@ -4972,7 +4611,7 @@ function cli_jurysim(): void
             jury_cast((int) $seat['report_id'], (int) $seat['user_id'], $vote);
             $cast++;
         } catch (DomainException $e) {
-            // Meldung zwischenzeitlich entschieden – unkritisch.
+
         }
     }
     printf("Simulierte Jury-Stimmen: %d\n", $cast);
@@ -5013,8 +4652,6 @@ function cli_main(array $argv): int
     return $cmd === 'help' ? 0 : 1;
 }
 
-/** Gibt autorisierte Test-Ausweise aus (Demo): Schlüsselpaar erzeugen, in die
- *  Allowlist aufnehmen, Geheimnis ablegen, Ausgabe-Link nennen. */
 function cli_issue_card(int $count): void
 {
     if (!card_supports_sodium()) {
@@ -5042,10 +4679,6 @@ function cli_issue_card(int $count): void
     echo "Hinweis: Nur diese Schluessel koennen sich anmelden. Link der URL der Seite voranstellen.\n";
 }
 
-/** Aktualisiert die Allowlist aus einer konfigurierten Quelle (Trust-Liste).
- *  Erwartet einfache Zeilen/YAML mit hex-Schlüsseln. Ehrlicher Hinweis: eine
- *  staatliche Liste aller Ausweis-Schlüssel existiert nicht; echte Prüfung
- *  läuft über die BSI-Zertifikatskette im eID-Server (TR-03110/-03130). */
 function cli_sync_keys(string $urlArg): int
 {
     $url = $urlArg !== '' ? $urlArg : (string) SW::$cfg['authorized_keys_url'];
@@ -5071,8 +4704,6 @@ function cli_sync_keys(string $urlArg): int
     printf("Allowlist aktualisiert: %d neue Schluessel aus %s\n", $added, $url);
     return 0;
 }
-
-/* ============================== Einstieg ================================== */
 
 if (PHP_SAPI === 'cli') {
     exit(cli_main($argv));
