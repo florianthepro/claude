@@ -41,9 +41,15 @@ const SW_CONFIG = [
     'app_name' => 'Stimmwerk',
     'domain'   => 'stimmwerk.de',
 
-    // Testbetrieb-Banner: solange true, zeigt jede Seite den Hinweis, dass
-    // dies keine offizielle Seite der Bundesregierung oder einer Behörde ist.
+    /* ===== Zwei Test-Schalter (nur für Entwicklung/Vorführung) ===== */
+    // 1) Testbetrieb-Banner: solange true, zeigt jede Seite den Hinweis, dass
+    //    dies keine offizielle Seite der Bundesregierung oder Behörde ist.
     'show_test_banner' => true,
+    // 2) Test-Anmeldung: solange true, erzeugt der Anmelde-Knopf beim
+    //    „Anhalten“ eine ZUFÄLLIGE, als gültig behandelte Sitzung (die App tut
+    //    so, als läge ein echter Ausweis an). NUR zum Testen – im Echtbetrieb
+    //    auf false: dann ist ausschließlich echte Ausweis-Prüfung möglich.
+    'test_login' => false,
 
     // Anmeldemodus:
     //   'demo' = Ausweise werden per CLI ausgegeben (issue-card) und in die
@@ -1031,7 +1037,12 @@ function fav_to_gebiet(string $ref): ?string
  *  (Ebene → Land → Kreis), damit keine lange Liste nötig ist. */
 function scope_picker(string $name, string $selected, bool $withAll): string
 {
-    $html = '<select name="' . e($name) . '" data-scope-native>';
+    $html = '<select name="' . e($name) . '" data-scope-native'
+        . ' data-l-de="' . e(t('scope.bund')) . '"'
+        . ' data-l-bl="' . e(t('scope.bundesland')) . '"'
+        . ' data-l-kr="' . e(t('scope.landkreis')) . '"'
+        . ' data-l-pick="' . e(t('topic.f_choose')) . '"'
+        . ' data-l-all="' . e(t('topics.filter_all')) . '">';
     if ($withAll) {
         $html .= '<option value="">' . e(t('topics.filter_all')) . '</option>';
     }
@@ -2018,7 +2029,6 @@ const SW_EN = [
 
     'topic.new_title' => 'Raise a topic',
     'common.close' => 'Close',
-    'common.back_home' => 'Back to start page',
     'topics.clear' => 'Reset filters',
     'scope.whole' => 'whole',
     'scope.pick_land' => 'Choose federal state …',
@@ -2387,23 +2397,30 @@ const SW_JS = <<<'JS'
           if (o.value.indexOf('kr:') === 0) { lands[name].push(o.textContent); }
         });
       });
+      var L = {
+        de: native.getAttribute('data-l-de') || 'DE',
+        bl: native.getAttribute('data-l-bl') || 'Bundesland',
+        kr: native.getAttribute('data-l-kr') || 'Landkreis',
+        pick: native.getAttribute('data-l-pick') || '—',
+        all: native.getAttribute('data-l-all') || '—'
+      };
       var wrap = document.createElement('div');
       wrap.className = 'scope-picker';
       var hasAll = !!native.querySelector('option[value=""]');
       var selLevel = document.createElement('select');
-      if (hasAll) { selLevel.add(new Option(native.querySelector('option[value=""]').textContent, 'all')); }
-      selLevel.add(new Option(native.querySelector('option[value="de"]').textContent, 'de'));
-      selLevel.add(new Option('Bundesland', 'bundesland'));
-      selLevel.add(new Option('Landkreis / Stadt', 'landkreis'));
+      if (hasAll) { selLevel.add(new Option(L.all, 'all')); }
+      selLevel.add(new Option(L.de, 'de'));
+      selLevel.add(new Option(L.bl, 'bundesland'));
+      selLevel.add(new Option(L.kr, 'landkreis'));
       selLevel.value = level;
       var selLand = document.createElement('select');
-      selLand.add(new Option('—', ''));
+      selLand.add(new Option(L.pick, ''));
       order.forEach(function (n) { selLand.add(new Option(n, n)); });
       if (land) { selLand.value = land; }
       var selKreis = document.createElement('select');
       var fillKreis = function () {
         selKreis.innerHTML = '';
-        selKreis.add(new Option('—', ''));
+        selKreis.add(new Option(L.pick, ''));
         (lands[selLand.value] || []).forEach(function (k) { selKreis.add(new Option(k, k)); });
         if (kreis) { selKreis.value = kreis; }
       };
@@ -3066,20 +3083,26 @@ function v_auth(): void
         . '<h1>' . e(t('auth.title')) . '</h1>'
         . '<p class="muted">' . e(t('auth.line')) . '</p>';
 
-    // Anmelde-Anbieter (Ausweis-Apps): AusweisApp und Nect Wallet.
-    $html .= '<div class="provider-list">';
-    foreach ((array) SW::$cfg['eid_providers'] as $key => $prov) {
-        $html .= '<a class="btn btn-primary provider-btn" href="' . e(url('/eid/start?provider=' . rawurlencode($key))) . '">'
-            . e(t('auth.with', ['app' => (string) $prov['label']])) . '</a>';
-    }
-    $html .= '</div>';
-
-    if ($ready) {
-        // Demo: ein autorisierter Ausweis liegt vor – anhalten bestätigt.
-        $html .= '<hr class="hr-soft">'
-            . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
-            . '<button type="submit" class="btn btn-outline btn-big">' . e(t('auth.tap')) . '</button></form>'
-            . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>';
+    if (!empty(SW::$cfg['test_login'])) {
+        // Test-Anmeldung: GENAU EIN Knopf – erzeugt beim Anhalten eine
+        // zufällige, als gültig behandelte Sitzung.
+        $html .= '<form method="post" action="' . e(url('/tap')) . '">' . csrf_field()
+            . '<button type="submit" class="btn btn-primary btn-big">' . e(t('auth.tap')) . '</button></form>';
+    } else {
+        // Anmelde-Anbieter (Ausweis-Apps): AusweisApp und Nect Wallet.
+        $html .= '<div class="provider-list">';
+        foreach ((array) SW::$cfg['eid_providers'] as $key => $prov) {
+            $html .= '<a class="btn btn-primary provider-btn" href="' . e(url('/eid/start?provider=' . rawurlencode($key))) . '">'
+                . e(t('auth.with', ['app' => (string) $prov['label']])) . '</a>';
+        }
+        $html .= '</div>';
+        if ($ready) {
+            // Demo: ein autorisierter Ausweis liegt vor – anhalten bestätigt.
+            $html .= '<hr class="hr-soft">'
+                . '<form id="tap-form" method="post" action="' . e(url('/tap')) . '">' . csrf_field()
+                . '<button type="submit" class="btn btn-outline btn-big">' . e(t('auth.tap')) . '</button></form>'
+                . '<p id="tap-status" class="tap-status" hidden aria-live="polite">' . e(t('auth.hold')) . '</p>';
+        }
     }
     $html .= '</section>';
     render(t('auth.title'), $html);
@@ -3383,20 +3406,28 @@ function h_tap(): void
         flash('error', 'flash.rate_limited');
         redirect('/auth');
     }
-    // Echtbetrieb: der eID-Server (AusweisApp, TR-03130) übernimmt. Ist er
-    // nicht konfiguriert, schlägt die Anmeldung bewusst fehl – niemand kommt
-    // ohne echten Ausweis hinein.
-    if ((string) SW::$cfg['eid_mode'] === 'eid') {
-        log_line('SECURITY', 'eid_not_configured', []);
-        flash('error', 'flash.eid_required');
-        redirect('/auth');
-    }
-    // Es muss ein Ausweis vorliegen (per Ausgabe-Link in die Sitzung geladen);
-    // ein Knopfdruck allein erzeugt KEINE Identität.
-    $card = card_load();
-    if ($card === null) {
-        flash('error', 'flash.no_card');
-        redirect('/auth');
+    if (!empty(SW::$cfg['test_login'])) {
+        // TEST-ANMELDUNG: erzeugt eine zufällige Sitzung und behandelt sie als
+        // gültig (die App tut so, als läge ein echter Ausweis an). Der zufällige
+        // Schlüssel wird dazu autorisiert – die Prüfungen unten laufen normal.
+        $card = card_create();
+        authorized_add([card_identity($card)], 'test-login');
+    } else {
+        // Echtbetrieb: der eID-Server (AusweisApp, TR-03130) übernimmt. Ist er
+        // nicht konfiguriert, schlägt die Anmeldung bewusst fehl – niemand kommt
+        // ohne echten Ausweis hinein.
+        if ((string) SW::$cfg['eid_mode'] === 'eid') {
+            log_line('SECURITY', 'eid_not_configured', []);
+            flash('error', 'flash.eid_required');
+            redirect('/auth');
+        }
+        // Es muss ein Ausweis vorliegen (per Ausgabe-Link in die Sitzung geladen);
+        // ein Knopfdruck allein erzeugt KEINE Identität.
+        $card = card_load();
+        if ($card === null) {
+            flash('error', 'flash.no_card');
+            redirect('/auth');
+        }
     }
     // 1) Besitz des privaten Schlüssels beweisen (zeitgebundene Signatur).
     $identity = card_identity($card);

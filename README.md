@@ -52,6 +52,12 @@ nginx) funktioniert alles weiter über automatisch erzeugte
   Prüfung ruft der Anbieter `/eid/callback` zurück. Ist ein Anbieter nicht
   eingerichtet, meldet er sauber „nicht eingerichtet“ – **niemand kommt ohne
   echte Prüfung hinein** (fail-closed).
+- **Zwei Test-Schalter (nur Entwicklung/Vorführung):** In der Konfiguration
+  oben in `index.php`: `show_test_banner` (Testbetrieb-Banner) und
+  `test_login`. Ist `test_login = true`, erzeugt der **eine** Anmelde-Knopf
+  beim Anhalten eine **zufällige, als gültig behandelte Sitzung** (die App tut
+  so, als läge ein echter Ausweis an) – praktisch zum Testen mit vielen
+  Stimmen. Im Echtbetrieb beide auf `false`.
 - **Modi (`eid_mode`):** `demo` – autorisierte Test-Ausweise per
   `php index.php issue-card` (Schlüssel → Allowlist, Ausgabe-Link
   `/claim/<handle>` lädt ihn in die Sitzung). `eid` – ausschließlich über die
