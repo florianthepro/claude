@@ -1,5 +1,7 @@
 <?php
 
+// code: https://github.com/florianthepro/buergerabstimmung
+
 declare(strict_types=1);
 
 if (PHP_VERSION_ID < 80000) {
@@ -18,8 +20,8 @@ if (PHP_VERSION_ID < 80000) {
 }
 
 const SW_CONFIG = [
-    'app_name' => 'Stimmwerk',
-    'domain'   => 'stimmwerk.de',
+    'app_name' => 'Bürgerabstimmung',
+    'domain'   => 'buergerabstimmung.de',
 
     'show_test_banner' => true,
 
@@ -420,7 +422,7 @@ function sw_setup(): void
 
     setup_apply(setup_load());
 
-    $dbPath = getenv('STIMMWERK_DB') ?: SW::$dataDir . '/stimmwerk.sqlite';
+    $dbPath = getenv('BUERGERABSTIMMUNG_DB') ?: SW::$dataDir . '/buergerabstimmung.sqlite';
     SW::$db = new Db($dbPath);
     SW::$db->migrate();
     sw_seed_categories();
@@ -903,7 +905,7 @@ function authorized_add(array $pkHexList, string $source): int
 
 function authorized_write(array $set, string $source): void
 {
-    $y = "stimmwerk_authorized_keys:\n";
+    $y = "buergerabstimmung_authorized_keys:\n";
     $y .= "  hinweis: \"Oeffentliche Schluessel autorisierter Ausweise. Nur diese koennen sich anmelden.\"\n";
     $y .= "  aktualisiert: \"" . Clock::nowStr() . "\"\n";
     $y .= "  quelle: \"" . str_replace('"', '', $source) . "\"\n";
@@ -2156,18 +2158,8 @@ const SW_DE = [
     'error.generic' => 'Es ist ein Fehler aufgetreten. Bitte später erneut versuchen.',
     'error.method' => 'Anfrageart nicht unterstützt.',
 
-    'footer.imprint' => 'Impressum',
-    'footer.privacy' => 'Datenschutz',
 
-    'imprint.h' => '*',
-    'imprint.p1' => '*',
 
-    'privacy.h' => 'Datenschutz',
-    'privacy.p1' => 'Es werden weder Name noch Anschrift, Geburtsdatum oder E-Mail-Adresse verarbeitet.',
-    'privacy.p2' => 'Beim Auflegen des Ausweises erhält die Seite nur einen öffentlichen Schlüssel und speichert davon ausschließlich ein Pseudonym (Hash mit serverseitigem Geheimnis).',
-    'privacy.p3' => 'Genau ein technisch notwendiges Sitzungs-Cookie. Darüber hinaus wird nichts im Browser gespeichert – keine weiteren Cookies, kein localStorage, keine Tracker, keine Drittinhalte.',
-    'privacy.p4' => 'Zur Missbrauchsabwehr werden kurzlebige, gehashte Kennungen für Ratenbegrenzungen verarbeitet und automatisch gelöscht.',
-    'privacy.p5' => 'Das Konto kann jederzeit in „Meine Übersicht“ gelöscht werden.',
 ];
 
 const SW_EN = [
@@ -2369,18 +2361,8 @@ const SW_EN = [
     'error.generic' => 'An error occurred. Please try again later.',
     'error.method' => 'Request method not supported.',
 
-    'footer.imprint' => 'Legal notice',
-    'footer.privacy' => 'Privacy',
 
-    'imprint.h' => '*',
-    'imprint.p1' => '*',
 
-    'privacy.h' => 'Privacy',
-    'privacy.p1' => 'Neither name, address, date of birth nor e-mail address are processed.',
-    'privacy.p2' => 'When tapping the ID card, the site only receives a public key and stores nothing but a pseudonym derived from it (hash with a server-side secret).',
-    'privacy.p3' => 'Exactly one technically necessary session cookie. Beyond that, nothing is stored in the browser – no further cookies, no localStorage, no trackers, no third-party content.',
-    'privacy.p4' => 'To prevent abuse, short-lived hashed identifiers are processed for rate limiting and deleted automatically.',
-    'privacy.p5' => 'The account can be deleted at any time in “My overview”.',
 ];
 
 const SW_CSS = <<<'CSS'
@@ -2641,10 +2623,6 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .prose p { color: var(--muted); }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 600; margin-left: 0.4rem; }
 
-.site-footer { border-top: 1px solid var(--sep); background: var(--surface); font-size: 0.85rem; color: var(--muted); }
-.footer-inner { display: flex; gap: 0.5rem 1.2rem; flex-wrap: wrap; padding-top: 0.9rem; padding-bottom: 0.9rem; }
-.footer-nav { display: flex; gap: 1rem; }
-.footer-nav a { color: var(--muted); }
 
 .modal { position: fixed; inset: 0; z-index: 200; display: none; }
 .modal:target { display: flex; align-items: flex-end; justify-content: center; }
@@ -3091,11 +3069,7 @@ function v_layout(string $title, string $content): string
         $html .= '</div>';
     }
     $html .= '<main id="main" class="shell site-main">' . $content . '</main>'
-        . '<footer class="site-footer"><div class="shell footer-inner">'
-        . '<nav class="footer-nav" aria-label="Footer">'
-        . '<a href="' . e(url('/imprint')) . '">' . e(t('footer.imprint')) . '</a>'
-        . '<a href="' . e(url('/privacy')) . '">' . e(t('footer.privacy')) . '</a>'
-        . '</nav></div></footer></body></html>';
+        . '</body></html>';
     return $html;
 }
 
@@ -4034,16 +4008,6 @@ function v_error(int $status, string $messageKey): void
     render(t('error.generic_title'), $html, $status);
 }
 
-function v_static(string $titleKey, array $paraKeys): void
-{
-    $html = '<section class="card prose"><h1>' . e(t($titleKey)) . '</h1>';
-    foreach ($paraKeys as $key) {
-        $html .= '<p>' . e(t($key)) . '</p>';
-    }
-    $html .= '</section>';
-    render(t($titleKey), $html);
-}
-
 function yq(string $v): string
 {
     return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $v) . '"';
@@ -4052,7 +4016,7 @@ function yq(string $v): string
 function profile_yaml(array $user): string
 {
     $userId = (int) $user['id'];
-    $y = "stimmwerk_profil:\n";
+    $y = "buergerabstimmung_profil:\n";
     $y .= "  oeffentlicher_schluessel: " . yq((string) $user['pseudonym_hash']) . "\n";
     $duty = jury_pending_for($userId);
     $upcoming = $duty === null ? jury_upcoming_for($userId) : null;
@@ -4120,7 +4084,7 @@ function profile_sealed(array $user): string
     $curvePk = sodium_crypto_sign_ed25519_pk_to_curve25519($edPk);
     $cipher = sodium_crypto_box_seal($plain, $curvePk);
     $sig = sodium_crypto_sign_detached($cipher, SW::$serverSign);
-    $out = "stimmwerk_versiegeltes_profil:\n";
+    $out = "buergerabstimmung_versiegeltes_profil:\n";
     $out .= "  hinweis: " . yq('An oeffentlichen Ausweis-Schluessel verschluesselt; nur mit dem Ausweis lesbar.') . "\n";
     $out .= "  verschluesselt_fuer: " . yq($pkHex) . "\n";
     $out .= "  server_schluessel: " . yq(server_sign_pk_hex()) . "\n";
@@ -4228,7 +4192,7 @@ function v_report(int $topicId): void
 function safe_return(string $fallback): string
 {
     $return = post_str('return', 200);
-    if (preg_match('#^/(topics(\?[A-Za-z0-9=&%._\-]*)?|topic/\d{1,10}|topics/new|me|jury|auth|imprint|privacy)?$#', $return) === 1) {
+    if (preg_match('#^/(topics(\?[A-Za-z0-9=&%._\-]*)?|topic/\d{1,10}|topics/new|me|jury|auth)?$#', $return) === 1) {
         return $return === '' ? '/' : $return;
     }
     return $fallback;
@@ -4564,7 +4528,7 @@ function web_main(): void
     try {
         sw_setup();
     } catch (Throwable $e) {
-        error_log('stimmwerk setup: ' . $e->getMessage());
+        error_log('buergerabstimmung setup: ' . $e->getMessage());
         http_response_code(500);
         header('Content-Type: text/html; charset=utf-8');
         $writable = is_writable(__DIR__ . '/data') || (!is_dir(__DIR__ . '/data') && is_writable(__DIR__));
@@ -4668,7 +4632,7 @@ function web_main(): void
 
         $langChosen = is_string($_SESSION['lang'] ?? null) || $user !== null;
         if (!$langChosen && ($method === 'GET' || $method === 'HEAD')
-            && !in_array($path, ['/start', '/imprint', '/privacy'], true)
+            && $path !== '/start'
             && strpos($path, '/eid/') !== 0
             && strpos($path, '/api/') !== 0) {
             redirect('/start');
@@ -4687,7 +4651,7 @@ function web_main(): void
         }
 
         if ($user !== null && jury_pending_for((int) $user['id']) !== null) {
-            $gateAllowed = ['/jury', '/jury/vote', '/logout', '/lang', '/imprint', '/privacy'];
+            $gateAllowed = ['/jury', '/jury/vote', '/logout', '/lang'];
             if (!in_array($path, $gateAllowed, true)) {
                 redirect('/jury');
             }
@@ -4696,7 +4660,7 @@ function web_main(): void
         $isGet = $method === 'GET' || $method === 'HEAD';
 
         if ($user === null && $isGet
-            && !in_array($path, ['/auth', '/imprint', '/privacy', '/api/topics', '/api/similar'], true)
+            && !in_array($path, ['/auth', '/api/topics', '/api/similar'], true)
             && strpos($path, '/claim/') !== 0
             && strpos($path, '/eid/') !== 0) {
             redirect('/auth');
@@ -4791,12 +4755,6 @@ function web_main(): void
         if ($path === '/setup/finish' && $method === 'POST') {
             h_setup_finish();
         }
-        if ($path === '/imprint' && $isGet) {
-            v_static('imprint.h', ['imprint.p1']);
-        }
-        if ($path === '/privacy' && $isGet) {
-            v_static('privacy.h', ['privacy.p1', 'privacy.p2', 'privacy.p3', 'privacy.p4', 'privacy.p5']);
-        }
         v_error_404();
     } catch (Throwable $e) {
         log_line('ERROR', 'unhandled', ['type' => get_class($e), 'msg' => $e->getMessage(), 'path' => $path]);
@@ -4806,7 +4764,7 @@ function web_main(): void
 
 function cli_switch_db(string $tmpDir, string $name): void
 {
-    putenv('STIMMWERK_DB=' . $tmpDir . '/' . $name . '.sqlite');
+    putenv('BUERGERABSTIMMUNG_DB=' . $tmpDir . '/' . $name . '.sqlite');
     SW::$db = new Db($tmpDir . '/' . $name . '.sqlite');
     SW::$db->migrate();
     sw_seed_categories();
@@ -4834,7 +4792,7 @@ function cli_make_topic(int $authorId, string $title): int
 
 function cli_selftest(): int
 {
-    $tmpDir = sys_get_temp_dir() . '/stimmwerk-selftest-' . bin2hex(random_bytes(4));
+    $tmpDir = sys_get_temp_dir() . '/buergerabstimmung-selftest-' . bin2hex(random_bytes(4));
     mkdir($tmpDir, 0700, true);
     $pass = 0;
     $fail = 0;
@@ -4988,7 +4946,7 @@ function cli_selftest(): int
         $pu = SW::$db->one('SELECT * FROM users WHERE pseudonym_hash = ?', [$pkHex]);
         $sealed = profile_sealed($pu);
         $check('Ausgeliefertes Profil enthält keinen Klartext-Schlüssel im Inhalt',
-            strpos($sealed, 'stimmwerk_versiegeltes_profil') === 0);
+            strpos($sealed, 'buergerabstimmung_versiegeltes_profil') === 0);
 
         preg_match('/chiffre_b64: "([^"]+)"/', $sealed, $cm);
         preg_match('/server_signatur_b64: "([^"]+)"/', $sealed, $sm);
@@ -5003,7 +4961,7 @@ function cli_selftest(): int
         $curvePk = sodium_crypto_sign_ed25519_pk_to_curve25519(sodium_crypto_sign_publickey($pair));
         $keypair = sodium_crypto_box_keypair_from_secretkey_and_publickey($curveSk, $curvePk);
         $plain = sodium_crypto_box_seal_open($cipher, $keypair);
-        $check('Nur mit dem Ausweis-Schlüssel entschlüsselbar', is_string($plain) && strpos($plain, 'stimmwerk_profil') === 0);
+        $check('Nur mit dem Ausweis-Schlüssel entschlüsselbar', is_string($plain) && strpos($plain, 'buergerabstimmung_profil') === 0);
     } else {
         $check('Profil-Versiegelung übersprungen (kein sodium)', true);
         $check('Profil-Versiegelung übersprungen (kein sodium)', true);
@@ -5373,7 +5331,7 @@ function cli_selftest(): int
     $check('Keine leeren englischen Texte', $emptyVals === []);
 
     Clock::setTestNow(null);
-    putenv('STIMMWERK_DB');
+    putenv('BUERGERABSTIMMUNG_DB');
     array_map('unlink', glob($tmpDir . '/*') ?: []);
     rmdir($tmpDir);
     printf("\nErgebnis: %d bestanden, %d fehlgeschlagen.\n", $pass, $fail);

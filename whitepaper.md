@@ -1,16 +1,16 @@
-# Stimmwerk — Whitepaper
+# Bürgerabstimmung — Whitepaper
 
 **Digitale Bürgerbeteiligung mit dem Personalausweis. Themen einbringen, abstimmen, gemeinsam prüfen.**
 
 | | |
 |---|---|
-| Arbeitstitel / Marke | **Stimmwerk** |
-| Domain (vorgeschlagen) | **stimmwerk.de** (Alternativen: mitstimme.de, buergerwerk.de, stimmwerk.eu) |
+| Arbeitstitel / Marke | **Bürgerabstimmung** |
+| Domain (vorgeschlagen) | **buergerabstimmung.de** (Alternativen: buergerabstimmung.eu, abstimmungsportal.de) |
 | Status | Konzept & technischer Prototyp (Testbetrieb, keine offizielle Seite einer Behörde) |
 | Sprachen | Deutsch (Standard), Englisch |
 | Version | 1.0 · August 2026 |
 
-> **Wichtiger Hinweis:** Stimmwerk ist ein privates Konzept- und Demonstrationsprojekt.
+> **Wichtiger Hinweis:** Bürgerabstimmung ist ein privates Konzept- und Demonstrationsprojekt.
 > Es ist **keine offizielle Seite der Bundesregierung oder einer Behörde** und erhebt
 > nicht den Anspruch, staatliche Verfahren rechtlich zu ersetzen. Der Prototyp zeigt,
 > wie eine solche Plattform funktionieren könnte. Solange der Testbetrieb läuft, zeigt
@@ -23,7 +23,7 @@
 
 ## 1. Zusammenfassung
 
-Stimmwerk ist eine Plattform für direkte, fortlaufende Bürgerbeteiligung. Jede Person
+Bürgerabstimmung ist eine Plattform für direkte, fortlaufende Bürgerbeteiligung. Jede Person
 mit deutschem Personalausweis kann:
 
 - **Themen einbringen** — maximal eines pro Tag, mit Ziel, Begründung, Kategorie und
@@ -54,16 +54,28 @@ für Menschen ohne eigenes Gerät.
 
 ### 2.1 Name
 
-**Stimmwerk** — kurz, deutsch, merkfähig. „Stimme“ (Abstimmung, Mitsprache) und
-„Werk“ (etwas Solides, Gemeinschaftliches). Der Name klingt seriös, ist aber bewusst
-**nicht** mit staatlichen Kennzeichen verwechselbar: kein Bundesadler, keine
-Bundesfarben-Imitation, kein „bund.de“-Look. Vor einem echten Betrieb sind Marken-
-und Domainrecherche erforderlich.
+**Bürgerabstimmung** — bewusst **kein Kunstwort und keine Marke**, sondern die
+schlichte Sachbezeichnung: Bürgerinnen und Bürger stimmen ab. So würde eine
+Verwaltung die Sache benennen, und genau das ist der Zweck des Namens — er
+verspricht nichts, was er nicht ist.
+
+Bewusst **nicht** gewählt wurde „Wahl…“ oder „Bürgerentscheid“: Beides sind
+rechtlich belegte Begriffe für verbindliche Verfahren nach Gemeinde- und
+Wahlrecht. Diese Plattform ist ein Meinungsbildungs-Kanal ohne
+Rechtsverbindlichkeit; ein Name aus dem Wahlrecht würde eine Wirkung
+suggerieren, die sie nicht hat.
+
+Zugleich ist der Name **nicht mit staatlichen Kennzeichen verwechselbar**: kein
+Bundesadler, keine Bundesfarben-Imitation, kein „bund.de“-Look. Vor einem echten
+Betrieb sind Marken- und Domainrecherche erforderlich — die Sachbezeichnung ist
+als Wortmarke voraussichtlich nicht schutzfähig, was für den Zweck kein Nachteil
+ist.
 
 ### 2.2 Domain
 
-Vorschlag: **stimmwerk.de** (kurz, aussprechbar, .de passt zum Zweck).
-Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
+Vorschlag: **buergerabstimmung.de** (Sachbezeichnung, aussprechbar, .de passt zum
+Zweck). Ausweichoptionen: buergerabstimmung.eu, buerger-abstimmung.de,
+abstimmungsportal.de.
 
 ### 2.3 Gestaltungsprinzipien
 
@@ -84,10 +96,7 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
    Sprachwahl — **Deutsch/English als Knöpfe mit Flagge**, ohne Bildmarke; die
    Anmeldung führt ein Ausweis-Piktogramm mit NFC-Wellen an, Text bleibt
    minimal. Die Kopfzeile der Seite trägt weder Wortmarke noch Anmeldestatus,
-   sondern nur die nötigen Bedienelemente; die Fußzeile nur Impressum und
-   Datenschutz. Das Impressum ist im Prototyp bewusst leer (ein `*` als
-   Überschrift und als Text) — es ist vor einem echten Betrieb mit den
-   Pflichtangaben des Betreibers zu füllen.
+   sondern nur die nötigen Bedienelemente; eine Fußzeile gibt es nicht.
 
    **Bildmarke (Tab-/App-Icon):** ein **Häkchen im Feld** — scharfe Kanten,
    keine abgerundeten Ecken, keine Farbe. Als SVG folgt es der
@@ -112,7 +121,7 @@ Ausweichoptionen: mitstimme.de, buergerwerk.de, stimmwerk.eu, stimmwerk.org.
 
 ## 3. Leitidee und Einordnung
 
-Stimmwerk versteht sich als **ständiger Meinungsbildungs-Kanal**: Statt alle vier
+Bürgerabstimmung versteht sich als **ständiger Meinungsbildungs-Kanal**: Statt alle vier
 Jahre ein Kreuz zu machen, können Bürgerinnen und Bürger laufend Anliegen einbringen
 und gewichten — von der Radweg-Frage in der Gemeinde bis zur bundespolitischen
 Grundsatzfrage. Die Ergebnisse sind ein präzises, manipulationsarmes Stimmungsbild,
@@ -120,7 +129,7 @@ das Politik auf allen Ebenen nutzen kann.
 
 Bewusste Abgrenzung:
 
-- Stimmwerk **ersetzt keine rechtlich bindenden Verfahren** (Wahlen, Volksentscheide).
+- Bürgerabstimmung **ersetzt keine rechtlich bindenden Verfahren** (Wahlen, Volksentscheide).
   Ergebnisse sind Meinungsbilder; eine rechtliche Bindung wäre ein politischer
   Folgeschritt, kein technischer.
 - Die Plattform ist **strikt neutral**: Zum Start existieren ausschließlich
@@ -161,14 +170,14 @@ prüft die zugehörigen Zertifikate gegen die **staatliche Zertifikatskette** (C
 Verifying CA / Document Verifier, BSI-Standards TR-03110, TR-03130). Kopierte oder
 gefälschte Karten fallen bei dieser Prüfung durch.
 
-Für Stimmwerk entscheidend ist die Funktion **„dienstespezifisches Kennzeichen“
+Für Bürgerabstimmung entscheidend ist die Funktion **„dienstespezifisches Kennzeichen“
 (Restricted Identification)**: Der Chip errechnet pro Dienst ein stabiles Pseudonym.
 
-- Dasselbe Pseudonym bei jedem Anhalten derselben Karte bei Stimmwerk → **ein
+- Dasselbe Pseudonym bei jedem Anhalten derselben Karte bei Bürgerabstimmung → **ein
   Konto pro Karte**, Wiedererkennung ohne Klarnamen.
 - Ein anderes Pseudonym bei jedem anderen Dienst → **keine Verkettbarkeit** über
   Dienste hinweg.
-- Stimmwerk fragt **keine** Klardaten ab (kein Name, keine Anschrift, kein
+- Bürgerabstimmung fragt **keine** Klardaten ab (kein Name, keine Anschrift, kein
   Geburtsdatum). Es wird auch **kein eigenes Pseudonym erzeugt oder
   zugeordnet**: Identität ist unmittelbar der öffentliche Schlüssel („on
   the go“); Stimmen werden auf dem Server direkt für diesen Schlüssel
@@ -183,8 +192,8 @@ Für Stimmwerk entscheidend ist die Funktion **„dienstespezifisches Kennzeiche
    sechsstellige **Ausweis-PIN** ein.
 3. Chip und eID-Server authentisieren sich gegenseitig (PACE, Terminal- und
    Chip-Authentisierung); der eID-Server prüft Echtheit und Sperrliste und übermittelt
-   Stimmwerk **nur das Pseudonym**.
-4. Stimmwerk bildet daraus den HMAC und meldet die Sitzung an.
+   Bürgerabstimmung **nur das Pseudonym**.
+4. Bürgerabstimmung bildet daraus den HMAC und meldet die Sitzung an.
 
 Voraussetzung für den Echtbetrieb ist ein **Berechtigungszertifikat** der
 Vergabestelle für Berechtigungszertifikate (Bundesverwaltungsamt) mit dem
@@ -537,7 +546,7 @@ und Melde­wege für Behörden. Das ist im Betriebskonzept der Ausbaustufe zu ve
 
 ## 8. Sicherheitsarchitektur
 
-Stimmwerk wäre im Echtbetrieb ein **hochwertiges Angriffsziel** (politische
+Bürgerabstimmung wäre im Echtbetrieb ein **hochwertiges Angriffsziel** (politische
 Stimmungsbilder, staatsnahe Wahrnehmung). Der Prototyp ist deshalb von Grund auf
 konservativ gebaut: wenig Code, wenig Abhängigkeiten, restriktive Standardwerte.
 
@@ -685,7 +694,7 @@ Gebietsdaten (amtliche Gemeindeschlüssel AGS/ARS statt Freitext-Gebieten).
 
 ## 13. Offene Punkte
 
-- Marken-/Domainrecherche „Stimmwerk“ und finale Namensentscheidung.
+- Marken-/Domainrecherche „Bürgerabstimmung“ und finale Namensentscheidung.
 - Trägerschaft und Finanzierung (Verein/Stiftung empfohlen: neutralitätssichernd).
 - Rechtsgutachten: eID-Berechtigungsumfang, DSA-Pflichtenkatalog, Jugendliche
   (Ausweispflicht ab 16 — Teilnahmealter ist Konfigurationsfrage).
