@@ -1,7 +1,5 @@
 <?php
 
-// code: https://github.com/florianthepro/buergerabstimmung
-
 declare(strict_types=1);
 
 if (PHP_VERSION_ID < 80000) {
@@ -20,41 +18,48 @@ if (PHP_VERSION_ID < 80000) {
 }
 
 const SW_CONFIG = [
-    'app_name' => 'Bürgerabstimmung',
-    'domain'   => 'buergerabstimmung.de',
+    'app_name' => 'Bürgerabstimmung', // Name in Titel und Fußzeile
+    'domain'   => '', // leer = Host der Anfrage; im Echtbetrieb hier die feste Domain eintragen
 
-    'show_test_banner' => true,
+    'show_official_banner' => true, // true/false: gelbes Band mit dem Hinweis, dass die Seite nicht von einer Behörde stammt
 
-    'eid_mode' => 'demo',
+    'testmode_end' => 'edit', // gui = Umschalten unter /setup, edit = Umschalten sobald die Werte hier stimmen (Fehler stehen im Protokoll)
 
-    'authorized_keys_url' => '',
+    'eid_mode' => 'demo', // demo = Anmeldung über die Trust-Liste, eid = nur über eigenen eID-Server
 
-    'eid_client_url' => 'http://127.0.0.1:24727/eID-Client',
+    'authorized_keys_url' => '', // https-Adresse der Trust-Liste mit freigegebenen Ausweis-Schlüsseln, leer = keine
 
-    'eid_server_url'  => '',
-    'eid_server_cert' => '',
-    'eid_server_key'  => '',
-    'eid_providers' => [
+    // Abgleich der Listen: nur https://raw.githubusercontent.com/..., leer = kein Abgleich.
+    // Es werden ausschließlich neue Werte ergänzt, nie welche geändert oder gelöscht.
+    'categories_url' => '', // z. B. https://raw.githubusercontent.com/KONTO/REPO/main/categories.json
+    'regions_url'    => '', // z. B. https://raw.githubusercontent.com/KONTO/REPO/main/regions.json
+
+    'eid_client_url' => 'http://127.0.0.1:24727/eID-Client', // Ausweis-App auf dem Gerät (BSI TR-03124)
+
+    'eid_server_url'  => '', // https-SOAP-Adresse des eigenen eID-Servers (BSI TR-03130)
+    'eid_server_cert' => '', // Pfad zum Client-Zertifikat für den eID-Server
+    'eid_server_key'  => '', // Pfad zum privaten Schlüssel dazu
+    'eid_providers' => [ // Anmelde-Knöpfe auf /auth; start = https-Startadresse, leer = Knopf meldet „nicht eingerichtet“
         'ausweisapp' => ['label' => 'AusweisApp', 'start' => ''],
         'nect'       => ['label' => 'Nect Wallet', 'start' => ''],
     ],
 
-    'timezone'     => 'Europe/Berlin',
-    'default_lang' => 'de',
-    'langs'        => ['de', 'en'],
+    'timezone'     => 'Europe/Berlin', // Zeitzone aller angezeigten Daten
+    'default_lang' => 'de', // Sprache vor der Auswahl: de oder en
+    'langs'        => ['de', 'en'], // wählbare Sprachen
 
-    'jury_share'         => 0.01,
-    'jury_min'           => 5,
-    'quorum_share'       => 0.005,
-    'quorum_min'         => 3,
-    'report_vote_hours'  => 24,
-    'jury_cooldown_days' => 3,
-    'reports_per_day'    => 3,
+    'jury_share'         => 0.01, // Anteil der Nutzer, der je Meldung ausgelost wird
+    'jury_min'           => 5, // angestrebte Mindestgröße der Jury
+    'quorum_share'       => 0.005, // Anteil der Nutzer, der für eine gültige Entscheidung stimmen muss
+    'quorum_min'         => 3, // angestrebte Mindestzahl abgegebener Jurystimmen
+    'report_vote_hours'  => 24, // Stunden, die eine Jury zum Entscheiden hat
+    'jury_cooldown_days' => 3, // Tage, die jemand nach einem Dienst nicht erneut gelost wird
+    'reports_per_day'    => 3, // Meldungen, die eine Person pro Tag abgeben darf
 
-    'session_idle_minutes' => 30,
-    'session_max_hours'    => 8,
+    'session_idle_minutes' => 30, // Minuten ohne Aufruf bis zur Abmeldung
+    'session_max_hours'    => 8, // Stunden bis zur Abmeldung, auch bei Betrieb
 
-    'page_size' => 20,
+    'page_size' => 20, // Themen je Seite
 ];
 
 final class SW
@@ -66,6 +71,8 @@ final class SW
     public static string $serverSign = '';
     public static ?bool $testMode = null;
     public static string $lang = 'de';
+    public static string $headerExtra = '';
+    public static array $lists = [];
 
     public static array $tActive = [];
     public static ?array $user = null;
@@ -178,7 +185,7 @@ CREATE INDEX IF NOT EXISTS ix_topics_scope          ON topics(scope_level, scope
 CREATE TABLE IF NOT EXISTS votes (
     topic_id   INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
     voter_tag  TEXT    NOT NULL,
-    choice     TEXT    NOT NULL CHECK (choice IN ('for','against')),
+    choice     TEXT    NOT NULL CHECK (choice IN ('for','against','neutral')),
     created_at TEXT    NOT NULL,
     updated_at TEXT    NOT NULL,
     PRIMARY KEY (topic_id, voter_tag)
@@ -309,6 +316,22 @@ final class Db
         if ($exists === null) {
             $this->run("INSERT INTO schema_info (k, v) VALUES ('version', '1'), ('created_at', ?)", [Clock::nowStr()]);
         }
+        $voteSql = (string) ($this->val("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'votes'") ?? '');
+        if ($voteSql !== '' && strpos($voteSql, "'neutral'") === false) {
+            $this->pdo->exec(
+                "CREATE TABLE votes_new (
+                    topic_id   INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+                    voter_tag  TEXT    NOT NULL,
+                    choice     TEXT    NOT NULL CHECK (choice IN ('for','against','neutral')),
+                    created_at TEXT    NOT NULL,
+                    updated_at TEXT    NOT NULL,
+                    PRIMARY KEY (topic_id, voter_tag)
+                );
+                INSERT INTO votes_new SELECT topic_id, voter_tag, choice, created_at, updated_at FROM votes;
+                DROP TABLE votes;
+                ALTER TABLE votes_new RENAME TO votes;"
+            );
+        }
         $favSql = (string) ($this->val("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'favorites'") ?? '');
         if ($favSql !== '' && strpos($favSql, "'topic'") === false) {
             $this->pdo->exec(
@@ -426,6 +449,8 @@ function sw_setup(): void
     SW::$db = new Db($dbPath);
     SW::$db->migrate();
     sw_seed_categories();
+
+    testmode_edit_tick();
 }
 
 const SW_SETUP_KEYS = [
@@ -549,6 +574,42 @@ function setup_probe(array $cfg): bool
     return eid_server_useid($cfg) !== null;
 }
 
+function setup_probe_list(string $url): ?int
+{
+    if ($url === '') {
+        return authorized_count_stable();
+    }
+    if (preg_match('#^https://#', $url) !== 1) {
+        return null;
+    }
+    $ctx = stream_context_create([
+        'http' => ['timeout' => 8],
+        'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
+    ]);
+    $body = @file_get_contents($url, false, $ctx);
+    if ($body === false) {
+        return null;
+    }
+    $found = preg_match_all('/[0-9a-fA-F]{64,128}/', $body, $mm);
+    return $found === false ? null : $found;
+}
+
+function setup_check_stamp(array $values): string
+{
+    return sw_hmac('setup-check|' . implode('|', [
+        (string) ($values['eid_mode'] ?? ''),
+        (string) ($values['eid_server_url'] ?? ''),
+        (string) ($values['eid_server_cert'] ?? ''),
+        (string) ($values['eid_server_key'] ?? ''),
+        (string) ($values['authorized_keys_url'] ?? ''),
+    ]));
+}
+
+function setup_checked(array $values): bool
+{
+    return hash_equals((string) ($_SESSION['setup_check'] ?? ''), setup_check_stamp($values));
+}
+
 function setup_ready(): array
 {
     $htaccess = is_file(__DIR__ . '/.htaccess');
@@ -563,6 +624,53 @@ function setup_ready(): array
 function sw_hmac(string $value): string
 {
     return hash_hmac('sha256', $value, SW::$pepper);
+}
+
+function testmode_config(): array
+{
+    return [
+        'eid_mode'            => (string) SW::$cfg['eid_mode'],
+        'eid_server_url'      => (string) SW::$cfg['eid_server_url'],
+        'eid_server_cert'     => (string) SW::$cfg['eid_server_cert'],
+        'eid_server_key'      => (string) SW::$cfg['eid_server_key'],
+        'eid_client_url'      => (string) SW::$cfg['eid_client_url'],
+        'authorized_keys_url' => (string) SW::$cfg['authorized_keys_url'],
+        'nect_start'          => (string) (SW::$cfg['eid_providers']['nect']['start'] ?? ''),
+    ];
+}
+
+function testmode_edit_tick(): void
+{
+    if ((string) SW::$cfg['testmode_end'] !== 'edit' || !test_mode()) {
+        return;
+    }
+    $last = (int) (SW::$db->val("SELECT v FROM schema_info WHERE k = 'edit_check'") ?? 0);
+    $now = time();
+    if ($now - $last < 300) {
+        return;
+    }
+    SW::$db->run(
+        "INSERT INTO schema_info (k, v) VALUES ('edit_check', ?) ON CONFLICT(k) DO UPDATE SET v = ?",
+        [(string) $now, (string) $now]
+    );
+
+    $values = testmode_config();
+    [$errors] = setup_validate($values);
+    if ($errors === [] && $values['eid_mode'] === 'eid' && !setup_probe($values)) {
+        $errors[] = 'flash.setup_failed';
+    }
+    if ($errors === [] && $values['eid_mode'] === 'demo') {
+        $count = setup_probe_list($values['authorized_keys_url']);
+        if ($count === null || $count === 0) {
+            $errors[] = 'setup.err_list_empty';
+        }
+    }
+    if ($errors !== []) {
+        log_line('SETUP', 'testmode_edit_invalid', ['errors' => $errors]);
+        return;
+    }
+    test_mode_end();
+    log_line('SETUP', 'testmode_ended_by_edit', []);
 }
 
 function test_mode(): bool
@@ -624,7 +732,15 @@ function base_path(): string
 function url(string $path): string
 {
     $full = base_path() . $path;
-    return $full === '' ? '/' : $full;
+    if ($full === '') {
+        $full = '/';
+    }
+    $carry = lang_stored() === '' ? lang_wanted() : '';
+    if ($carry !== '' && strpos($path, 'lang=') === false
+        && preg_match('#^/(a/|favicon|apple-touch-icon|icon-192|server\.pub|robots\.txt)#', $path) !== 1) {
+        $full .= (strpos($full, '?') === false ? '?' : '&') . 'lang=' . rawurlencode($carry);
+    }
+    return $full;
 }
 
 function redirect(string $path): void
@@ -706,9 +822,104 @@ function sw_is_https(): bool
         || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
 }
 
+function consent_given(): bool
+{
+    return (string) ($_COOKIE['sw_consent'] ?? '') === '1';
+}
+
+function cookie_kill(string $name): void
+{
+    setcookie($name, '', [
+        'expires'  => time() - 3600,
+        'path'     => '/',
+        'secure'   => sw_is_https(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function session_forget(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        $_SESSION = [];
+        cookie_kill(session_name());
+        session_destroy();
+    }
+    cookie_kill('sw_consent');
+    cookie_kill('sw_lang');
+}
+
+function consent_set(): void
+{
+    setcookie('sw_consent', '1', [
+        'expires'  => time() + 31536000,
+        'path'     => '/',
+        'secure'   => sw_is_https(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function consent_return(): string
+{
+    $to = query_str('to', 120);
+    return preg_match('#^/(topic/\d{1,10}|auth|about|imprint|privacy)?$#', $to) === 1 && $to !== '' ? $to : '/';
+}
+
+function lang_from_browser(): string
+{
+    $raw = (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '');
+    $first = strtolower(substr(trim(explode(',', $raw)[0]), 0, 2));
+    return in_array($first, (array) SW::$cfg['langs'], true) ? $first : (string) SW::$cfg['default_lang'];
+}
+
+function lang_valid(string $code): bool
+{
+    return in_array($code, (array) SW::$cfg['langs'], true);
+}
+
+function lang_stored(): string
+{
+    $value = (string) ($_COOKIE['sw_lang'] ?? '');
+    return lang_valid($value) ? $value : '';
+}
+
+function lang_wanted(): string
+{
+    $value = query_str('lang', 5);
+    return lang_valid($value) ? $value : '';
+}
+
+function lang_store(string $code): void
+{
+    if (!lang_valid($code)) {
+        return;
+    }
+    setcookie('sw_lang', $code, [
+        'expires'  => time() + 31536000,
+        'path'     => '/',
+        'secure'   => sw_is_https(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function lang_active(): string
+{
+    $lang = lang_stored();
+    if ($lang === '') {
+        $lang = lang_wanted();
+    }
+    return $lang === '' ? lang_from_browser() : $lang;
+}
+
 function session_boot(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
+    if (!consent_given()) {
+        $GLOBALS['_SESSION'] = [];
         return;
     }
     session_name('sw_session');
@@ -1106,6 +1317,306 @@ const SW_GOAL_MAX = 500;
 const SW_REASONING_MIN = 10;
 const SW_REASONING_MAX = 4000;
 
+const SW_CATEGORIES_FILE = 'categories.json';
+const SW_REGIONS_FILE = 'regions.json';
+const SW_LIST_MAX_BYTES = 262144;   // Deckel für Datei und Abruf
+const SW_MAX_CATEGORIES = 60;
+const SW_MAX_LAENDER = 24;
+const SW_MAX_KREISE = 600;
+const SW_SYNC_MAX_NEW = 20;         // höchstens so viele neue Werte je Abgleich
+const SW_SYNC_EVERY = 21600;        // frühestens alle 6 Stunden
+
+function sw_list_text($value, int $maxChars): ?string
+{
+    if (!is_string($value) || strlen($value) > 400) {
+        return null;
+    }
+    if (!mb_check_encoding($value, 'UTF-8')) {
+        return null;
+    }
+    $text = trim((string) preg_replace('/\s+/u', ' ', $value));
+    $len = mb_strlen($text);
+    if ($len < 2 || $len > $maxChars) {
+        return null;
+    }
+    // Nur lateinische Schrift: verhindert nachgeahmte Namen aus fremden Alphabeten.
+    return preg_match('/^[\p{Latin}\p{N} .,&()\/\'\-]+$/u', $text) === 1 ? $text : null;
+}
+
+function sw_categories_clean(array $raw): array
+{
+    $out = [];
+    $seen = [];
+    foreach ($raw as $row) {
+        if (!is_array($row) || count($out) >= SW_MAX_CATEGORIES) {
+            continue;
+        }
+        $slug = isset($row['slug']) && is_string($row['slug']) ? trim($row['slug']) : '';
+        if (preg_match('/^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/', $slug) !== 1 || isset($seen[$slug])) {
+            continue;
+        }
+        $de = sw_list_text($row['de'] ?? null, 60);
+        $en = sw_list_text($row['en'] ?? null, 60);
+        if ($de === null || $en === null) {
+            continue;
+        }
+        $seen[$slug] = true;
+        $out[] = [$slug, $de, $en];
+    }
+    return $out;
+}
+
+function sw_regions_clean(array $raw): array
+{
+    $out = [];
+    $kreise = 0;
+    foreach ($raw as $land => $list) {
+        $name = sw_list_text(is_string($land) ? $land : null, 60);
+        if ($name === null || !is_array($list) || isset($out[$name]) || count($out) >= SW_MAX_LAENDER) {
+            continue;
+        }
+        $clean = [];
+        $seen = [];
+        foreach ($list as $entry) {
+            if ($kreise >= SW_MAX_KREISE) {
+                break;
+            }
+            $kreis = sw_list_text($entry, 80);
+            if ($kreis === null || isset($seen[$kreis])) {
+                continue;
+            }
+            $seen[$kreis] = true;
+            $clean[] = $kreis;
+            $kreise++;
+        }
+        $out[$name] = $clean;
+    }
+    return $out;
+}
+
+function sw_list_path(string $file): string
+{
+    return __DIR__ . '/' . $file;
+}
+
+function sw_list_load(string $file, string $cleaner, array $fallback): array
+{
+    $raw = @file_get_contents(sw_list_path($file), false, null, 0, SW_LIST_MAX_BYTES + 1);
+    if ($raw === false || $raw === '') {
+        return $fallback;
+    }
+    if (strlen($raw) > SW_LIST_MAX_BYTES) {
+        log_line('DATA', 'list_too_big', ['file' => $file]);
+        return $fallback;
+    }
+    $data = json_decode($raw, true, 6);
+    if (!is_array($data)) {
+        log_line('DATA', 'list_unreadable', ['file' => $file]);
+        return $fallback;
+    }
+    $clean = $cleaner($data);
+    if ($clean === []) {
+        log_line('DATA', 'list_empty', ['file' => $file]);
+        return $fallback;
+    }
+    return $clean;
+}
+
+function sw_categories(): array
+{
+    if (!isset(SW::$lists['categories'])) {
+        SW::$lists['categories'] = sw_list_load(SW_CATEGORIES_FILE, 'sw_categories_clean', SW_CATEGORIES);
+    }
+    return SW::$lists['categories'];
+}
+
+function sw_regions(): array
+{
+    if (!isset(SW::$lists['regions'])) {
+        SW::$lists['regions'] = sw_list_load(SW_REGIONS_FILE, 'sw_regions_clean', SW_REGIONS);
+    }
+    return SW::$lists['regions'];
+}
+
+function sw_list_write(string $file, array $data): bool
+{
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false || strlen($json) > SW_LIST_MAX_BYTES) {
+        return false;
+    }
+    $path = sw_list_path($file);
+    $tmp = $path . '.tmp';
+    if (@file_put_contents($tmp, $json . "\n", LOCK_EX) === false || !@rename($tmp, $path)) {
+        @unlink($tmp);
+        log_line('DATA', 'list_write_failed', ['file' => $file]);
+        return false;
+    }
+    return true;
+}
+
+function sw_list_fetch(string $url): ?array
+{
+    if (preg_match('#^https://raw\.githubusercontent\.com/[A-Za-z0-9._~/-]{1,200}$#', $url) !== 1) {
+        log_line('DATA', 'sync_url_rejected', []);
+        return null;
+    }
+    $ctx = stream_context_create([
+        'http' => [
+            'method'          => 'GET',
+            'timeout'         => 8,
+            'follow_location' => 0,
+            'max_redirects'   => 0,
+            'ignore_errors'   => true,
+            'header'          => "Accept: application/json\r\nUser-Agent: buergerabstimmung\r\n",
+        ],
+        'ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'allow_self_signed' => false],
+    ]);
+    $body = @file_get_contents($url, false, $ctx, 0, SW_LIST_MAX_BYTES + 1);
+    $status = 0;
+    foreach (($http_response_header ?? []) as $line) {
+        if (preg_match('#^HTTP/[\d.]+\s+(\d{3})#', $line, $m) === 1) {
+            $status = (int) $m[1];
+        }
+    }
+    if ($body === false || $status !== 200 || strlen($body) > SW_LIST_MAX_BYTES) {
+        log_line('DATA', 'sync_fetch_failed', ['status' => $status]);
+        return null;
+    }
+    $data = json_decode($body, true, 6);
+    return is_array($data) ? $data : null;
+}
+
+function sw_categories_new(array $local, array $wanted): array
+{
+    $have = [];
+    foreach ($local as $row) {
+        $have[$row[0]] = true;
+    }
+    $added = [];
+    foreach ($wanted as $row) {
+        if (isset($have[$row[0]]) || count($added) >= SW_SYNC_MAX_NEW
+            || count($local) + count($added) >= SW_MAX_CATEGORIES) {
+            continue;
+        }
+        $have[$row[0]] = true;
+        $added[] = $row;
+    }
+    return $added;
+}
+
+function sw_regions_merge(array $local, array $wanted): array
+{
+    $kreise = array_sum(array_map('count', $local));
+    $added = [];
+    foreach ($wanted as $land => $list) {
+        if (count($added) >= SW_SYNC_MAX_NEW) {
+            break;
+        }
+        if (!isset($local[$land])) {
+            if (count($local) >= SW_MAX_LAENDER) {
+                continue;
+            }
+            $local[$land] = [];
+            $added[] = ['land' => $land];
+        }
+        foreach ($list as $kreis) {
+            if (count($added) >= SW_SYNC_MAX_NEW || $kreise >= SW_MAX_KREISE) {
+                break;
+            }
+            if (in_array($kreis, $local[$land], true)) {
+                continue;
+            }
+            $local[$land][] = $kreis;
+            $kreise++;
+            $added[] = ['land' => $land, 'kreis' => $kreis];
+        }
+    }
+    return ['list' => $local, 'added' => $added];
+}
+
+function sw_sync_categories(string $url): int
+{
+    $remote = sw_list_fetch($url);
+    if ($remote === null) {
+        return 0;
+    }
+    $local = [];
+    foreach (categories() as $row) {
+        $local[] = [(string) $row['slug'], (string) $row['name_de'], (string) $row['name_en']];
+    }
+    if ($local === []) {
+        $local = sw_categories();
+    }
+    $added = sw_categories_new($local, sw_categories_clean($remote));
+    if ($added === []) {
+        return 0;
+    }
+    $merged = array_merge($local, $added);
+    $file = [];
+    foreach ($merged as $row) {
+        $file[] = ['slug' => $row[0], 'de' => $row[1], 'en' => $row[2]];
+    }
+    if (!sw_list_write(SW_CATEGORIES_FILE, $file)) {
+        return 0;
+    }
+    SW::$lists['categories'] = $merged;
+    SW::$db->tx(function () use ($added): void {
+        $next = (int) SW::$db->val('SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories');
+        foreach ($added as $i => $row) {
+            SW::$db->run(
+                'INSERT OR IGNORE INTO categories (slug, name_de, name_en, sort_order) VALUES (?, ?, ?, ?)',
+                [$row[0], $row[1], $row[2], $next + $i]
+            );
+        }
+    });
+    foreach ($added as $row) {
+        log_line('DATA', 'category_added', ['slug' => $row[0], 'name' => $row[1]]);
+    }
+    return count($added);
+}
+
+function sw_sync_regions(string $url): int
+{
+    $remote = sw_list_fetch($url);
+    if ($remote === null) {
+        return 0;
+    }
+    $merge = sw_regions_merge(sw_regions(), sw_regions_clean($remote));
+    if ($merge['added'] === [] || !sw_list_write(SW_REGIONS_FILE, $merge['list'])) {
+        return 0;
+    }
+    SW::$lists['regions'] = $merge['list'];
+    foreach ($merge['added'] as $entry) {
+        log_line('DATA', 'region_added', $entry);
+    }
+    return count($merge['added']);
+}
+
+function sw_sync_lists(bool $force = false): int
+{
+    if (!$force) {
+        $now = Clock::now()->getTimestamp();
+        $last = (int) (SW::$db->val("SELECT v FROM schema_info WHERE k = 'last_list_sync'") ?? 0);
+        if (($now - $last) < SW_SYNC_EVERY) {
+            return 0;
+        }
+        SW::$db->run(
+            "INSERT INTO schema_info (k, v) VALUES ('last_list_sync', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
+            [(string) $now]
+        );
+    }
+    $added = 0;
+    $catUrl = trim((string) SW::$cfg['categories_url']);
+    $regUrl = trim((string) SW::$cfg['regions_url']);
+    if ($catUrl !== '') {
+        $added += sw_sync_categories($catUrl);
+    }
+    if ($regUrl !== '') {
+        $added += sw_sync_regions($regUrl);
+    }
+    return $added;
+}
+
 const SW_REGIONS = [
     'Baden-Württemberg' => ['Alb-Donau-Kreis', 'Baden-Baden (Stadt)', 'Bodenseekreis', 'Enzkreis', 'Freiburg im Breisgau (Stadt)', 'Heidelberg (Stadt)', 'Heilbronn (Stadt)', 'Hohenlohekreis', 'Karlsruhe (Stadt)', 'Landkreis Biberach', 'Landkreis Breisgau-Hochschwarzwald', 'Landkreis Böblingen', 'Landkreis Calw', 'Landkreis Emmendingen', 'Landkreis Esslingen', 'Landkreis Freudenstadt', 'Landkreis Göppingen', 'Landkreis Heidenheim', 'Landkreis Heilbronn', 'Landkreis Karlsruhe', 'Landkreis Konstanz', 'Landkreis Ludwigsburg', 'Landkreis Lörrach', 'Landkreis Rastatt', 'Landkreis Ravensburg', 'Landkreis Reutlingen', 'Landkreis Rottweil', 'Landkreis Schwäbisch Hall', 'Landkreis Sigmaringen', 'Landkreis Tuttlingen', 'Landkreis Tübingen', 'Landkreis Waldshut', 'Main-Tauber-Kreis', 'Mannheim (Stadt)', 'Neckar-Odenwald-Kreis', 'Ortenaukreis', 'Ostalbkreis', 'Pforzheim (Stadt)', 'Rems-Murr-Kreis', 'Rhein-Neckar-Kreis', 'Schwarzwald-Baar-Kreis', 'Stuttgart (Stadt)', 'Ulm (Stadt)', 'Zollernalbkreis'],
     'Bayern' => ['Amberg (Stadt)', 'Ansbach (Stadt)', 'Aschaffenburg (Stadt)', 'Augsburg (Stadt)', 'Bamberg (Stadt)', 'Bayreuth (Stadt)', 'Coburg (Stadt)', 'Erlangen (Stadt)', 'Fürth (Stadt)', 'Hof (Stadt)', 'Ingolstadt (Stadt)', 'Kaufbeuren (Stadt)', 'Kempten (Allgäu) (Stadt)', 'Landkreis Aichach-Friedberg', 'Landkreis Altötting', 'Landkreis Amberg-Sulzbach', 'Landkreis Ansbach', 'Landkreis Aschaffenburg', 'Landkreis Augsburg', 'Landkreis Bad Kissingen', 'Landkreis Bad Tölz-Wolfratshausen', 'Landkreis Bamberg', 'Landkreis Bayreuth', 'Landkreis Berchtesgadener Land', 'Landkreis Cham', 'Landkreis Coburg', 'Landkreis Dachau', 'Landkreis Deggendorf', 'Landkreis Dillingen a.d.Donau', 'Landkreis Dingolfing-Landau', 'Landkreis Donau-Ries', 'Landkreis Ebersberg', 'Landkreis Eichstätt', 'Landkreis Erding', 'Landkreis Erlangen-Höchstadt', 'Landkreis Forchheim', 'Landkreis Freising', 'Landkreis Freyung-Grafenau', 'Landkreis Fürstenfeldbruck', 'Landkreis Fürth', 'Landkreis Garmisch-Partenkirchen', 'Landkreis Günzburg', 'Landkreis Haßberge', 'Landkreis Hof', 'Landkreis Kelheim', 'Landkreis Kitzingen', 'Landkreis Kronach', 'Landkreis Kulmbach', 'Landkreis Landsberg am Lech', 'Landkreis Landshut', 'Landkreis Lichtenfels', 'Landkreis Lindau (Bodensee)', 'Landkreis Main-Spessart', 'Landkreis Miesbach', 'Landkreis Miltenberg', 'Landkreis Mühldorf a.Inn', 'Landkreis München', 'Landkreis Neu-Ulm', 'Landkreis Neuburg-Schrobenhausen', 'Landkreis Neumarkt i.d.OPf.', 'Landkreis Neustadt a.d.Aisch-Bad Windsheim', 'Landkreis Neustadt a.d.Waldnaab', 'Landkreis Nürnberger Land', 'Landkreis Oberallgäu', 'Landkreis Ostallgäu', 'Landkreis Passau', 'Landkreis Pfaffenhofen a.d.Ilm', 'Landkreis Regen', 'Landkreis Regensburg', 'Landkreis Rhön-Grabfeld', 'Landkreis Rosenheim', 'Landkreis Roth', 'Landkreis Rottal-Inn', 'Landkreis Schwandorf', 'Landkreis Schweinfurt', 'Landkreis Starnberg', 'Landkreis Straubing-Bogen', 'Landkreis Tirschenreuth', 'Landkreis Traunstein', 'Landkreis Unterallgäu', 'Landkreis Weilheim-Schongau', 'Landkreis Weißenburg-Gunzenhausen', 'Landkreis Wunsiedel i.Fichtelgebirge', 'Landkreis Würzburg', 'Landshut (Stadt)', 'Memmingen (Stadt)', 'München (Stadt)', 'Nürnberg (Stadt)', 'Passau (Stadt)', 'Regensburg (Stadt)', 'Rosenheim (Stadt)', 'Schwabach (Stadt)', 'Schweinfurt (Stadt)', 'Straubing (Stadt)', 'Weiden i.d.OPf. (Stadt)', 'Würzburg (Stadt)'],
@@ -1132,12 +1643,12 @@ function scope_decode(string $value): ?array
     }
     if (strpos($value, 'bl:') === 0) {
         $land = substr($value, 3);
-        return isset(SW_REGIONS[$land]) ? ['bundesland', $land] : null;
+        return isset(sw_regions()[$land]) ? ['bundesland', $land] : null;
     }
     if (strpos($value, 'kr:') === 0) {
         $parts = explode(':', substr($value, 3), 2);
-        if (count($parts) === 2 && isset(SW_REGIONS[$parts[0]])
-            && in_array($parts[1], SW_REGIONS[$parts[0]], true)) {
+        if (count($parts) === 2 && isset(sw_regions()[$parts[0]])
+            && in_array($parts[1], sw_regions()[$parts[0]], true)) {
             return ['landkreis', $parts[1]];
         }
         return null;
@@ -1154,11 +1665,11 @@ function fav_to_gebiet(string $ref): ?string
     if (count($parts) !== 2) {
         return null;
     }
-    if ($parts[0] === 'bundesland' && isset(SW_REGIONS[$parts[1]])) {
+    if ($parts[0] === 'bundesland' && isset(sw_regions()[$parts[1]])) {
         return 'bl:' . $parts[1];
     }
     if ($parts[0] === 'landkreis') {
-        foreach (SW_REGIONS as $land => $kreise) {
+        foreach (sw_regions() as $land => $kreise) {
             if (in_array($parts[1], $kreise, true)) {
                 return 'kr:' . $land . ':' . $parts[1];
             }
@@ -1179,7 +1690,7 @@ function scope_picker(string $name, string $selected, bool $withAll): string
         $html .= '<option value="">' . e(t('topics.filter_all')) . '</option>';
     }
     $html .= '<option value="de"' . ($selected === 'de' ? ' selected' : '') . '>' . e(t('scope.bund')) . '</option>';
-    foreach (SW_REGIONS as $land => $kreise) {
+    foreach (sw_regions() as $land => $kreise) {
         $value = 'bl:' . $land;
         $html .= '<optgroup label="' . e($land) . '">'
             . '<option value="' . e($value) . '"' . ($selected === $value ? ' selected' : '') . '>'
@@ -1225,7 +1736,7 @@ function sw_seed_categories(): void
         return;
     }
     SW::$db->tx(function (): void {
-        foreach (SW_CATEGORIES as $i => $row) {
+        foreach (sw_categories() as $i => $row) {
             SW::$db->run(
                 'INSERT INTO categories (slug, name_de, name_en, sort_order) VALUES (?, ?, ?, ?)',
                 [$row[0], $row[1], $row[2], $i]
@@ -1406,7 +1917,8 @@ function parse_topic_end(): ?array
 const SW_TOPIC_SELECT = "
     SELECT t.*, c.slug AS category_slug, c.name_de, c.name_en,
            (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'for')     AS votes_for,
-           (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against') AS votes_against
+           (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against') AS votes_against,
+           (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'neutral')  AS votes_neutral
     FROM topics t
     JOIN categories c ON c.id = t.category_id";
 
@@ -1443,6 +1955,9 @@ function topics_list(array $filters, int $page, int $perPage, ?int $userId): arr
         $order = ' ORDER BY t.created_at DESC';
     } elseif ($sortMode === 'top') {
         $order = ' ORDER BY (votes_for + votes_against) DESC, t.created_at DESC';
+    } elseif (!empty($filters['q'])) {
+        $params[':qp'] = addcslashes((string) $filters['q'], '%_\\') . '%';
+        $order = " ORDER BY CASE WHEN t.title LIKE :qp ESCAPE '\\' THEN 0 ELSE 1 END, " . $netExpr . ' DESC, t.created_at DESC';
     } else {
         $order = ' ORDER BY ' . $netExpr . ' DESC, t.created_at DESC';
     }
@@ -1539,7 +2054,7 @@ function topic_close_if_due(array $topic): string
         $close = true;
     }
     if ($topic['end_target'] !== null) {
-        $total = (int) SW::$db->val('SELECT COUNT(*) FROM votes WHERE topic_id = ?', [(int) $topic['id']]);
+        $total = (int) SW::$db->val("SELECT COUNT(*) FROM votes WHERE topic_id = ? AND choice IN ('for','against')", [(int) $topic['id']]);
         if ($total >= (int) $topic['end_target']) {
             $close = true;
         }
@@ -1553,7 +2068,7 @@ function topic_close_if_due(array $topic): string
 
 function vote_cast(int $userId, int $topicId, string $choice): void
 {
-    if (!in_array($choice, ['for', 'against', 'none'], true)) {
+    if (!in_array($choice, ['for', 'against', 'neutral'], true)) {
         throw new DomainException('flash.invalid_input');
     }
     $topic = SW::$db->one('SELECT * FROM topics WHERE id = ?', [$topicId]);
@@ -1564,10 +2079,6 @@ function vote_cast(int $userId, int $topicId, string $choice): void
     $existing = SW::$db->one('SELECT choice, created_at FROM votes WHERE topic_id = ? AND voter_tag = ?', [$topicId, $tag]);
     if ($existing !== null && Clock::nowStr() >= Clock::addHoursStr((string) $existing['created_at'], SW_VOTE_CHANGE_HOURS)) {
         throw new DomainException('flash.vote_locked');
-    }
-    if ($choice === 'none') {
-        SW::$db->run('DELETE FROM votes WHERE topic_id = ? AND voter_tag = ?', [$topicId, $tag]);
-        return;
     }
     $now = Clock::nowStr();
     SW::$db->run(
@@ -1598,10 +2109,10 @@ function fav_valid(string $kind, string $ref): bool
             return false;
         }
         if ($parts[0] === 'bundesland') {
-            return isset(SW_REGIONS[$parts[1]]);
+            return isset(sw_regions()[$parts[1]]);
         }
         if ($parts[0] === 'landkreis') {
-            foreach (SW_REGIONS as $kreise) {
+            foreach (sw_regions() as $kreise) {
                 if (in_array($parts[1], $kreise, true)) {
                     return true;
                 }
@@ -1961,7 +2472,7 @@ function account_delete(int $userId): void
 
 const SW_DE = [
     'app.tagline' => 'Digitale Bürgerbeteiligung',
-    'banner.test' => 'Testbetrieb – keine offizielle Seite der Bundesregierung oder einer Behörde.',
+    'banner.official' => 'Keine offizielle Seite der Bundesregierung oder einer Behörde.',
     'a11y.skip' => 'Zum Inhalt springen',
     'nav.topics' => 'Themen',
     'nav.jury' => 'Jury',
@@ -1996,11 +2507,9 @@ const SW_DE = [
     'topic.this' => 'Dieses Thema',
     'topic.removed_title' => 'Inhalt entfernt',
     'topic.removed_text' => 'Dieser Beitrag wurde nach Prüfung durch eine ausgeloste Bürger-Jury entfernt.',
-    'topic.your_vote' => 'Ihre Stimme: {choice}',
 
     'vote.for' => 'Dafür',
     'vote.against' => 'Dagegen',
-    'vote.withdraw' => 'Stimme zurückziehen',
     'vote.login_hint' => 'Zum Abstimmen Ausweis auflegen',
     'vote.bar_aria' => 'Abstimmungsergebnis',
 
@@ -2028,8 +2537,6 @@ const SW_DE = [
     'topic.archive_confirm' => 'Das Thema verschwindet aus den Listen und ist nicht mehr wählbar. Gelöscht wird es nicht.',
     'topic.archived_badge' => 'Archiviert',
     'topic.archived_note' => 'Dieses Thema wurde vom Verfasser archiviert.',
-    'home.recent_votes' => 'Kürzlich abgestimmt (noch änderbar)',
-    'vote.changeable_until' => 'änderbar bis {date}',
     'topic.f_title' => 'Titel',
     'topic.f_goal' => 'Ziel',
     'topic.f_reasoning' => 'Begründung',
@@ -2048,39 +2555,40 @@ const SW_DE = [
     'flash.testmode_ended' => 'Echtbetrieb eingerichtet, Testdaten gelöscht.',
     'flash.testmode_confirm' => 'Bitte das Beenden bestätigen.',
     'setup.title' => 'Echtbetrieb einrichten',
-    'setup.intro' => 'Hier endet der Testbetrieb: Zugangsart festlegen, prüfen, umschalten. Alle Testdaten werden dabei gelöscht.',
-    'setup.checks' => 'Voraussetzungen',
+    'setup.missing' => 'Fehlt noch',
     'setup.check_data' => 'Datenverzeichnis beschreibbar',
     'setup.check_https' => 'HTTPS aktiv',
     'setup.check_sodium' => 'Kryptographie (sodium) verfügbar',
     'setup.check_htaccess' => 'Zugriffsschutz (.htaccess) vorhanden',
-    'setup.check_keys' => 'Freigegebene Ausweis-Schlüssel: {n}',
-    'setup.path' => 'Zugang nach dem Umschalten',
+    'setup.check_keys' => 'Noch keine freigegebenen Ausweis-Schlüssel.',
+    'setup.path' => 'Zugang',
     'setup.path_eid' => 'Eigener eID-Server',
-    'setup.path_eid_hint' => 'Anmeldung über die Ausweis-App; setzt einen eID-Server nach BSI TR-03130 und ein Berechtigungszertifikat des BVA voraus.',
     'setup.path_list' => 'Eigene Trust-Liste',
-    'setup.path_list_hint' => 'Anmeldung nur mit Schlüsseln aus der Freigabeliste; über die Abgleich-Adresse oder „issue-card“ auf der Kommandozeile befüllt.',
-    'setup.f_server' => 'eID-Server (SOAP-Adresse)',
-    'setup.f_cert' => 'Client-Zertifikat (Pfad)',
-    'setup.f_key' => 'Privater Schlüssel (Pfad)',
-    'setup.f_client' => 'Ausweis-App auf dem Gerät',
-    'setup.f_sync' => 'Abgleich-Adresse der Freigabeliste',
-    'setup.f_nect' => 'Nect Wallet: Startadresse',
+    'setup.f_server' => 'eID-Server',
+    'setup.f_cert' => 'Client-Zertifikat',
+    'setup.f_key' => 'Privater Schlüssel',
+    'setup.f_client' => 'Ausweis-App',
+    'setup.f_sync' => 'Adresse der Trust-Liste',
+    'setup.f_nect' => 'Nect Wallet',
     'setup.token' => 'Einrichtungsschlüssel',
-    'setup.token_hint' => 'Steht in data/setup.token auf dem Server (per FTP oder SSH lesbar), oder über „php index.php setup-token“.',
+    'setup.token_hint' => 'data/setup.token',
     'setup.check_btn' => 'Verbindung prüfen',
-    'setup.finish_btn' => 'Testdaten löschen und umschalten',
-    'setup.confirm' => 'Ja, Testdaten löschen und dauerhaft in den Echtbetrieb wechseln',
+    'setup.finish_btn' => 'Umschalten',
+    'setup.confirm' => 'Testdaten löschen',
+    'setup.end_locked' => 'Umschalten nur durch Bearbeiten der Datei.',
     'setup.err_client' => 'Adresse der Ausweis-App ist ungültig.',
     'setup.err_https' => 'Adressen müssen mit https:// beginnen.',
     'setup.err_file' => 'Zertifikat oder Schlüssel ist nicht lesbar.',
     'setup.err_server_missing' => 'Für den eID-Server wird dessen SOAP-Adresse benötigt.',
     'setup.err_list_empty' => 'Die Freigabeliste ist leer: Abgleich-Adresse angeben oder zuerst Ausweise ausgeben.',
     'setup.err_token' => 'Einrichtungsschlüssel stimmt nicht.',
+    'setup.err_check_first' => 'Bitte zuerst die Verbindung prüfen.',
     'setup.err_save' => 'Einstellungen nicht speicherbar – Rechte des Ordners data/ prüfen.',
     'flash.setup_ok' => 'eID-Server antwortet.',
     'flash.setup_failed' => 'eID-Server antwortet nicht oder liefert keine Sitzung.',
     'flash.setup_no_server' => 'Keine eID-Server-Adresse angegeben.',
+    'flash.setup_list_ok' => 'Trust-Liste erreichbar: {n} Schlüssel.',
+    'flash.setup_list_failed' => 'Trust-Liste nicht erreichbar.',
     'auth.title' => 'Mit Ausweis anmelden',
     'auth.tap' => 'Ausweis auflegen',
     'auth.test_login' => 'Test-Anmeldung starten',
@@ -2123,7 +2631,7 @@ const SW_DE = [
     'flash.topic_not_votable' => 'Abstimmung nicht möglich.',
     'flash.topic_not_reportable' => 'Meldung nicht möglich.',
     'flash.vote_saved' => 'Stimme gespeichert.',
-    'flash.vote_withdrawn' => 'Stimme zurückgezogen.',
+    'vote.neutral' => 'Enthalten',
     'flash.favorite_added' => 'Favorit hinzugefügt.',
     'flash.favorite_removed' => 'Favorit entfernt.',
     'flash.report_already_open' => 'Für dieses Thema läuft bereits eine Prüfung.',
@@ -2150,7 +2658,6 @@ const SW_DE = [
     'flash.card_not_authorized' => 'Dieser Ausweis ist nicht autorisiert.',
     'flash.card_ready' => 'Ausweis bereit. Zum Anmelden auflegen.',
     'flash.card_new' => 'Bereit für einen anderen Ausweis. Zum Anmelden auflegen.',
-    'flash.logged_out' => 'Abgemeldet.',
 
     'error.not_found_title' => 'Seite nicht gefunden',
     'error.not_found' => 'Die angeforderte Seite existiert nicht oder wurde entfernt.',
@@ -2158,13 +2665,44 @@ const SW_DE = [
     'error.generic' => 'Es ist ein Fehler aufgetreten. Bitte später erneut versuchen.',
     'error.method' => 'Anfrageart nicht unterstützt.',
 
+    'footer.home' => 'Startseite',
+    'footer.about' => 'Über uns',
+    'footer.imprint' => 'Impressum',
+    'footer.privacy' => 'Datenschutz',
 
+    'about.h' => 'Über diese Seite',
+    'about.p1' => 'Bürgerabstimmung ist eine offene Seite. Jeder kann ein politisches Thema zur Abstimmung stellen und über die Themen anderer abstimmen.',
+    'about.p2' => 'Gefragt ist die eigene Meinung. Jede Person hat pro Thema genau eine Stimme. Dafür wird der Ausweis geprüft, damit niemand mit mehreren Konten abstimmt.',
+    'about.p3' => 'Vom Ausweis kommt nur eine Kennung, die allein für diese Seite gilt. Name, Anschrift und Geburtsdatum werden nicht gelesen. Am Konto steht nicht, wie jemand abgestimmt hat.',
+    'about.p4' => 'Die Ergebnisse kann jeder lesen, auch ohne Anmeldung. Für eigene Themen und Stimmen ist eine Anmeldung nötig.',
+    'about.p5' => 'Die Seite wird privat betrieben. Sie gehört nicht zur Regierung und ist keine Wahl. Das Ergebnis ist ein Meinungsbild.',
 
+    'imprint.h' => 'Impressum',
+    'imprint.p1' => "Florian Kutzer\nc/o POSTFLEX PFX-730-065\nEmsdettener Straße 10\n48268 Greven",
+    'imprint.p2' => 'E-Mail: impressum@buergerabstimmung.org',
+    'imprint.p3' => "Verantwortlich für den Inhalt:\nFlorian Kutzer\nc/o POSTFLEX PFX-730-065\nEmsdettener Straße 10\n48268 Greven",
+
+    'privacy.h' => 'Datenschutzerklärung',
+    'privacy.p1' => 'Diese Anwendung verarbeitet keine Klaridentitäten wie Name, Anschrift, Geburtsdatum oder E-Mail-Adresse.',
+    'privacy.p2' => 'Zur Nutzung der Seite wird ein technisches Profil erstellt. Dieses Profil sowie die auf der Seite abgegebenen Eingaben, Stimmen, Themen, Meldungen und Entscheidungen werden dauerhaft gespeichert. Die dauerhafte Speicherung dient der Eindeutigkeit, der Nachvollziehbarkeit, der Verhinderung mehrfacher oder nachträglich manipulierter Vorgänge und der Sicherheit der Anwendung.',
+    'privacy.p3' => 'Zur Wiedererkennung verwendet die Anwendung pseudonyme technische Kennungen, zum Beispiel Hash- oder HMAC-Werte mit serverseitigem Geheimnis. Diese Kennungen dienen der Anmeldung, Sitzungsführung, Missbrauchsabwehr und Verhinderung von Doppelstimmen.',
+    'privacy.p4' => 'Die Seite verwendet ein technisch notwendiges Sitzungs-Cookie für Anmeldung und Sicherheit. Weitere Cookies, Tracking, Werbung und externe Drittinhalte werden nicht eingesetzt.',
+    'privacy.p5' => 'Zur Missbrauchsabwehr und Fehleranalyse können technische Protokolldaten verarbeitet werden. Diese werden nur für Sicherheit und Betrieb verwendet.',
+    'privacy.p6' => 'Rechtsgrundlage ist, soweit erforderlich, Art. 6 Abs. 1 lit. f DSGVO. Das berechtigte Interesse liegt im sicheren Betrieb der Anwendung, der Eindeutigkeit der Abstimmungen und dem Schutz vor Manipulation.',
+    'privacy.p7' => 'Betroffene Personen haben nach Maßgabe der DSGVO Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch und Beschwerde bei einer Datenschutzaufsichtsbehörde.',
+    'privacy.p8' => 'Löschung und Einschränkung der Verarbeitung können abgelehnt oder nur eingeschränkt umgesetzt werden, soweit die weitere Speicherung zur Integrität, Nachvollziehbarkeit, Missbrauchsabwehr, Verhinderung von Doppelstimmen oder Verhinderung nachträglicher Manipulation erforderlich ist.',
+    'privacy.p9' => 'Nutzer sind für die von ihnen eingestellten Inhalte selbst verantwortlich. Der Betreiber macht sich diese Inhalte nicht zu eigen. Rechtswidrige Inhalte können nach Kenntnisnahme geprüft, eingeschränkt oder entfernt werden.',
+    'privacy.p10' => "Verantwortlich:\nFlorian Kutzer\nc/o POSTFLEX PFX-730-065\nEmsdettener Straße 10\n48268 Greven\nE-Mail: datenschutz@buergerabstimmung.org",
+    'consent.text' => 'Diese Seite verwendet ein technisch notwendiges Sitzungs-Cookie für Anmeldung und Sicherheit. Details entnehmen Sie der Datenschutzerklärung.',
+    'consent.title' => 'Cookies',
+    'consent.test' => 'Testbetrieb: Die Anmeldung erzeugt zurzeit eine zufällige Kennung, es wird noch kein Ausweis gelesen. Angelegte Themen und Stimmen werden beim Wechsel in den Echtbetrieb gelöscht.',
+    'consent.accept' => 'Akzeptieren',
+    'error.consent' => 'Dafür wird das Sitzungs-Cookie benötigt. Bitte auf der Anmeldeseite zustimmen.',
 ];
 
 const SW_EN = [
     'app.tagline' => 'Digital citizen participation',
-    'banner.test' => 'Test operation – not an official website of the German federal government or any public authority.',
+    'banner.official' => 'Not an official website of the German federal government or any public authority.',
     'a11y.skip' => 'Skip to content',
     'nav.topics' => 'Topics',
     'nav.jury' => 'Jury',
@@ -2199,11 +2737,9 @@ const SW_EN = [
     'topic.this' => 'This topic',
     'topic.removed_title' => 'Content removed',
     'topic.removed_text' => 'This contribution was removed after review by a randomly drawn citizen jury.',
-    'topic.your_vote' => 'Your vote: {choice}',
 
     'vote.for' => 'For',
     'vote.against' => 'Against',
-    'vote.withdraw' => 'Withdraw vote',
     'vote.login_hint' => 'Place your ID card to vote',
     'vote.bar_aria' => 'Voting result',
 
@@ -2229,8 +2765,6 @@ const SW_EN = [
     'topic.archive_confirm' => 'The topic disappears from the lists and can no longer be voted on. It is not deleted.',
     'topic.archived_badge' => 'Archived',
     'topic.archived_note' => 'This topic was archived by its author.',
-    'home.recent_votes' => 'Recently voted (still changeable)',
-    'vote.changeable_until' => 'changeable until {date}',
     'topic.posted_today' => 'You already raised a topic today. The next one is possible from midnight.',
     'topic.next_in' => 'Next topic in',
     'topic.f_title' => 'Title',
@@ -2251,39 +2785,40 @@ const SW_EN = [
     'flash.testmode_ended' => 'Live operation configured, test data deleted.',
     'flash.testmode_confirm' => 'Please confirm ending test mode.',
     'setup.title' => 'Set up live operation',
-    'setup.intro' => 'This ends test operation: choose the sign-in method, check it, switch over. All test data is deleted.',
-    'setup.checks' => 'Prerequisites',
+    'setup.missing' => 'Still missing',
     'setup.check_data' => 'Data directory writable',
     'setup.check_https' => 'HTTPS active',
     'setup.check_sodium' => 'Cryptography (sodium) available',
     'setup.check_htaccess' => 'Access protection (.htaccess) present',
-    'setup.check_keys' => 'Authorised ID keys: {n}',
-    'setup.path' => 'Sign-in after switching',
+    'setup.check_keys' => 'No authorised ID keys yet.',
+    'setup.path' => 'Access',
     'setup.path_eid' => 'Own eID server',
-    'setup.path_eid_hint' => 'Sign-in via the ID app; requires an eID server per BSI TR-03130 and an authorisation certificate from the BVA.',
     'setup.path_list' => 'Own trust list',
-    'setup.path_list_hint' => 'Sign-in only with keys from the allowlist; filled via the sync address or “issue-card” on the command line.',
-    'setup.f_server' => 'eID server (SOAP address)',
-    'setup.f_cert' => 'Client certificate (path)',
-    'setup.f_key' => 'Private key (path)',
-    'setup.f_client' => 'ID app on the device',
-    'setup.f_sync' => 'Sync address of the allowlist',
-    'setup.f_nect' => 'Nect Wallet: start address',
+    'setup.f_server' => 'eID server',
+    'setup.f_cert' => 'Client certificate',
+    'setup.f_key' => 'Private key',
+    'setup.f_client' => 'ID app',
+    'setup.f_sync' => 'Trust list address',
+    'setup.f_nect' => 'Nect Wallet',
     'setup.token' => 'Setup key',
-    'setup.token_hint' => 'Found in data/setup.token on the server (readable via FTP or SSH), or via “php index.php setup-token”.',
+    'setup.token_hint' => 'data/setup.token',
     'setup.check_btn' => 'Test connection',
-    'setup.finish_btn' => 'Delete test data and switch over',
-    'setup.confirm' => 'Yes, delete test data and switch to live operation permanently',
+    'setup.finish_btn' => 'Switch over',
+    'setup.confirm' => 'Delete test data',
+    'setup.end_locked' => 'Switching only by editing the file.',
     'setup.err_client' => 'The ID app address is invalid.',
     'setup.err_https' => 'Addresses must start with https://.',
     'setup.err_file' => 'Certificate or key is not readable.',
     'setup.err_server_missing' => 'The eID server needs its SOAP address.',
     'setup.err_list_empty' => 'The allowlist is empty: give a sync address or issue ID cards first.',
     'setup.err_token' => 'Setup key does not match.',
+    'setup.err_check_first' => 'Please test the connection first.',
     'setup.err_save' => 'Settings could not be saved – check the permissions of the data/ folder.',
     'flash.setup_ok' => 'eID server responds.',
     'flash.setup_failed' => 'eID server does not respond or returns no session.',
     'flash.setup_no_server' => 'No eID server address given.',
+    'flash.setup_list_ok' => 'Trust list reachable: {n} keys.',
+    'flash.setup_list_failed' => 'Trust list not reachable.',
     'auth.title' => 'Sign in with ID card',
     'auth.tap' => 'Place your ID card',
     'auth.test_login' => 'Start test sign-in',
@@ -2326,7 +2861,7 @@ const SW_EN = [
     'flash.topic_not_votable' => 'Voting not possible.',
     'flash.topic_not_reportable' => 'Reporting not possible.',
     'flash.vote_saved' => 'Vote saved.',
-    'flash.vote_withdrawn' => 'Vote withdrawn.',
+    'vote.neutral' => 'Abstain',
     'flash.favorite_added' => 'Favourite added.',
     'flash.favorite_removed' => 'Favourite removed.',
     'flash.report_already_open' => 'A review is already in progress for this topic.',
@@ -2353,7 +2888,6 @@ const SW_EN = [
     'flash.card_not_authorized' => 'This ID card is not authorised.',
     'flash.card_ready' => 'ID card ready. Tap to sign in.',
     'flash.card_new' => 'Ready for a different ID card. Tap to sign in.',
-    'flash.logged_out' => 'Signed out.',
 
     'error.not_found_title' => 'Page not found',
     'error.not_found' => 'The requested page does not exist or has been removed.',
@@ -2361,8 +2895,39 @@ const SW_EN = [
     'error.generic' => 'An error occurred. Please try again later.',
     'error.method' => 'Request method not supported.',
 
+    'footer.home' => 'Home',
+    'footer.about' => 'About',
+    'footer.imprint' => 'Legal notice',
+    'footer.privacy' => 'Privacy',
 
+    'about.h' => 'About this site',
+    'about.p1' => 'Bürgerabstimmung is an open site. Anyone can put a political topic up for a vote and vote on topics raised by others.',
+    'about.p2' => 'What counts is your own opinion. Each person has exactly one vote per topic. The ID card is checked so that nobody votes with several accounts.',
+    'about.p3' => 'Only one identifier comes from the ID card, and it is valid for this site alone. Name, address and date of birth are not read. The account does not record how someone voted.',
+    'about.p4' => 'Anyone can read the results, without signing in. Signing in is needed for your own topics and votes.',
+    'about.p5' => 'The site is run privately. It does not belong to the government and it is not an election. The result is a snapshot of opinion.',
 
+    'imprint.h' => 'Legal notice',
+    'imprint.p1' => "Florian Kutzer\nc/o POSTFLEX PFX-730-065\nEmsdettener Straße 10\n48268 Greven",
+    'imprint.p2' => 'E-mail: impressum@buergerabstimmung.org',
+    'imprint.p3' => "Responsible for the content:\nFlorian Kutzer\nc/o POSTFLEX PFX-730-065\nEmsdettener Straße 10\n48268 Greven",
+
+    'privacy.h' => 'Privacy policy',
+    'privacy.p1' => 'This application does not process clear identities such as name, address, date of birth or e-mail address.',
+    'privacy.p2' => 'A technical profile is created in order to use the site. This profile and the entries, votes, topics, reports and decisions submitted on the site are stored permanently. Permanent storage serves uniqueness, traceability, the prevention of duplicate or retroactively manipulated operations, and the security of the application.',
+    'privacy.p3' => 'For recognition the application uses pseudonymous technical identifiers, for example hash or HMAC values with a server-side secret. These identifiers serve sign-in, session handling, abuse prevention and the prevention of duplicate votes.',
+    'privacy.p4' => 'The site uses one technically necessary session cookie for sign-in and security. No further cookies, tracking, advertising or external third-party content are used.',
+    'privacy.p5' => 'Technical log data may be processed for abuse prevention and error analysis. It is used for security and operation only.',
+    'privacy.p6' => 'The legal basis, where required, is Art. 6(1)(f) GDPR. The legitimate interest lies in the secure operation of the application, the uniqueness of the votes and protection against manipulation.',
+    'privacy.p7' => 'Data subjects have the rights to information, rectification, erasure, restriction of processing, objection and to lodge a complaint with a supervisory authority, as provided by the GDPR.',
+    'privacy.p8' => 'Erasure and restriction of processing may be refused or carried out only in part where continued storage is necessary for integrity, traceability, abuse prevention, prevention of duplicate votes or prevention of retroactive manipulation.',
+    'privacy.p9' => 'Users are responsible for the content they submit. The operator does not adopt this content as its own. Unlawful content may be reviewed, restricted or removed once it becomes known.',
+    'privacy.p10' => "Responsible:\nFlorian Kutzer\nc/o POSTFLEX PFX-730-065\nEmsdettener Straße 10\n48268 Greven\nE-mail: datenschutz@buergerabstimmung.org",
+    'consent.text' => 'This site uses one technically necessary session cookie for sign-in and security. See the privacy policy for details.',
+    'consent.title' => 'Cookies',
+    'consent.test' => 'Test operation: sign-in currently creates a random identifier, no ID card is read yet. Topics and votes created now are deleted when switching to live operation.',
+    'consent.accept' => 'Accept',
+    'error.consent' => 'This needs the session cookie. Please accept on the sign-in page.',
 ];
 
 const SW_CSS = <<<'CSS'
@@ -2398,7 +2963,7 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
   font-size: 1.0625rem;
-  line-height: 1.45;
+  line-height: 1.55;
   color: var(--ink);
   background: var(--page);
   min-height: 100vh;
@@ -2483,7 +3048,7 @@ a:hover { text-decoration: underline; }
 .action-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.2rem 0 0.9rem; }
 .action-bar .btn { flex: 1 1 auto; }
 .fav-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.9rem; }
-.fav-chips .btn { background: var(--field); color: var(--ink); font-weight: 500; }
+.fav-chips .btn { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
 .fav-chip { display: inline-flex; align-items: center; gap: 0.4rem; }
 .fav-chip .ico { width: 0.95rem; height: 0.95rem; color: var(--accent); }
 .recent-votes { margin-bottom: 1.1rem; }
@@ -2506,6 +3071,7 @@ a:hover { text-decoration: underline; }
 .dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-right: 0.3rem; }
 .dot-for { background: var(--vote-for); }
 .dot-against { background: var(--vote-against); }
+.dot-neutral { background: var(--muted); }
 .votebar { display: flex; gap: 2px; height: 0.6rem; border-radius: 999px; overflow: hidden; background: var(--track); }
 .votebar span { flex-basis: 0; min-width: 4px; }
 .votebar-for { background: var(--vote-for); }
@@ -2518,7 +3084,6 @@ a:hover { text-decoration: underline; }
 .votefig-slim .votebar { height: 4px; }
 .votefig-slim .votebar-legend { font-size: 0.88rem; color: var(--muted); margin-top: 0.4rem; }
 .votefig-slim .votebar-legend b { color: var(--ink); }
-.topic-card-mine { font-size: 0.88rem; color: var(--accent); margin: 0.35rem 0 0; }
 .similar-hint { background: var(--field); border-radius: var(--radius-sm); padding: 0.6rem 0.75rem; font-size: 0.9rem; }
 .similar-hint p { margin: 0 0 0.35rem; }
 .similar-hint .plain-list { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -2623,6 +3188,10 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .prose p { color: var(--muted); }
 .countdown { font-variant-numeric: tabular-nums; font-weight: 600; margin-left: 0.4rem; }
 
+.site-footer { border-top: 1px solid var(--sep); background: var(--surface); font-size: 0.85rem; color: var(--muted); }
+.footer-inner { display: flex; gap: 0.5rem 1.2rem; flex-wrap: wrap; padding-top: 0.9rem; padding-bottom: 0.9rem; }
+.footer-nav { display: flex; gap: 1rem; }
+.footer-nav a { color: var(--muted); }
 
 .modal { position: fixed; inset: 0; z-index: 200; display: none; }
 .modal:target { display: flex; align-items: flex-end; justify-content: center; }
@@ -2648,6 +3217,35 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
   .auth-action { justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.path-set input[type="radio"] { float: left; margin: .25rem .5rem 0 0; }
+.path-label { display: block; overflow: hidden; margin: 0 0 .4rem; }
+.only-eid, .only-list { display: none; clear: both; }
+#path-eid:checked ~ .only-eid, #path-list:checked ~ .only-list { display: flex; flex-direction: column; gap: .6rem; }
+.form-stack > .check-label { display: flex; flex-direction: row; align-items: center; gap: .5rem; }
+.check-list li { display: flex; gap: .5rem; }
+.btn:disabled { opacity: .5; }
+.consent-actions { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+
+.btn-icon { flex: 0 0 auto; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 999px; }
+.btn-icon .ico { width: 1.4rem; height: 1.4rem; }
+.action-bar .btn-icon { flex: 0 0 auto; }
+.fold summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+.fold summary::-webkit-details-marker { display: none; }
+.fold summary::after { content: "\203A"; font-size: 0.95rem; transition: transform 120ms ease; }
+.fold[open] summary::after { transform: rotate(90deg); }
+.fold[open] summary { margin-bottom: 0.3rem; }
+.header-controls .btn-icon { width: 2.15rem; height: 2.15rem; }
+.home-link { margin-right: auto; flex: 0 0 auto; width: 2.15rem; height: 2.15rem; background: var(--field); }
+.home-link .ico { width: 1.15rem; height: 1.15rem; }
+.header-controls .btn-icon.btn-ghost { background: var(--field); }
+.header-controls .btn-icon .ico { width: 1.15rem; height: 1.15rem; }
+.header-controls .fav-pop { bottom: auto; top: calc(100% + 0.4rem); left: auto; right: 0; }
+.card .topic-card-meta { margin: 0 0 0.7rem; }
+.card .field-label { margin-top: 0.9rem; }
+.card .topic-card-meta + .field-label { margin-top: 0; }
+.topic-detail .vote-actions { margin-top: 0.9rem; }
+.topic-detail .votefig { margin-top: 0.7rem; }
+.vote-actions .vote-btn { flex: 1 1 5.5rem; }
 CSS;
 
 const SW_JS = <<<'JS'
@@ -2776,6 +3374,7 @@ const SW_JS = <<<'JS'
               if (ba) { ba.className = 'votebar-against w-' + pa; }
               setNum(el, '[data-num="for"]', groupNum(row.f));
               setNum(el, '[data-num="against"]', groupNum(row.a));
+              if (row.n !== undefined) { setNum(el, '[data-num="neutral"]', groupNum(row.n)); }
               setNum(el, '[data-pct="for"]', '/ ' + pf + ' %');
               setNum(el, '[data-pct="against"]', '/ ' + pa + ' %');
             });
@@ -3023,8 +3622,6 @@ function v_layout(string $title, string $content): string
     $cfg = SW::$cfg;
     $user = auth_user();
     $duty = $user === null ? null : jury_pending_for((int) $user['id']);
-    $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
-    $returnValue = SW::$path . ($query !== '' ? '?' . $query : '');
     $b = base_path();
     $a = SW::$base;
 
@@ -3037,17 +3634,18 @@ function v_layout(string $title, string $content): string
         . '<script src="' . e(url('/a/app.js')) . '" defer></script>'
         . '</head><body data-base="' . e(base_path()) . '" data-group-sep="' . e(num(1000) === '1.000' ? '.' : ',') . '"'
         . ($user !== null ? ' data-profile-url="' . e(url('/profil.yaml')) . '"' : '') . '>';
-    if (!empty($cfg['show_test_banner'])) {
-        $html .= '<div class="test-banner" role="note">' . e(t('banner.test')) . '</div>';
+    if (!empty($cfg['show_official_banner'])) {
+        $html .= '<div class="test-banner" role="note">' . e(t('banner.official')) . '</div>';
     }
     $html .= '<a class="skip-link" href="#main">' . e(t('a11y.skip')) . '</a>'
         . '<header class="site-header"><div class="shell header-inner">'
+        . '<a class="btn btn-ghost btn-sm btn-icon home-link" href="' . e(url('/')) . '" title="' . e(t('footer.home')) . '" aria-label="' . e(t('footer.home')) . '">' . icon_home() . '</a>'
         . '<div class="header-controls">';
-    if (test_mode() && $user !== null) {
+    $html .= SW::$headerExtra;
+    if (test_mode() && $user !== null && (string) $cfg['testmode_end'] === 'gui') {
         $html .= '<a class="testmode-chip" href="' . e(url('/setup')) . '">' . e(t('testmode.chip')) . '</a>';
     }
     if ($user === null) {
-
         if (SW::$path !== '/auth') {
             $html .= '<a class="btn btn-primary btn-sm" href="' . e(url('/auth')) . '">' . e(t('auth.login')) . '</a>';
         }
@@ -3069,7 +3667,13 @@ function v_layout(string $title, string $content): string
         $html .= '</div>';
     }
     $html .= '<main id="main" class="shell site-main">' . $content . '</main>'
-        . '</body></html>';
+        . '<footer class="site-footer"><div class="shell footer-inner">'
+        . '<nav class="footer-nav" aria-label="Footer">'
+        . '<a href="' . e(url('/')) . '">' . e(t('footer.home')) . '</a>'
+        . '<a href="' . e(url('/about')) . '">' . e(t('footer.about')) . '</a>'
+        . '<a href="' . e(url('/imprint')) . '">' . e(t('footer.imprint')) . '</a>'
+        . '<a href="' . e(url('/privacy')) . '">' . e(t('footer.privacy')) . '</a>'
+        . '</nav></div></footer></body></html>';
     return $html;
 }
 
@@ -3087,11 +3691,12 @@ function p_topic_card(array $row): string
         . '<h3 class="topic-card-title"><a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a></h3>'
         . '<p class="topic-card-goal">' . e((string) $row['goal']) . '</p>'
         . p_votebar((int) $row['votes_for'], (int) $row['votes_against'], true);
-    if (!empty($row['my_choice'])) {
-        $html .= '<p class="topic-card-mine">'
-            . e(t('topic.your_vote', ['choice' => t($row['my_choice'] === 'for' ? 'vote.for' : 'vote.against')])) . '</p>';
-    }
     return $html . '</article>';
+}
+
+function vote_label_key(string $choice): string
+{
+    return $choice === 'for' ? 'vote.for' : ($choice === 'against' ? 'vote.against' : 'vote.neutral');
 }
 
 function p_vote_button(string $choice, ?string $myVote): string
@@ -3100,18 +3705,18 @@ function p_vote_button(string $choice, ?string $myVote): string
     return '<button type="submit" name="choice" value="' . e($choice) . '"'
         . ' class="btn vote-btn' . ($mine ? ' is-active' : '') . '"'
         . ' aria-pressed="' . ($mine ? 'true' : 'false') . '">'
-        . e(t($choice === 'for' ? 'vote.for' : 'vote.against')) . '</button>';
+        . e(t(vote_label_key($choice))) . '</button>';
 }
 
 function p_vote_locked(?string $myVote): string
 {
     $html = '<div class="vote-actions">';
-    foreach (['for', 'against'] as $choice) {
+    foreach (['for', 'neutral', 'against'] as $choice) {
         $mine = $myVote === $choice;
         $state = $myVote === null ? ' is-dim' : ($mine ? ' is-locked' : ' is-dim');
         $html .= '<button type="button" class="btn vote-btn' . $state . '" disabled'
             . ' aria-pressed="' . ($mine ? 'true' : 'false') . '">'
-            . e(t($choice === 'for' ? 'vote.for' : 'vote.against')) . '</button>';
+            . e(t(vote_label_key($choice))) . '</button>';
     }
     return $html . '</div>';
 }
@@ -3126,10 +3731,21 @@ function p_votebar(int $for, int $against, bool $slim = false): string
         . '<div class="votebar" role="img" aria-label="' . e(t('vote.bar_aria')) . '">'
         . '<span class="votebar-for w-' . $pctFor . '" data-bar="for"></span>'
         . '<span class="votebar-against w-' . $pctAgainst . '" data-bar="against"></span>'
-        . '</div><div class="votebar-legend">'
+        . '</div></div>';
+}
+
+function p_vote_values(int $for, int $neutral, int $against): string
+{
+    $total = $for + $against;
+    $pctFor = $total > 0 ? (int) round($for * 100 / $total) : 0;
+    $pctAgainst = $total > 0 ? 100 - $pctFor : 0;
+    return '<div class="votefig" data-fig>'
+        . '<div class="votebar-legend">'
         . '<span><span class="dot dot-for" aria-hidden="true"></span>' . e(t('vote.for'))
         . ' <b data-num="for">' . e(num($for)) . '</b>'
         . '<span class="pct" data-pct="for">/ ' . $pctFor . ' %</span></span>'
+        . '<span><span class="dot dot-neutral" aria-hidden="true"></span>' . e(t('vote.neutral'))
+        . ' <b data-num="neutral">' . e(num($neutral)) . '</b></span>'
         . '<span><span class="dot dot-against" aria-hidden="true"></span>' . e(t('vote.against'))
         . ' <b data-num="against">' . e(num($against)) . '</b>'
         . '<span class="pct" data-pct="against">/ ' . $pctAgainst . ' %</span></span>'
@@ -3213,11 +3829,11 @@ function modal(string $id, string $title, string $inner): string
 
 function v_main(array $formErrors = [], ?array $formOld = null): void
 {
-    $user = require_user();
-    $userId = (int) $user['id'];
+    $user = auth_user();
+    $userId = $user === null ? null : (int) $user['id'];
     $html = '';
 
-    $upcoming = jury_upcoming_for($userId);
+    $upcoming = $userId === null ? null : jury_upcoming_for($userId);
     if ($upcoming !== null) {
         $html .= '<div class="flash">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))])) . '</div>';
     }
@@ -3240,16 +3856,20 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
     $result = topics_list($filters, $page, $perPage, $userId);
     $pages = max(1, (int) ceil($result['total'] / $perPage));
 
-    $html .= '<div class="action-bar">'
-        . '<a class="btn btn-primary" href="#modal-new">' . e(t('topic.new_title')) . '</a>'
-        . '<a class="btn btn-outline" href="#modal-search">' . e(t('topics.search')) . '</a>';
+    $head = '';
+    if ($userId !== null) {
+        $head .= '<a class="btn btn-primary btn-icon" href="#modal-new" title="' . e(t('topic.new_title')) . '" aria-label="' . e(t('topic.new_title')) . '">' . icon_plus() . '</a>';
+    }
+    $head .= '<a class="btn btn-outline btn-icon" href="#modal-search" title="' . e(t('topics.search')) . '" aria-label="' . e(t('topics.search')) . '">' . icon_search() . '</a>';
+    SW::$headerExtra = $head;
+    $html .= '<div class="action-bar">';
     if ($filters['q'] !== '' || $filters['category'] !== '' || $filters['gebiet'] !== '') {
         $html .= '<a class="btn btn-ghost" href="' . e(url('/')) . '">' . e(t('topics.clear')) . '</a>';
     }
     $html .= '</div>';
 
     $chips = '';
-    foreach (fav_list($userId) as $favorite) {
+    foreach ($userId === null ? [] : fav_list($userId) as $favorite) {
         if ($favorite['kind'] === 'topic') {
             if (($favorite['topic_title'] ?? null) === null) {
                 continue;
@@ -3261,7 +3881,7 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
             $href = url('/topic/' . (int) $favorite['ref']);
         } elseif ($favorite['kind'] === 'category') {
             $label = SW::$lang === 'de' ? (string) ($favorite['name_de'] ?? $favorite['ref']) : (string) ($favorite['name_en'] ?? $favorite['ref']);
-            $href = url('/') . '?category=' . rawurlencode((string) $favorite['ref']);
+            $href = url('/?category=' . rawurlencode((string) $favorite['ref']));
         } else {
             $gebiet = fav_to_gebiet((string) $favorite['ref']);
             if ($gebiet === null) {
@@ -3269,31 +3889,12 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
             }
             $parts = explode(':', (string) $favorite['ref'], 2);
             $label = $parts[0] === 'bund' || !isset($parts[1]) ? t('scope.bund') : $parts[1];
-            $href = url('/') . '?gebiet=' . rawurlencode($gebiet);
+            $href = url('/?gebiet=' . rawurlencode($gebiet));
         }
         $chips .= '<a class="btn btn-ghost btn-sm fav-chip" href="' . e($href) . '">' . icon_bookmark(true) . e($label) . '</a>';
     }
     if ($chips !== '') {
         $html .= '<div class="fav-chips">' . $chips . '</div>';
-    }
-
-    $recent = [];
-    foreach (topics_voted_by($userId) as $row) {
-        if (!in_array((string) $row['status'], ['removed', 'archived'], true) && empty($row['locked'])) {
-            $recent[] = $row;
-        }
-    }
-    if ($recent !== []) {
-        $html .= '<section class="recent-votes"><h2>' . e(t('home.recent_votes')) . '</h2><ul class="row-list">';
-        foreach ($recent as $row) {
-            $until = Clock::addHoursStr((string) $row['voted_at'], SW_VOTE_CHANGE_HOURS);
-            $html .= '<li class="row-item"><div class="row-main">'
-                . '<a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a></div>'
-                . '<div class="row-side"><span class="dot ' . ($row['my_choice'] === 'for' ? 'dot-for' : 'dot-against') . '" aria-hidden="true"></span>'
-                . e(t($row['my_choice'] === 'for' ? 'vote.for' : 'vote.against'))
-                . ' <span class="muted">· ' . e(t('vote.changeable_until', ['date' => Clock::displayLocal($until, t('common.datetime_format'))])) . '</span></div></li>';
-        }
-        $html .= '</ul></section>';
     }
 
     if ($result['rows'] === []) {
@@ -3316,25 +3917,27 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         };
         $html .= '<nav class="pagination" aria-label="Pagination">';
         if ($page > 1) {
-            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/') . $mkQuery($page - 1)) . '">&laquo; ' . e(t('topics.prev')) . '</a>';
+            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/' . $mkQuery($page - 1))) . '">&laquo; ' . e(t('topics.prev')) . '</a>';
         }
         $html .= '<span class="muted">' . e(t('topics.page_of', ['p' => $page, 'n' => $pages])) . '</span>';
         if ($page < $pages) {
-            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/') . $mkQuery($page + 1)) . '">' . e(t('topics.next')) . ' &raquo;</a>';
+            $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/' . $mkQuery($page + 1))) . '">' . e(t('topics.next')) . ' &raquo;</a>';
         }
         $html .= '</nav>';
     }
 
-    $old = $formOld ?? ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0, 'scope' => 'de',
-                        'end_by_date' => true, 'end_date' => '', 'end_by_target' => false,
-                        'end_value' => '', 'end_unit' => 'count'];
-    if (topic_has_posted_today($userId)) {
-        $newInner = '<p class="muted">' . e(t('topic.posted_today'))
-            . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></p>';
-    } else {
-        $newInner = topic_form_html($formErrors, $old, '/topics', 'topic.submit');
+    if ($userId !== null) {
+        $old = $formOld ?? ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0, 'scope' => 'de',
+                            'end_by_date' => true, 'end_date' => '', 'end_by_target' => false,
+                            'end_value' => '', 'end_unit' => 'count'];
+        if (topic_has_posted_today($userId)) {
+            $newInner = '<p class="muted">' . e(t('topic.posted_today'))
+                . '<span class="countdown" data-countdown-to="' . e(Clock::nextLocalMidnightUtcStr()) . '" data-label="' . e(t('topic.next_in')) . '"></span></p>';
+        } else {
+            $newInner = topic_form_html($formErrors, $old, '/topics', 'topic.submit');
+        }
+        $html .= modal('modal-new', t('topic.new_title'), $newInner);
     }
-    $html .= modal('modal-new', t('topic.new_title'), $newInner);
 
     $searchInner = '<form class="form-stack" method="get" action="' . e(url('/')) . '">'
         . '<label><span>' . e(t('topics.search')) . '</span><input type="search" name="q" maxlength="80" value="' . e($filters['q']) . '"></label>'
@@ -3353,7 +3956,9 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         . '<option value="new"' . ($filters['sort'] === 'new' ? ' selected' : '') . '>' . e(t('topics.sort_new')) . '</option>'
         . '<option value="top"' . ($filters['sort'] === 'top' ? ' selected' : '') . '>' . e(t('topics.sort_top')) . '</option>'
         . '</select></label>'
-        . '<div><button type="submit" class="btn btn-primary">' . e(t('topics.apply')) . '</button></div></form>';
+        . '<div><button type="submit" class="btn btn-primary">' . e(t('topics.apply')) . '</button></div>'
+        . (lang_stored() === '' && lang_wanted() !== '' ? '<input type="hidden" name="lang" value="' . e(SW::$lang) . '">' : '')
+        . '</form>';
     $html .= modal('modal-search', t('topics.search'), $searchInner);
 
     render(t('app.tagline'), $html);
@@ -3411,12 +4016,59 @@ function fav_menu(int $userId, int $topicId, string $catRef, string $catLabel, s
     return $html . '</div></details>';
 }
 
+function icon_cookie(): string
+{
+    return '<svg class="tap-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">'
+        . '<path d="M24 5a19 19 0 1 0 19 19 8 8 0 0 1-9.5-9.5A8 8 0 0 1 24 5Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>'
+        . '<circle cx="18" cy="19" r="2.4" fill="currentColor"/>'
+        . '<circle cx="16" cy="30" r="2.4" fill="currentColor"/>'
+        . '<circle cx="27" cy="33" r="2.4" fill="currentColor"/>'
+        . '<circle cx="29" cy="24" r="2" fill="currentColor"/>'
+        . '</svg>';
+}
+
 function icon_bookmark(bool $filled): string
 {
     return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
         . '<path d="M6.5 3h11a1 1 0 0 1 1 1v17l-6.5-4.4L5.5 21V4a1 1 0 0 1 1-1z"'
         . ' fill="' . ($filled ? 'currentColor' : 'none') . '" stroke="currentColor"'
         . ' stroke-width="1.9" stroke-linejoin="round"/></svg>';
+}
+
+function icon_plus(): string
+{
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . '<path d="M12 5v14M5 12h14" fill="none" stroke="currentColor"'
+        . ' stroke-width="1.9" stroke-linecap="round"/></svg>';
+}
+
+function icon_search(): string
+{
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . '<circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.9"/>'
+        . '<path d="M19.5 19.5 15.7 15.7" fill="none" stroke="currentColor"'
+        . ' stroke-width="1.9" stroke-linecap="round"/></svg>';
+}
+
+function icon_flag(): string
+{
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . '<path d="M6 21V4m0 .5h11.5l-3 4 3 4H6" fill="none" stroke="currentColor"'
+        . ' stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+
+function icon_home(): string
+{
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . '<path d="M4 11.5 12 4.5l8 7M6.5 10.2V19.5h11v-9.3" fill="none" stroke="currentColor"'
+        . ' stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+
+function icon_archive(): string
+{
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . '<path d="M4.5 5h15v4h-15zM6 9v10.5h12V9M10 12.5h4" fill="none" stroke="currentColor"'
+        . ' stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 }
 
 function v_topic(int $id): void
@@ -3443,23 +4095,22 @@ function v_topic(int $id): void
     $closed = $topic['status'] !== 'active';
     $scopeRef = $topic['scope_level'] === 'bund' ? 'bund' : $topic['scope_level'] . ':' . (string) $topic['scope_name'];
 
-    $html = '<article class="topic-detail"><div class="topic-card-meta">'
+    $barFor = (int) $topic['votes_for'];
+    $barNeutral = (int) $topic['votes_neutral'];
+    $barAgainst = (int) $topic['votes_against'];
+    $html = '<article class="topic-detail">'
+        . '<h1>' . e((string) $topic['title']) . '</h1>'
+        . '<section class="card" data-topic="' . (int) $topic['id'] . '">'
+        . '<div class="topic-card-meta">'
         . '<span class="badge">' . e(cat_name($topic)) . '</span>'
         . '<span class="badge">' . e(scope_text($topic)) . '</span>'
+        . '<span class="badge">' . e(topic_end_text($topic)) . '</span>'
         . ($archived ? '<span class="badge badge-danger">' . e(t('topic.archived_badge')) . '</span>'
             : ($closed ? '<span class="badge badge-danger">' . e(t('topic.ended')) . '</span>' : ''))
         . '</div>'
-        . '<h1>' . e((string) $topic['title']) . '</h1>'
-        . '<p class="muted">' . e(Clock::displayLocal((string) $topic['created_at'], t('common.date_format')))
-        . ' · ' . e(topic_end_text($topic)) . '</p>'
-        . '<section class="card"><h2 class="field-label">' . e(t('topic.goal_label')) . '</h2>'
         . '<p>' . nl2br(e((string) $topic['goal'])) . '</p>'
-        . '<h2 class="field-label">' . e(t('topic.reasoning_label')) . '</h2>'
-        . '<p>' . nl2br(e((string) $topic['reasoning'])) . '</p></section>';
-
-    $barFor = (int) $topic['votes_for'];
-    $barAgainst = (int) $topic['votes_against'];
-    $html .= '<section class="card" data-topic="' . (int) $topic['id'] . '">' . p_votebar($barFor, $barAgainst);
+        . '<details class="fold"><summary>' . e(t('topic.reasoning_label')) . '</summary>'
+        . '<p>' . nl2br(e((string) $topic['reasoning'])) . '</p></details>';
     if ($archived) {
         $html .= '<p class="muted">' . e(t('topic.archived_note')) . '</p>';
     } elseif ($user === null) {
@@ -3469,15 +4120,15 @@ function v_topic(int $id): void
     } else {
         $html .= '<form class="vote-actions" method="post" action="' . e(url('/vote')) . '">' . csrf_field()
             . '<input type="hidden" name="topic_id" value="' . (int) $topic['id'] . '">'
-            . p_vote_button('for', $myVote) . p_vote_button('against', $myVote);
-        if ($myVote !== null) {
-            $html .= '<button type="submit" name="choice" value="none" class="btn btn-ghost">' . e(t('vote.withdraw')) . '</button>';
-        }
-        $html .= '</form>';
+            . p_vote_button('for', $myVote)
+            . p_vote_button('neutral', $myVote)
+            . p_vote_button('against', $myVote)
+            . '</form>';
     }
-    $html .= '</section><section class="topic-tools">';
+    $html .= p_vote_values($barFor, $barNeutral, $barAgainst) . '</section>';
+    $head = '';
     if ($user !== null) {
-        $html .= fav_menu(
+        $head .= fav_menu(
             (int) $user['id'],
             (int) $topic['id'],
             (string) $topic['category_slug'],
@@ -3487,18 +4138,15 @@ function v_topic(int $id): void
         );
     }
     $locked = topic_has_votes((int) $topic['id']);
-    if ($isAuthor && !$archived) {
-        $html .= '<a class="btn btn-ghost btn-sm" href="' . e(url('/topic/' . (int) $topic['id'] . '/edit')) . '">' . e(t('topic.edit')) . '</a>';
-        if (!$locked) {
-            $html .= '<a class="link-quiet" href="#modal-del">' . e(t('topic.archive')) . '</a>';
-        }
+    if ($isAuthor && !$archived && !$locked) {
+        $head .= '<a class="btn btn-ghost btn-sm btn-icon" href="#modal-del" title="' . e(t('topic.archive')) . '" aria-label="' . e(t('topic.archive')) . '">' . icon_archive() . '</a>';
     }
     if ($openReport !== null) {
-        $html .= '<span class="muted">' . e(t('topic.report_open')) . '</span>';
+        $head .= '<span class="btn btn-ghost btn-sm btn-icon" role="img" title="' . e(t('topic.report_open')) . '" aria-label="' . e(t('topic.report_open')) . '">' . icon_flag() . '</span>';
     } elseif ($user !== null && !$isAuthor && !$closed) {
-        $html .= '<a class="link-quiet" href="' . e(url('/report/' . (int) $topic['id'])) . '">' . e(t('topic.report_link')) . '</a>';
+        $head .= '<a class="btn btn-ghost btn-sm btn-icon" href="' . e(url('/report/' . (int) $topic['id'])) . '" title="' . e(t('topic.report_link')) . '" aria-label="' . e(t('topic.report_link')) . '">' . icon_flag() . '</a>';
     }
-    $html .= '</section>';
+    SW::$headerExtra = $head;
     $similar = topics_similar((string) $topic['title'], (int) $topic['id'], 4);
     if ($similar !== []) {
         $html .= '<section class="similar"><h2 class="card-h">' . e(t('topic.similar')) . '</h2><ul class="plain-list">';
@@ -3536,7 +4184,7 @@ function v_topic_edit(int $id, array $errors = [], ?array $old = null): void
             : ($topic['scope_level'] === 'bundesland' ? 'bl:' . $topic['scope_name'] : 'kr:');
 
         if ($topic['scope_level'] === 'landkreis') {
-            foreach (SW_REGIONS as $land => $kreise) {
+            foreach (sw_regions() as $land => $kreise) {
                 if (in_array((string) $topic['scope_name'], $kreise, true)) {
                     $scopeVal = 'kr:' . $land . ':' . $topic['scope_name'];
                     break;
@@ -3567,11 +4215,6 @@ function h_api_topics(): void
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     header('X-Content-Type-Options: nosniff');
-    if (auth_user() === null) {
-        http_response_code(401);
-        echo '{}';
-        exit;
-    }
     $ids = [];
     foreach (explode(',', query_str('ids', 400)) as $raw) {
         if (preg_match('/^\d{1,10}$/', trim($raw)) === 1) {
@@ -3587,7 +4230,8 @@ function h_api_topics(): void
     $rows = SW::$db->all(
         "SELECT t.id, t.status,
                 (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'for') AS votes_for,
-                (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against') AS votes_against
+                (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'against') AS votes_against,
+                (SELECT COUNT(*) FROM votes v WHERE v.topic_id = t.id AND v.choice = 'neutral') AS votes_neutral
          FROM topics t WHERE t.id IN ($marks)",
         $ids
     );
@@ -3596,6 +4240,7 @@ function h_api_topics(): void
         $out[(string) $row['id']] = [
             'f' => (int) $row['votes_for'],
             'a' => (int) $row['votes_against'],
+            'n' => (int) $row['votes_neutral'],
             's' => (string) $row['status'],
         ];
     }
@@ -3639,16 +4284,18 @@ function v_setup(array $errors = [], ?array $old = null): void
         'nect_start' => (string) (SW::$cfg['eid_providers']['nect']['start'] ?? ''),
     ];
     $html = '<h1>' . e(t('setup.title')) . '</h1>'
-        . '<p class="muted">' . e(t('setup.intro')) . '</p>'
-        . '<section class="card"><h2 class="card-h">' . e(t('setup.checks')) . '</h2><ul class="check-list">';
-    foreach (setup_ready() as [$key, $ok]) {
-        $html .= '<li class="' . ($ok ? 'is-ok' : 'is-warn') . '"><span aria-hidden="true">'
-            . ($ok ? '&#10003;' : '!') . '</span>' . e(t($key)) . '</li>';
+        ;
+    $missing = array_values(array_filter(setup_ready(), static function (array $row): bool {
+        return !$row[1];
+    }));
+    if ($missing !== []) {
+        $html .= '<section class="card"><h2 class="card-h">' . e(t('setup.missing')) . '</h2><ul class="check-list">';
+        foreach ($missing as [$key, $ok]) {
+            $html .= '<li class="is-warn"><span aria-hidden="true">!</span>' . e(t($key)) . '</li>';
+        }
+        $html .= '</ul></section>';
     }
     $stable = authorized_count_stable();
-    $html .= '<li class="' . ($stable > 0 ? 'is-ok' : 'is-warn') . '"><span aria-hidden="true">'
-        . ($stable > 0 ? '&#10003;' : '!') . '</span>'
-        . e(t('setup.check_keys', ['n' => num($stable)])) . '</li></ul></section>';
 
     if ($errors !== []) {
         $html .= '<div class="flash flash-error" role="alert"><ul class="plain-list">';
@@ -3660,34 +4307,45 @@ function v_setup(array $errors = [], ?array $old = null): void
 
     $eid = $old['eid_mode'] === 'eid';
     $html .= '<form class="card form-stack" method="post" action="' . e(url('/setup/finish')) . '">' . csrf_field()
-        . '<fieldset class="criteria-set"><legend>' . e(t('setup.path')) . '</legend>'
-        . '<label class="check-label"><input type="radio" name="eid_mode" value="eid"' . ($eid ? ' checked' : '') . '>'
-        . '<span><strong>' . e(t('setup.path_eid')) . '</strong><br><small class="muted">' . e(t('setup.path_eid_hint')) . '</small></span></label>'
-        . '<label class="check-label"><input type="radio" name="eid_mode" value="demo"' . ($eid ? '' : ' checked') . '>'
-        . '<span><strong>' . e(t('setup.path_list')) . '</strong><br><small class="muted">' . e(t('setup.path_list_hint')) . '</small></span></label>'
-        . '</fieldset>'
+        . '<div class="path-set" role="radiogroup" aria-label="' . e(t('setup.path')) . '">'
+        . '<p class="field-label">' . e(t('setup.path')) . '</p>'
+        . '<input type="radio" id="path-eid" name="eid_mode" value="eid"' . ($eid ? ' checked' : '') . '>'
+        . '<label class="path-label" for="path-eid">' . e(t('setup.path_eid')) . '</label>'
+        . '<input type="radio" id="path-list" name="eid_mode" value="demo"' . ($eid ? '' : ' checked') . '>'
+        . '<label class="path-label" for="path-list">' . e(t('setup.path_list')) . '</label>'
+        . '<div class="form-stack only-eid">'
         . '<label><span>' . e(t('setup.f_server')) . '</span>'
         . '<input type="text" name="eid_server_url" inputmode="url" placeholder="https://…" value="' . e($old['eid_server_url']) . '"></label>'
-        . '<div class="form-row"><label><span>' . e(t('setup.f_cert')) . '</span>'
+        . '<label><span>' . e(t('setup.f_cert')) . '</span>'
         . '<input type="text" name="eid_server_cert" value="' . e($old['eid_server_cert']) . '"></label>'
         . '<label><span>' . e(t('setup.f_key')) . '</span>'
-        . '<input type="text" name="eid_server_key" value="' . e($old['eid_server_key']) . '"></label></div>'
+        . '<input type="text" name="eid_server_key" value="' . e($old['eid_server_key']) . '"></label>'
         . '<label><span>' . e(t('setup.f_client')) . '</span>'
         . '<input type="text" name="eid_client_url" value="' . e($old['eid_client_url']) . '"></label>'
-        . '<label><span>' . e(t('setup.f_sync')) . '</span>'
-        . '<input type="text" name="authorized_keys_url" inputmode="url" placeholder="https://…" value="' . e($old['authorized_keys_url']) . '"></label>'
         . '<label><span>' . e(t('setup.f_nect')) . '</span>'
         . '<input type="text" name="nect_start" inputmode="url" placeholder="https://…" value="' . e($old['nect_start']) . '"></label>'
+        . '</div>'
+        . '<div class="form-stack only-list">'
+        . ($stable > 0 ? '' : '<p class="muted">' . e(t('setup.check_keys')) . '</p>')
+        . '<label><span>' . e(t('setup.f_sync')) . '</span>'
+        . '<input type="text" name="authorized_keys_url" inputmode="url" placeholder="https://…" value="' . e($old['authorized_keys_url']) . '"></label>'
+        . '</div>'
+        . '</div>'
         . '<div><button type="submit" class="btn btn-outline" formaction="' . e(url('/setup/check')) . '">'
-        . e(t('setup.check_btn')) . '</button></div>'
-        . '<hr class="hr-soft">'
-        . '<label><span>' . e(t('setup.token')) . '</span>'
-        . '<input type="text" name="token" autocomplete="off" spellcheck="false"></label>'
-        . '<small class="muted">' . e(t('setup.token_hint')) . '</small>'
-        . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required>'
-        . '<span>' . e(t('setup.confirm')) . '</span></label>'
-        . '<div><button type="submit" class="btn btn-danger btn-big">' . e(t('setup.finish_btn')) . '</button></div>'
-        . '</form>';
+        . e(t('setup.check_btn')) . '</button></div>';
+    if ((string) SW::$cfg['testmode_end'] === 'gui') {
+        $html .= '<hr class="hr-soft">'
+            . '<label><span>' . e(t('setup.token')) . '</span>'
+            . '<input type="text" name="token" autocomplete="off" spellcheck="false"></label>'
+            . '<small class="muted">' . e(t('setup.token_hint')) . '</small>'
+            . '<label class="check-label"><input type="checkbox" name="confirm" value="yes" required>'
+            . '<span>' . e(t('setup.confirm')) . '</span></label>'
+            . '<div><button type="submit" class="btn btn-danger btn-big"' . (setup_checked($old) ? '' : ' disabled') . '>'
+            . e(t('setup.finish_btn')) . '</button></div>';
+    } else {
+        $html .= '<hr class="hr-soft"><p class="muted">' . e(t('setup.end_locked')) . '</p>';
+    }
+    $html .= '</form>';
     render(t('setup.title'), $html);
 }
 
@@ -3708,12 +4366,29 @@ function h_setup_check(): void
     if ($errors !== []) {
         v_setup($errors, $values);
     }
-    if ($values['eid_server_url'] === '') {
-        flash('info', 'flash.setup_no_server');
-        redirect('/setup');
+    unset($_SESSION['setup_check']);
+    if ($values['eid_mode'] === 'eid') {
+        if ($values['eid_server_url'] === '') {
+            flash('info', 'flash.setup_no_server');
+            v_setup([], $values);
+        }
+        $ok = setup_probe($values);
+        flash($ok ? 'success' : 'error', $ok ? 'flash.setup_ok' : 'flash.setup_failed');
+    } else {
+        $count = setup_probe_list((string) $values['authorized_keys_url']);
+        $ok = $count !== null && $count > 0;
+        if ($count === null) {
+            flash('error', 'flash.setup_list_failed');
+        } elseif ($count === 0) {
+            flash('error', 'setup.err_list_empty');
+        } else {
+            flash('success', 'flash.setup_list_ok', ['n' => num($count)]);
+        }
     }
-    flash(setup_probe($values) ? 'success' : 'error', setup_probe($values) ? 'flash.setup_ok' : 'flash.setup_failed');
-    redirect('/setup');
+    if ($ok) {
+        $_SESSION['setup_check'] = setup_check_stamp($values);
+    }
+    v_setup([], $values);
 }
 
 function h_setup_finish(): void
@@ -3721,6 +4396,9 @@ function h_setup_finish(): void
     require_user();
     if (!test_mode()) {
         redirect('/');
+    }
+    if ((string) SW::$cfg['testmode_end'] !== 'gui') {
+        redirect('/setup');
     }
     if (!rate_allow('setup:' . ip_key(), 20, 600)) {
         flash('error', 'flash.rate_limited');
@@ -3735,8 +4413,8 @@ function h_setup_finish(): void
         log_line('SECURITY', 'setup_token_bad', []);
         $errors[] = 'setup.err_token';
     }
-    if ($values['eid_mode'] === 'eid' && $errors === [] && !setup_probe($values)) {
-        $errors[] = 'flash.setup_failed';
+    if (!setup_checked($values)) {
+        $errors[] = 'setup.err_check_first';
     }
     if ($errors !== []) {
         v_setup(array_values(array_unique($errors)), $values);
@@ -3746,6 +4424,7 @@ function h_setup_finish(): void
     }
     setup_apply($values);
     test_mode_end();
+    unset($_SESSION['setup_check']);
     @unlink(setup_token_file());
     auth_logout();
     card_forget();
@@ -3771,8 +4450,19 @@ function v_auth(): void
     $card = card_load();
     $ready = $mode !== 'eid' && $card !== null && authorized_contains(card_identity($card));
 
+    if (!consent_given()) {
+        render(t('consent.title'), '<section class="card auth-card">' . icon_cookie()
+            . '<h1>' . e(t('consent.title')) . '</h1>'
+            . '<p class="muted">' . e(t('consent.text')) . '</p>'
+            . (test_mode() ? '<p class="muted">' . e(t('consent.test')) . '</p>' : '')
+            . '<div class="consent-actions">'
+            . '<a class="btn btn-primary btn-big" href="' . e(url('/consent?to=/auth')) . '">'
+            . e(t('consent.accept')) . '</a></div></section>');
+    }
+
     $html = '<section class="card auth-card">' . $pictogram
         . '<h1>' . e(t('auth.title')) . '</h1>';
+
 
     if (test_mode()) {
 
@@ -3801,7 +4491,13 @@ function v_auth(): void
 function site_url(string $path = ''): string
 {
     $scheme = sw_is_https() ? 'https' : 'http';
-    $host = (string) ($_SERVER['HTTP_HOST'] ?? SW::$cfg['domain']);
+    $host = trim((string) SW::$cfg['domain']);
+    if ($host === '') {
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+    }
+    if (preg_match('/^[A-Za-z0-9]([A-Za-z0-9.\-]{0,251}[A-Za-z0-9])?(:[0-9]{1,5})?$/', $host) !== 1) {
+        $host = 'localhost';
+    }
     return $scheme . '://' . $host . base_path() . $path;
 }
 
@@ -3967,9 +4663,10 @@ function h_eid_callback(): void
 function v_start(): void
 {
     http_response_code(200);
-    $banner = empty(SW::$cfg['show_test_banner'])
+    $to = consent_return();
+    $banner = empty(SW::$cfg['show_official_banner'])
         ? ''
-        : '<div class="test-banner" role="note">' . e(SW_DE['banner.test']) . ' / ' . e(SW_EN['banner.test']) . '</div>';
+        : '<div class="test-banner" role="note">' . e(SW_DE['banner.official']) . ' / ' . e(SW_EN['banner.official']) . '</div>';
     echo '<!DOCTYPE html><html lang="de"><head>'
         . '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         . '<meta name="referrer" content="no-referrer">'
@@ -3980,14 +4677,10 @@ function v_start(): void
         . '<main class="start-gate">'
         . '<p class="start-brand">' . e((string) SW::$cfg['app_name']) . '</p>'
         . '<div class="start-langs">'
-        . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
-        . '<input type="hidden" name="return" value="/">'
-        . '<button type="submit" name="lang" value="de" class="lang-btn" lang="de">'
-        . flag_de() . '<span>Deutsch</span></button></form>'
-        . '<form method="post" action="' . e(url('/lang')) . '">' . csrf_field()
-        . '<input type="hidden" name="return" value="/">'
-        . '<button type="submit" name="lang" value="en" class="lang-btn" lang="en">'
-        . flag_en() . '<span>English</span></button></form>'
+        . '<a class="lang-btn" lang="de" href="' . e(base_path() . '/lang?set=de&to=' . rawurlencode($to)) . '">'
+        . flag_de() . '<span>Deutsch</span></a>'
+        . '<a class="lang-btn" lang="en" href="' . e(base_path() . '/lang?set=en&to=' . rawurlencode($to)) . '">'
+        . flag_en() . '<span>English</span></a>'
         . '</div></main></body></html>';
     exit;
 }
@@ -4006,6 +4699,16 @@ function v_error(int $status, string $messageKey): void
         . '<p class="muted">' . e(t($messageKey)) . '</p>'
         . '<p><a class="btn btn-outline btn-sm" href="' . e(url('/')) . '">' . e(t('common.back_home')) . '</a></p></section>';
     render(t('error.generic_title'), $html, $status);
+}
+
+function v_static(string $titleKey, array $paraKeys): void
+{
+    $html = '<section class="card prose"><h1>' . e(t($titleKey)) . '</h1>';
+    foreach ($paraKeys as $key) {
+        $html .= '<p>' . nl2br(e(t($key)), false) . '</p>';
+    }
+    $html .= '</section>';
+    render(t($titleKey), $html);
 }
 
 function yq(string $v): string
@@ -4192,7 +4895,7 @@ function v_report(int $topicId): void
 function safe_return(string $fallback): string
 {
     $return = post_str('return', 200);
-    if (preg_match('#^/(topics(\?[A-Za-z0-9=&%._\-]*)?|topic/\d{1,10}|topics/new|me|jury|auth)?$#', $return) === 1) {
+    if (preg_match('#^/(topics(\?[A-Za-z0-9=&%._\-]*)?|topic/\d{1,10}|topics/new|me|jury|auth|imprint|privacy)?$#', $return) === 1) {
         return $return === '' ? '/' : $return;
     }
     return $fallback;
@@ -4277,19 +4980,9 @@ function h_card_new(): void
 
 function h_logout(): void
 {
-    auth_logout();
-    flash('info', 'flash.logged_out');
+    SW::$user = null;
+    session_forget();
     redirect('/');
-}
-
-function h_lang(): void
-{
-    $lang = post_str('lang', 5);
-    if (!in_array($lang, (array) SW::$cfg['langs'], true)) {
-        redirect('/');
-    }
-    $_SESSION['lang'] = $lang;
-    redirect(safe_return('/'));
 }
 
 function h_vote(): void
@@ -4312,7 +5005,7 @@ function h_vote(): void
         flash('error', $e->getMessage());
         redirect($back);
     }
-    flash('success', $choice === 'none' ? 'flash.vote_withdrawn' : 'flash.vote_saved');
+    flash('success', 'flash.vote_saved');
     redirect($back);
 }
 
@@ -4614,8 +5307,8 @@ function web_main(): void
     session_boot();
 
     $user = auth_user();
-    $lang = is_string($_SESSION['lang'] ?? null) ? (string) $_SESSION['lang'] : '';
-    if (!in_array($lang, (array) SW::$cfg['langs'], true)) {
+    $lang = lang_active();
+    if (!lang_valid($lang)) {
         $lang = (string) SW::$cfg['default_lang'];
     }
     SW::$lang = $lang;
@@ -4630,14 +5323,28 @@ function web_main(): void
             v_error(405, 'error.method');
         }
 
-        $langChosen = is_string($_SESSION['lang'] ?? null) || $user !== null;
-        if (!$langChosen && ($method === 'GET' || $method === 'HEAD')
-            && $path !== '/start'
-            && strpos($path, '/eid/') !== 0
-            && strpos($path, '/api/') !== 0) {
-            redirect('/start');
+        $reading = $method === 'GET' || $method === 'HEAD';
+        if ($path === '/consent' && $reading) {
+            consent_set();
+            redirect(consent_return());
         }
-        if ($path === '/start' && ($method === 'GET' || $method === 'HEAD')) {
+        if ($path === '/lang' && $reading) {
+            $wish = query_str('set', 5);
+            if (consent_given()) {
+                lang_store($wish);
+                redirect(consent_return());
+            }
+            redirect(consent_return() . (lang_valid($wish) ? '?lang=' . rawurlencode($wish) : ''));
+        }
+
+        $public = $path === '/' || preg_match('#^/topic/\d{1,10}$#', $path) === 1
+            || in_array($path, ['/start', '/auth', '/about', '/imprint', '/privacy', '/api/topics'], true);
+        if (!consent_given() && !($reading && $public)) {
+            v_error(403, 'error.consent');
+        }
+
+        $langChosen = lang_stored() !== '' || lang_wanted() !== '';
+        if ($path === '/start' && $reading) {
             if ($langChosen) {
                 redirect('/');
             }
@@ -4651,7 +5358,7 @@ function web_main(): void
         }
 
         if ($user !== null && jury_pending_for((int) $user['id']) !== null) {
-            $gateAllowed = ['/jury', '/jury/vote', '/logout', '/lang'];
+            $gateAllowed = ['/jury', '/jury/vote', '/logout', '/lang', '/about', '/imprint', '/privacy'];
             if (!in_array($path, $gateAllowed, true)) {
                 redirect('/jury');
             }
@@ -4660,7 +5367,8 @@ function web_main(): void
         $isGet = $method === 'GET' || $method === 'HEAD';
 
         if ($user === null && $isGet
-            && !in_array($path, ['/auth', '/api/topics', '/api/similar'], true)
+            && !in_array($path, ['/', '/auth', '/about', '/imprint', '/privacy', '/api/topics', '/api/similar'], true)
+            && preg_match('#^/topic/\d{1,10}$#', $path) !== 1
             && strpos($path, '/claim/') !== 0
             && strpos($path, '/eid/') !== 0) {
             redirect('/auth');
@@ -4677,12 +5385,6 @@ function web_main(): void
         }
         if (preg_match('#^/topic/(\d{1,10})$#', $path, $m) === 1 && $isGet) {
             v_topic((int) $m[1]);
-        }
-        if (preg_match('#^/topic/(\d{1,10})/edit$#', $path, $m) === 1 && $isGet) {
-            v_topic_edit((int) $m[1]);
-        }
-        if (preg_match('#^/topic/(\d{1,10})/edit$#', $path, $m) === 1 && $method === 'POST') {
-            h_topic_edit((int) $m[1]);
         }
         if (preg_match('#^/topic/(\d{1,10})/archive$#', $path, $m) === 1 && $method === 'POST') {
             h_topic_archive((int) $m[1]);
@@ -4713,9 +5415,6 @@ function web_main(): void
             exit;
         }
 
-        if ($path === '/lang' && $method === 'POST') {
-            h_lang();
-        }
         if ($path === '/auth' && $isGet) {
             v_auth();
         }
@@ -4754,6 +5453,16 @@ function web_main(): void
         }
         if ($path === '/setup/finish' && $method === 'POST') {
             h_setup_finish();
+        }
+        if ($path === '/about' && $isGet) {
+            v_static('about.h', ['about.p1', 'about.p2', 'about.p3', 'about.p4', 'about.p5']);
+        }
+        if ($path === '/imprint' && $isGet) {
+            v_static('imprint.h', ['imprint.p1', 'imprint.p2', 'imprint.p3']);
+        }
+        if ($path === '/privacy' && $isGet) {
+            v_static('privacy.h', ['privacy.p1', 'privacy.p2', 'privacy.p3', 'privacy.p4', 'privacy.p5',
+                'privacy.p6', 'privacy.p7', 'privacy.p8', 'privacy.p9', 'privacy.p10']);
         }
         v_error_404();
     } catch (Throwable $e) {
@@ -4866,6 +5575,17 @@ function cli_selftest(): int
         $check('Änderung nach 24 h gesperrt', $e->getMessage() === 'flash.vote_locked');
     }
     $warp('-25 hours');
+    $vtN = cli_add_users(1, 'vn')[0];
+    vote_cast($vtN, $vtTopic, 'neutral');
+    $check('Enthalten wird als neutrale Stimme gespeichert', topic_user_vote($vtTopic, $vtN) === 'neutral');
+    $check('Enthalten zählt nicht in Dafür/Dagegen',
+        SW::$db->val("SELECT COUNT(*) FROM votes WHERE topic_id = ? AND choice IN ('for','against')", [$vtTopic]) == 1);
+    try {
+        vote_cast($vtN, $vtTopic, 'none');
+        $check('Stimme löschen ist nicht möglich', false);
+    } catch (DomainException $e) {
+        $check('Stimme löschen ist nicht möglich', $e->getMessage() === 'flash.invalid_input');
+    }
 
     echo "== Themen-Ende (Datum/Anzahl) & Autor-Rechte ==\n";
     $au = cli_add_users(1, 'au')[0];
@@ -4875,6 +5595,9 @@ function cli_selftest(): int
     $c2 = cli_add_users(1, 'c2')[0];
     vote_cast($c1, $countTopic, 'for');
     $check('Thema bei Zielzahl noch offen (1/2)', SW::$db->val('SELECT status FROM topics WHERE id = ?', [$countTopic]) === 'active');
+    $cN = cli_add_users(1, 'cn')[0];
+    vote_cast($cN, $countTopic, 'neutral');
+    $check('Enthaltungen zählen nicht zum Zielwert', SW::$db->val('SELECT status FROM topics WHERE id = ?', [$countTopic]) === 'active');
     vote_cast($c2, $countTopic, 'against');
     $check('Thema schließt bei Erreichen der Zielzahl (2/2)', SW::$db->val('SELECT status FROM topics WHERE id = ?', [$countTopic]) === 'closed');
     try {
@@ -4985,7 +5708,7 @@ function cli_selftest(): int
     $check('Bundesland', scope_decode('bl:Bayern') === ['bundesland', 'Bayern']);
     $check('Landkreis', scope_decode('kr:Bayern:Landkreis München') === ['landkreis', 'Landkreis München']);
     $check('Unbekanntes Gebiet abgelehnt', scope_decode('kr:Bayern:Atlantis') === null && scope_decode('bl:Atlantis') === null);
-    $check('Gebietsliste vollständig geladen', count(SW_REGIONS) === 16 && array_sum(array_map('count', SW_REGIONS)) > 350);
+    $check('Gebietsliste vollständig geladen', count(sw_regions()) === 16 && array_sum(array_map('count', sw_regions())) > 350);
 
     echo "== Themen: 1 pro Tag ==\n";
     $alice = cli_add_users(1, 'alice')[0];
@@ -5006,8 +5729,8 @@ function cli_selftest(): int
     $check('Stimme dafür gespeichert', topic_user_vote($topicId, $bob) === 'for');
     vote_cast($bob, $topicId, 'against');
     $check('Stimme änderbar', topic_user_vote($topicId, $bob) === 'against');
-    vote_cast($bob, $topicId, 'none');
-    $check('Stimme zurückziehbar (neutral = keine Stimme)', topic_user_vote($topicId, $bob) === null);
+    vote_cast($bob, $topicId, 'neutral');
+    $check('Enthalten als dritte Stimmart speicherbar', topic_user_vote($topicId, $bob) === 'neutral');
     $slug = (string) SW::$db->val('SELECT slug FROM categories ORDER BY id LIMIT 1');
     $check('Favorit angelegt', fav_toggle($bob, 'category', $slug) === true);
     $check('Favorit entfernt', fav_toggle($bob, 'category', $slug) === false);
@@ -5285,6 +6008,49 @@ function cli_selftest(): int
     @unlink(setup_token_file());
     SW::$testMode = true;
 
+    echo "== Listen aus Dateien ==\n";
+    $check('Kategorien-Datei wird gelesen oder faellt sauber zurueck', count(sw_categories()) >= 20);
+    $check('Gebiete-Datei wird gelesen oder faellt sauber zurueck', count(sw_regions()) === 16);
+    $check('Nur https://raw.githubusercontent.com wird abgerufen',
+        sw_list_fetch('http://raw.githubusercontent.com/a/b/c.json') === null
+        && sw_list_fetch('https://example.org/liste.json') === null
+        && sw_list_fetch('https://raw.githubusercontent.com.angreifer.example/a.json') === null);
+    $check('Kategorie mit unzulaessigem Kennzeichen wird verworfen',
+        sw_categories_clean([['slug' => '../../etc', 'de' => 'Test', 'en' => 'Test']]) === []);
+    $check('Steuerzeichen und Markup werden verworfen',
+        sw_list_text("Te\x00st", 60) === null
+        && sw_list_text('<script>alert(1)</script>', 60) === null
+        && sw_list_text('Umwelt & Klima', 60) === 'Umwelt & Klima');
+    $check('Zu lange Werte werden verworfen', sw_list_text(str_repeat('a', 300), 80) === null);
+    $check('Anzahl der Gebiete ist gedeckelt',
+        count(sw_regions_clean(array_fill_keys(array_map(static function (int $i): string {
+            return 'Land ' . $i;
+        }, range(1, 50)), ['Kreis Eins'])) ) <= SW_MAX_LAENDER);
+    $check('Doppelte Werte werden zusammengefasst',
+        sw_regions_clean(['Land Eins' => ['Kreis A', 'Kreis A', 'Kreis B']]) === ['Land Eins' => ['Kreis A', 'Kreis B']]);
+    $catLocal = [['alt', 'Alt', 'Old']];
+    $check('Nur neue Kategorien werden uebernommen',
+        sw_categories_new($catLocal, [['alt', 'Anders', 'Other'], ['neu', 'Neu', 'New']]) === [['neu', 'Neu', 'New']]);
+    $check('Bestehende Kategorien bleiben unveraendert',
+        sw_categories_new($catLocal, [['alt', 'Boese', 'Evil']]) === []);
+    $many = [];
+    for ($i = 0; $i < 40; $i++) {
+        $many[] = ['neu' . $i, 'Neu ' . $i, 'New ' . $i];
+    }
+    $check('Hoechstzahl neuer Werte je Abgleich greift',
+        count(sw_categories_new($catLocal, $many)) === SW_SYNC_MAX_NEW);
+    $regLocal = ['Land Eins' => ['Kreis A']];
+    $merge = sw_regions_merge($regLocal, ['Land Eins' => ['Kreis A', 'Kreis B'], 'Land Zwei' => ['Kreis C']]);
+    $check('Neue Gebiete werden ergaenzt, alte behalten',
+        $merge['list'] === ['Land Eins' => ['Kreis A', 'Kreis B'], 'Land Zwei' => ['Kreis C']]
+        && count($merge['added']) === 3);
+    $check('Fehlende Werte in der Ferndatei loeschen nichts',
+        sw_regions_merge($regLocal, [])['list'] === $regLocal);
+    $check('Abweichende Leerzeichen erzeugen keinen Doppeleintrag',
+        sw_regions_merge(['Land Eins' => ['Kreis A']], sw_regions_clean(['Land Eins' => [' Kreis  A ']]))['added'] === []);
+    $check('Namen aus fremden Alphabeten werden verworfen',
+        sw_list_text('Вayern', 60) === null && sw_list_text('Bayern', 60) === 'Bayern');
+
     echo "== Sprachtabellen ==\n";
     $dupes = static function (string $const): array {
         $src = file_get_contents(__FILE__);
@@ -5412,7 +6178,12 @@ function cli_main(array $argv): int
     sw_setup();
     if ($cmd === 'cron') {
         maintenance_tick();
-        echo "ok\n";
+        $added = sw_sync_lists();
+        echo $added > 0 ? "ok, neue Listeneinträge: $added\n" : "ok\n";
+        return 0;
+    }
+    if ($cmd === 'sync-lists') {
+        echo 'neue Einträge: ' . sw_sync_lists(true) . "\n";
         return 0;
     }
     if ($cmd === 'seed') {
@@ -5432,6 +6203,12 @@ function cli_main(array $argv): int
     if ($cmd === 'sync-keys') {
         return cli_sync_keys($argv[2] ?? '');
     }
+    if ($cmd === 'lists') {
+        printf("Kategorien: %d (Datei: %s)\n", count(sw_categories()), is_file(sw_list_path(SW_CATEGORIES_FILE)) ? 'ja' : 'nein — eingebaute Liste');
+        printf("Gebiete:    %d Länder, %d Kreise (Datei: %s)\n", count(sw_regions()),
+            array_sum(array_map('count', sw_regions())), is_file(sw_list_path(SW_REGIONS_FILE)) ? 'ja' : 'nein — eingebaute Liste');
+        return 0;
+    }
     if ($cmd === 'setup-token') {
         if (!test_mode()) {
             echo "Testbetrieb ist bereits beendet; ein Einrichtungsschluessel wird nicht mehr gebraucht.\n";
@@ -5448,7 +6225,7 @@ function cli_main(array $argv): int
         }
         return 0;
     }
-    echo "Aufrufe: php index.php selftest | cron | seed [n] | jurysim | issue-card [n] | sync-keys [url] | setup-token | config\n";
+    echo "Aufrufe: php index.php selftest | cron | sync-lists | lists | seed [n] | jurysim | issue-card [n] | sync-keys [url] | setup-token | config\n";
     return $cmd === 'help' ? 0 : 1;
 }
 

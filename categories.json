@@ -1,0 +1,112 @@
+[
+    {
+        "slug": "umwelt-klima",
+        "de": "Umwelt & Klima",
+        "en": "Environment & Climate"
+    },
+    {
+        "slug": "energie",
+        "de": "Energie",
+        "en": "Energy"
+    },
+    {
+        "slug": "wirtschaft",
+        "de": "Wirtschaft & Mittelstand",
+        "en": "Economy & Business"
+    },
+    {
+        "slug": "arbeit-soziales",
+        "de": "Arbeit & Soziales",
+        "en": "Labour & Social Affairs"
+    },
+    {
+        "slug": "rente",
+        "de": "Rente & Alterssicherung",
+        "en": "Pensions"
+    },
+    {
+        "slug": "gesundheit-pflege",
+        "de": "Gesundheit & Pflege",
+        "en": "Health & Care"
+    },
+    {
+        "slug": "bildung-forschung",
+        "de": "Bildung & Forschung",
+        "en": "Education & Research"
+    },
+    {
+        "slug": "familie-jugend",
+        "de": "Familie & Jugend",
+        "en": "Family & Youth"
+    },
+    {
+        "slug": "migration-integration",
+        "de": "Migration & Integration",
+        "en": "Migration & Integration"
+    },
+    {
+        "slug": "innere-sicherheit",
+        "de": "Innere Sicherheit",
+        "en": "Domestic Security"
+    },
+    {
+        "slug": "justiz-buergerrechte",
+        "de": "Justiz & Bürgerrechte",
+        "en": "Justice & Civil Rights"
+    },
+    {
+        "slug": "digitales",
+        "de": "Digitales & Verwaltung",
+        "en": "Digital Affairs & Administration"
+    },
+    {
+        "slug": "verkehr",
+        "de": "Verkehr & Infrastruktur",
+        "en": "Transport & Infrastructure"
+    },
+    {
+        "slug": "wohnen",
+        "de": "Wohnen & Mieten",
+        "en": "Housing & Rents"
+    },
+    {
+        "slug": "landwirtschaft",
+        "de": "Landwirtschaft & Ernährung",
+        "en": "Agriculture & Food"
+    },
+    {
+        "slug": "finanzen-steuern",
+        "de": "Finanzen & Steuern",
+        "en": "Finance & Taxes"
+    },
+    {
+        "slug": "europa-aussen",
+        "de": "Europa & Außenpolitik",
+        "en": "Europe & Foreign Policy"
+    },
+    {
+        "slug": "verteidigung",
+        "de": "Verteidigung",
+        "en": "Defence"
+    },
+    {
+        "slug": "kultur-medien-sport",
+        "de": "Kultur, Medien & Sport",
+        "en": "Culture, Media & Sports"
+    },
+    {
+        "slug": "verbraucherschutz",
+        "de": "Verbraucherschutz",
+        "en": "Consumer Protection"
+    },
+    {
+        "slug": "kommunales",
+        "de": "Kommunales & Ehrenamt",
+        "en": "Local Affairs & Volunteering"
+    },
+    {
+        "slug": "demokratie",
+        "de": "Demokratie & Beteiligung",
+        "en": "Democracy & Participation"
+    }
+]
