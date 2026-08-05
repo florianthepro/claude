@@ -31,8 +31,10 @@ const SW_CONFIG = [
 
     // Abgleich der Listen: nur https://raw.githubusercontent.com/..., leer = kein Abgleich.
     // Es werden ausschließlich neue Werte ergänzt, nie welche geändert oder gelöscht.
-    'categories_url' => '', // z. B. https://raw.githubusercontent.com/KONTO/REPO/main/categories.json
-    'regions_url'    => '', // z. B. https://raw.githubusercontent.com/KONTO/REPO/main/regions.json
+    'nur_bund' => false, // true = alles gilt für ganz Deutschland; keine Gebietsauswahl, keine Gebietsanzeige
+    'list_sync' => 'auto', // auto = die Seite gleicht selbst ab (kein Zeitplaner nötig), cron = nur über „php index.php cron“
+    'categories_url' => 'https://raw.githubusercontent.com/florianthepro/buergerabstimmung/main/categories.json', // z. B. https://raw.githubusercontent.com/KONTO/REPO/main/categories.json
+    'regions_url'    => 'https://raw.githubusercontent.com/florianthepro/buergerabstimmung/main/regions.json', // z. B. https://raw.githubusercontent.com/KONTO/REPO/main/regions.json
 
     'eid_client_url' => 'http://127.0.0.1:24727/eID-Client', // Ausweis-App auf dem Gerät (BSI TR-03124)
 
@@ -1324,6 +1326,8 @@ const SW_MAX_CATEGORIES = 60;
 const SW_MAX_LAENDER = 24;
 const SW_MAX_KREISE = 600;
 const SW_SYNC_MAX_NEW = 20;         // höchstens so viele neue Werte je Abgleich
+const SW_SYNC_MAX_GONE = 20;        // höchstens so viele entfernte Werte je Abgleich
+const SW_SYNC_CHECK_EVERY = 60;     // Frischeprüfung vor dem Anlegen frühestens alle 60 Sekunden
 const SW_SYNC_EVERY = 21600;        // frühestens alle 6 Stunden
 
 function sw_list_text($value, int $maxChars): ?string
@@ -1334,13 +1338,43 @@ function sw_list_text($value, int $maxChars): ?string
     if (!mb_check_encoding($value, 'UTF-8')) {
         return null;
     }
-    $text = trim((string) preg_replace('/\s+/u', ' ', $value));
+    // Nachgebaute Buchstaben aus Sonderblöcken (Ｅ statt E, ﬁ statt fi) sind nie zulässig.
+    if (preg_match('/[\x{FB00}-\x{FB4F}\x{FF00}-\x{FFEF}]/u', $value) === 1) {
+        return null;
+    }
+    $text = $value;
+    if (class_exists('Normalizer')) {
+        $normal = Normalizer::normalize($text, Normalizer::FORM_C);
+        if (is_string($normal)) {
+            $text = $normal;
+        }
+    }
+    $text = trim((string) preg_replace('/\s+/u', ' ', $text));
     $len = mb_strlen($text);
     if ($len < 2 || $len > $maxChars) {
         return null;
     }
-    // Nur lateinische Schrift: verhindert nachgeahmte Namen aus fremden Alphabeten.
-    return preg_match('/^[\p{Latin}\p{N} .,&()\/\'\-]+$/u', $text) === 1 ? $text : null;
+    // Nur lateinische Schrift und arabische Ziffern: verhindert nachgeahmte Namen.
+    return preg_match('/^[\p{Latin}0-9 .,&()\/\'\-]+$/u', $text) === 1 ? $text : null;
+}
+
+// Vergleichsform eines Namens: unterscheidet sich zwei Werte nur in Schreibweise,
+// Umlauten oder Satzzeichen, gelten sie als derselbe Eintrag.
+function sw_list_key(string $text): string
+{
+    $lower = mb_strtolower($text, 'UTF-8');
+    $lower = strtr($lower, [
+        'ä' => 'a', 'ö' => 'o', 'ü' => 'u', 'ß' => 'ss',
+        'á' => 'a', 'à' => 'a', 'â' => 'a', 'å' => 'a', 'ã' => 'a',
+        'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ø' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'û' => 'u',
+        'ç' => 'c', 'ñ' => 'n', 'ý' => 'y',
+    ]);
+    $plain = (string) preg_replace('/[^a-z0-9]+/', '', $lower);
+    // Umschriften angleichen: "Wuerttemberg" und "Württemberg" sind derselbe Name.
+    return strtr($plain, ['ue' => 'u', 'oe' => 'o', 'ae' => 'a', 'ss' => 's']);
 }
 
 function sw_categories_clean(array $raw): array
@@ -1352,7 +1386,7 @@ function sw_categories_clean(array $raw): array
             continue;
         }
         $slug = isset($row['slug']) && is_string($row['slug']) ? trim($row['slug']) : '';
-        if (preg_match('/^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/', $slug) !== 1 || isset($seen[$slug])) {
+        if (preg_match('/^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?\z/', $slug) !== 1 || isset($seen[$slug])) {
             continue;
         }
         $de = sw_list_text($row['de'] ?? null, 60);
@@ -1360,7 +1394,14 @@ function sw_categories_clean(array $raw): array
         if ($de === null || $en === null) {
             continue;
         }
+        $keyDe = sw_list_key($de);
+        $keyEn = sw_list_key($en);
+        if (isset($seen['n' . $keyDe]) || isset($seen['n' . $keyEn])) {
+            continue;
+        }
         $seen[$slug] = true;
+        $seen['n' . $keyDe] = true;
+        $seen['n' . $keyEn] = true;
         $out[] = [$slug, $de, $en];
     }
     return $out;
@@ -1369,23 +1410,26 @@ function sw_categories_clean(array $raw): array
 function sw_regions_clean(array $raw): array
 {
     $out = [];
+    $seen = [];       // Kreisnamen, ueber alle Laender hinweg
+    $seenLand = [];
     $kreise = 0;
     foreach ($raw as $land => $list) {
         $name = sw_list_text(is_string($land) ? $land : null, 60);
-        if ($name === null || !is_array($list) || isset($out[$name]) || count($out) >= SW_MAX_LAENDER) {
+        if ($name === null || !is_array($list) || count($out) >= SW_MAX_LAENDER
+            || isset($seenLand[sw_list_key($name)])) {
             continue;
         }
+        $seenLand[sw_list_key($name)] = true;
         $clean = [];
-        $seen = [];
         foreach ($list as $entry) {
             if ($kreise >= SW_MAX_KREISE) {
                 break;
             }
             $kreis = sw_list_text($entry, 80);
-            if ($kreis === null || isset($seen[$kreis])) {
+            if ($kreis === null || isset($seen[sw_list_key($kreis)])) {
                 continue;
             }
-            $seen[$kreis] = true;
+            $seen[sw_list_key($kreis)] = true;
             $clean[] = $kreis;
             $kreise++;
         }
@@ -1394,12 +1438,17 @@ function sw_regions_clean(array $raw): array
     return $out;
 }
 
+function sw_bund_only(): bool
+{
+    return !empty(SW::$cfg['nur_bund']);
+}
+
 function sw_list_path(string $file): string
 {
     return __DIR__ . '/' . $file;
 }
 
-function sw_list_load(string $file, string $cleaner, array $fallback): array
+function sw_list_load(string $file, string $cleaner, array $fallback, int $minEntries): array
 {
     $raw = @file_get_contents(sw_list_path($file), false, null, 0, SW_LIST_MAX_BYTES + 1);
     if ($raw === false || $raw === '') {
@@ -1415,9 +1464,12 @@ function sw_list_load(string $file, string $cleaner, array $fallback): array
         return $fallback;
     }
     $clean = $cleaner($data);
-    if ($clean === []) {
-        log_line('DATA', 'list_empty', ['file' => $file]);
+    if (count($clean) < $minEntries) {
+        log_line('DATA', 'list_implausible', ['file' => $file, 'entries' => count($clean), 'min' => $minEntries]);
         return $fallback;
+    }
+    if (count($clean) * 2 < count($fallback)) {
+        log_line('DATA', 'list_much_smaller', ['file' => $file, 'entries' => count($clean), 'builtin' => count($fallback)]);
     }
     return $clean;
 }
@@ -1425,7 +1477,7 @@ function sw_list_load(string $file, string $cleaner, array $fallback): array
 function sw_categories(): array
 {
     if (!isset(SW::$lists['categories'])) {
-        SW::$lists['categories'] = sw_list_load(SW_CATEGORIES_FILE, 'sw_categories_clean', SW_CATEGORIES);
+        SW::$lists['categories'] = sw_list_load(SW_CATEGORIES_FILE, 'sw_categories_clean', SW_CATEGORIES, 3);
     }
     return SW::$lists['categories'];
 }
@@ -1433,7 +1485,7 @@ function sw_categories(): array
 function sw_regions(): array
 {
     if (!isset(SW::$lists['regions'])) {
-        SW::$lists['regions'] = sw_list_load(SW_REGIONS_FILE, 'sw_regions_clean', SW_REGIONS);
+        SW::$lists['regions'] = sw_list_load(SW_REGIONS_FILE, 'sw_regions_clean', SW_REGIONS, 4);
     }
     return SW::$lists['regions'];
 }
@@ -1445,8 +1497,16 @@ function sw_list_write(string $file, array $data): bool
         return false;
     }
     $path = sw_list_path($file);
-    $tmp = $path . '.tmp';
-    if (@file_put_contents($tmp, $json . "\n", LOCK_EX) === false || !@rename($tmp, $path)) {
+    $tmp = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
+    // 'x' legt exklusiv an: schlaegt fehl, wenn dort schon etwas liegt oder ein Verweis wartet.
+    $handle = @fopen($tmp, 'xb');
+    if ($handle === false) {
+        log_line('DATA', 'list_write_failed', ['file' => $file]);
+        return false;
+    }
+    $written = @fwrite($handle, $json . "\n");
+    @fclose($handle);
+    if ($written === false || !@rename($tmp, $path)) {
         @unlink($tmp);
         log_line('DATA', 'list_write_failed', ['file' => $file]);
         return false;
@@ -1454,20 +1514,38 @@ function sw_list_write(string $file, array $data): bool
     return true;
 }
 
-function sw_list_fetch(string $url): ?array
+// Merkt sich die Kennung der zuletzt geholten Fassung, damit die Frischeprüfung
+// ohne erneuten Download auskommt, wenn sich nichts geändert hat.
+function sw_list_etag(string $file, ?string $set = null): string
 {
-    if (preg_match('#^https://raw\.githubusercontent\.com/[A-Za-z0-9._~/-]{1,200}$#', $url) !== 1) {
+    $key = 'list_etag_' . preg_replace('/[^a-z]/', '', $file);
+    if ($set !== null) {
+        SW::$db->run(
+            'INSERT INTO schema_info (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v',
+            [$key, $set]
+        );
+        return $set;
+    }
+    return (string) (SW::$db->val('SELECT v FROM schema_info WHERE k = ?', [$key]) ?? '');
+}
+
+// Gibt ein Array zurück, false wenn die Gegenseite „unverändert“ meldet, null bei Fehlern.
+function sw_list_fetch(string $url, int $timeout = 8, string $etag = '', ?string &$newEtag = null)
+{
+    $newEtag = null;
+    if (preg_match('#^https://raw\.githubusercontent\.com/[A-Za-z0-9._~/-]{1,200}\z#', $url) !== 1) {
         log_line('DATA', 'sync_url_rejected', []);
         return null;
     }
     $ctx = stream_context_create([
         'http' => [
             'method'          => 'GET',
-            'timeout'         => 8,
+            'timeout'         => $timeout,
             'follow_location' => 0,
             'max_redirects'   => 0,
             'ignore_errors'   => true,
-            'header'          => "Accept: application/json\r\nUser-Agent: buergerabstimmung\r\n",
+            'header'          => "Accept: application/json\r\nUser-Agent: buergerabstimmung\r\n"
+                . (preg_match('#^[A-Za-z0-9"/_.-]{1,128}\z#', $etag) === 1 ? 'If-None-Match: ' . $etag . "\r\n" : ''),
         ],
         'ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'allow_self_signed' => false],
     ]);
@@ -1478,141 +1556,305 @@ function sw_list_fetch(string $url): ?array
             $status = (int) $m[1];
         }
     }
+    if ($status === 304) {
+        return false;
+    }
     if ($body === false || $status !== 200 || strlen($body) > SW_LIST_MAX_BYTES) {
         log_line('DATA', 'sync_fetch_failed', ['status' => $status]);
         return null;
+    }
+    foreach (($http_response_header ?? []) as $line) {
+        if (preg_match('#^ETag:\s*([A-Za-z0-9"/_.-]{1,128})\s*\z#i', $line, $m) === 1) {
+            $newEtag = $m[1];
+        }
     }
     $data = json_decode($body, true, 6);
     return is_array($data) ? $data : null;
 }
 
-function sw_categories_new(array $local, array $wanted): array
+// Gleicht die Kategorien an die Ferndatei an. Fehlende werden entfernt, aber nur
+// bis zur Obergrenze je Lauf, damit ein Fehler oder Angriff nie alles auf einmal räumt.
+function sw_categories_apply(array $local, array $wanted): array
 {
-    $have = [];
+    $want = [];
+    foreach ($wanted as $row) {
+        $want[$row[0]] = true;
+    }
+    $keep = [];
+    $gone = [];
     foreach ($local as $row) {
+        if (isset($want[$row[0]]) || count($gone) >= SW_SYNC_MAX_GONE) {
+            $keep[] = $row;
+            continue;
+        }
+        $gone[] = $row;
+    }
+    $have = [];
+    foreach ($keep as $row) {
         $have[$row[0]] = true;
+        $have['n' . sw_list_key($row[1])] = true;
+        $have['n' . sw_list_key($row[2])] = true;
     }
     $added = [];
     foreach ($wanted as $row) {
-        if (isset($have[$row[0]]) || count($added) >= SW_SYNC_MAX_NEW
-            || count($local) + count($added) >= SW_MAX_CATEGORIES) {
+        if (isset($have[$row[0]]) || isset($have['n' . sw_list_key($row[1])])
+            || isset($have['n' . sw_list_key($row[2])])
+            || count($added) >= SW_SYNC_MAX_NEW
+            || count($keep) + count($added) >= SW_MAX_CATEGORIES) {
             continue;
         }
         $have[$row[0]] = true;
+        $have['n' . sw_list_key($row[1])] = true;
+        $have['n' . sw_list_key($row[2])] = true;
         $added[] = $row;
     }
-    return $added;
+    return ['list' => array_merge($keep, $added), 'added' => $added, 'gone' => $gone];
 }
 
-function sw_regions_merge(array $local, array $wanted): array
+// Gleicht die Gebiete an die Ferndatei an: ergänzt Neues und entfernt Fehlendes,
+// beides je Lauf gedeckelt. Bereits angelegte Themen behalten ihr Gebiet in jedem Fall.
+function sw_regions_apply(array $local, array $wanted): array
 {
-    $kreise = array_sum(array_map('count', $local));
+    $wantLand = [];
+    foreach ($wanted as $land => $kreise) {
+        $wantLand[sw_list_key((string) $land)] = (string) $land;
+    }
+    $list = [];
+    $gone = [];
+    foreach ($local as $land => $kreise) {
+        $landKey = sw_list_key((string) $land);
+        if (!isset($wantLand[$landKey])) {
+            if (count($gone) < SW_SYNC_MAX_GONE) {
+                $gone[] = ['land' => (string) $land];
+                continue;
+            }
+            $list[$land] = $kreise;
+            continue;
+        }
+        $wantKreis = [];
+        foreach ($wanted[$wantLand[$landKey]] as $kreis) {
+            $wantKreis[sw_list_key($kreis)] = true;
+        }
+        $keep = [];
+        foreach ($kreise as $kreis) {
+            if (isset($wantKreis[sw_list_key($kreis)]) || count($gone) >= SW_SYNC_MAX_GONE) {
+                $keep[] = $kreis;
+                continue;
+            }
+            $gone[] = ['land' => (string) $land, 'kreis' => $kreis];
+        }
+        $list[$land] = $keep;
+    }
+    $haveKreis = [];
+    foreach ($list as $kreise) {
+        foreach ($kreise as $kreis) {
+            $haveKreis[sw_list_key($kreis)] = true;
+        }
+    }
+    $anzahl = count($haveKreis);
     $added = [];
-    foreach ($wanted as $land => $list) {
+    foreach ($wanted as $land => $kreise) {
         if (count($added) >= SW_SYNC_MAX_NEW) {
             break;
         }
-        if (!isset($local[$land])) {
-            if (count($local) >= SW_MAX_LAENDER) {
-                continue;
-            }
-            $local[$land] = [];
-            $added[] = ['land' => $land];
-        }
-        foreach ($list as $kreis) {
-            if (count($added) >= SW_SYNC_MAX_NEW || $kreise >= SW_MAX_KREISE) {
+        $landKey = sw_list_key((string) $land);
+        $ziel = null;
+        foreach ($list as $vorhanden => $unused) {
+            if (sw_list_key((string) $vorhanden) === $landKey) {
+                $ziel = $vorhanden;
                 break;
             }
-            if (in_array($kreis, $local[$land], true)) {
+        }
+        if ($ziel === null) {
+            if (count($list) >= SW_MAX_LAENDER) {
                 continue;
             }
-            $local[$land][] = $kreis;
-            $kreise++;
-            $added[] = ['land' => $land, 'kreis' => $kreis];
+            $list[$land] = [];
+            $ziel = $land;
+            $added[] = ['land' => (string) $land];
+        }
+        foreach ($kreise as $kreis) {
+            if (count($added) >= SW_SYNC_MAX_NEW || $anzahl >= SW_MAX_KREISE) {
+                break;
+            }
+            if (isset($haveKreis[sw_list_key($kreis)])) {
+                continue;
+            }
+            $list[$ziel][] = $kreis;
+            $haveKreis[sw_list_key($kreis)] = true;
+            $anzahl++;
+            $added[] = ['land' => (string) $ziel, 'kreis' => $kreis];
         }
     }
-    return ['list' => $local, 'added' => $added];
+    return ['list' => $list, 'added' => $added, 'gone' => $gone];
 }
 
-function sw_sync_categories(string $url): int
+function sw_sync_categories(string $url, int $timeout = 8): int
 {
-    $remote = sw_list_fetch($url);
+    $newEtag = null;
+    $remote = sw_list_fetch($url, $timeout, sw_list_etag(SW_CATEGORIES_FILE), $newEtag);
+    if ($remote === false) {
+        return 0;   // unverändert
+    }
     if ($remote === null) {
         return 0;
     }
-    $local = [];
-    foreach (categories() as $row) {
-        $local[] = [(string) $row['slug'], (string) $row['name_de'], (string) $row['name_en']];
+    if ($newEtag !== null) {
+        sw_list_etag(SW_CATEGORIES_FILE, $newEtag);
     }
-    if ($local === []) {
-        $local = sw_categories();
-    }
-    $added = sw_categories_new($local, sw_categories_clean($remote));
-    if ($added === []) {
+    $result = sw_categories_apply(sw_categories(), sw_categories_clean($remote));
+    if ($result['added'] === [] && $result['gone'] === []) {
         return 0;
     }
-    $merged = array_merge($local, $added);
     $file = [];
-    foreach ($merged as $row) {
+    foreach ($result['list'] as $row) {
         $file[] = ['slug' => $row[0], 'de' => $row[1], 'en' => $row[2]];
     }
     if (!sw_list_write(SW_CATEGORIES_FILE, $file)) {
         return 0;
     }
-    SW::$lists['categories'] = $merged;
-    SW::$db->tx(function () use ($added): void {
-        $next = (int) SW::$db->val('SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories');
-        foreach ($added as $i => $row) {
-            SW::$db->run(
-                'INSERT OR IGNORE INTO categories (slug, name_de, name_en, sort_order) VALUES (?, ?, ?, ?)',
-                [$row[0], $row[1], $row[2], $next + $i]
-            );
-        }
-    });
-    foreach ($added as $row) {
+    SW::$lists['categories'] = $result['list'];
+    // Neue Kategorien kommen in die Datenbank. Entfernte bleiben dort stehen,
+    // damit bereits angelegte Themen ihren Bezug behalten; sie sind nur nicht mehr wählbar.
+    if ($result['added'] !== []) {
+        SW::$db->tx(function () use ($result): void {
+            $next = (int) SW::$db->val('SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories');
+            foreach ($result['added'] as $i => $row) {
+                SW::$db->run(
+                    'INSERT OR IGNORE INTO categories (slug, name_de, name_en, sort_order) VALUES (?, ?, ?, ?)',
+                    [$row[0], $row[1], $row[2], $next + $i]
+                );
+            }
+        });
+    }
+    foreach ($result['added'] as $row) {
         log_line('DATA', 'category_added', ['slug' => $row[0], 'name' => $row[1]]);
     }
-    return count($added);
+    foreach ($result['gone'] as $row) {
+        log_line('DATA', 'category_removed', ['slug' => $row[0], 'name' => $row[1]]);
+    }
+    return count($result['added']) + count($result['gone']);
 }
 
-function sw_sync_regions(string $url): int
+function sw_sync_regions(string $url, int $timeout = 8): int
 {
-    $remote = sw_list_fetch($url);
+    $newEtag = null;
+    $remote = sw_list_fetch($url, $timeout, sw_list_etag(SW_REGIONS_FILE), $newEtag);
+    if ($remote === false) {
+        return 0;   // unverändert
+    }
     if ($remote === null) {
         return 0;
     }
-    $merge = sw_regions_merge(sw_regions(), sw_regions_clean($remote));
-    if ($merge['added'] === [] || !sw_list_write(SW_REGIONS_FILE, $merge['list'])) {
+    if ($newEtag !== null) {
+        sw_list_etag(SW_REGIONS_FILE, $newEtag);
+    }
+    $result = sw_regions_apply(sw_regions(), sw_regions_clean($remote));
+    if (($result['added'] === [] && $result['gone'] === []) || !sw_list_write(SW_REGIONS_FILE, $result['list'])) {
         return 0;
     }
-    SW::$lists['regions'] = $merge['list'];
-    foreach ($merge['added'] as $entry) {
+    SW::$lists['regions'] = $result['list'];
+    foreach ($result['added'] as $entry) {
         log_line('DATA', 'region_added', $entry);
     }
-    return count($merge['added']);
+    foreach ($result['gone'] as $entry) {
+        log_line('DATA', 'region_removed', $entry);
+    }
+    return count($result['added']) + count($result['gone']);
 }
 
-function sw_sync_lists(bool $force = false): int
+// Prüft vor dem Anlegen eines Themas, ob die Ferndateien neuer sind, und zieht sie
+// gegebenenfalls nach. Hat sich nichts geändert, meldet die Gegenseite das ohne Download.
+// Klappt der Abruf nicht, wird die vorhandene Liste verwendet.
+function sw_lists_ensure_fresh(): void
 {
+    if (SW::$db === null) {
+        return;
+    }
+    $catUrl = trim((string) SW::$cfg['categories_url']);
+    $regUrl = trim((string) SW::$cfg['regions_url']);
+    if ($catUrl === '' && $regUrl === '') {
+        return;
+    }
+    $now = Clock::now()->getTimestamp();
+    $last = (int) (SW::$db->val("SELECT v FROM schema_info WHERE k = 'last_list_check'") ?? 0);
+    if (($now - $last) < SW_SYNC_CHECK_EVERY) {
+        return;
+    }
+    SW::$db->run(
+        "INSERT INTO schema_info (k, v) VALUES ('last_list_check', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
+        [(string) $now]
+    );
+    try {
+        if ($catUrl !== '') {
+            sw_sync_categories($catUrl, 4);
+        }
+        if ($regUrl !== '' && !sw_bund_only()) {
+            sw_sync_regions($regUrl, 4);
+        }
+    } catch (Throwable $e) {
+        log_line('DATA', 'sync_failed', ['error' => $e->getMessage()]);
+    }
+}
+
+// Wird nach dem Ausliefern der Antwort aufgerufen. Der Besucher wartet nie darauf:
+// bei PHP-FPM wird die Verbindung vorher geschlossen, sonst ist die Seite bereits gesendet.
+function sw_sync_after_response(): void
+{
+    if (SW::$db === null || (string) SW::$cfg['list_sync'] !== 'auto') {
+        return;
+    }
+    if (trim((string) SW::$cfg['categories_url']) === '' && trim((string) SW::$cfg['regions_url']) === '') {
+        return;
+    }
+    $now = Clock::now()->getTimestamp();
+    $last = (int) (SW::$db->val("SELECT v FROM schema_info WHERE k = 'last_list_sync'") ?? 0);
+    if (($now - $last) < SW_SYNC_EVERY) {
+        return;
+    }
+    // Zeitfenster sofort belegen, damit bei vielen gleichzeitigen Aufrufen nur einer holt.
+    SW::$db->run(
+        "INSERT INTO schema_info (k, v) VALUES ('last_list_sync', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
+        [(string) $now]
+    );
+    $detached = function_exists('fastcgi_finish_request');
+    if ($detached) {
+        @fastcgi_finish_request();
+    } else {
+        @ob_end_flush();
+        @flush();
+    }
+    @ignore_user_abort(true);
+    try {
+        sw_sync_lists(true, $detached ? 8 : 4);
+    } catch (Throwable $e) {
+        log_line('DATA', 'sync_failed', ['error' => $e->getMessage()]);
+    }
+}
+
+function sw_sync_lists(bool $force = false, int $timeout = 8): int
+{
+    $now = Clock::now()->getTimestamp();
     if (!$force) {
-        $now = Clock::now()->getTimestamp();
         $last = (int) (SW::$db->val("SELECT v FROM schema_info WHERE k = 'last_list_sync'") ?? 0);
         if (($now - $last) < SW_SYNC_EVERY) {
             return 0;
         }
-        SW::$db->run(
-            "INSERT INTO schema_info (k, v) VALUES ('last_list_sync', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
-            [(string) $now]
-        );
     }
     $added = 0;
     $catUrl = trim((string) SW::$cfg['categories_url']);
     $regUrl = trim((string) SW::$cfg['regions_url']);
     if ($catUrl !== '') {
-        $added += sw_sync_categories($catUrl);
+        $added += sw_sync_categories($catUrl, $timeout);
     }
     if ($regUrl !== '') {
-        $added += sw_sync_regions($regUrl);
+        $added += sw_sync_regions($regUrl, $timeout);
+    }
+    if (!$force) {
+        SW::$db->run(
+            "INSERT INTO schema_info (k, v) VALUES ('last_list_sync', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
+            [(string) $now]
+        );
     }
     return $added;
 }
@@ -1747,6 +1989,23 @@ function sw_seed_categories(): void
             ['system', 'de', Clock::nowStr()]
         );
     });
+}
+
+// Nur die Kategorien, die in der Liste stehen. Entfernte bleiben in der Datenbank,
+// damit vorhandene Themen ihren Bezug behalten, sind aber nicht mehr wählbar.
+function categories_offer(): array
+{
+    $erlaubt = [];
+    foreach (sw_categories() as $row) {
+        $erlaubt[$row[0]] = true;
+    }
+    $out = [];
+    foreach (categories() as $row) {
+        if (isset($erlaubt[(string) $row['slug']])) {
+            $out[] = $row;
+        }
+    }
+    return $out === [] ? categories() : $out;
 }
 
 function categories(): array
@@ -3687,7 +3946,7 @@ function p_topic_card(array $row): string
 {
     $html = '<article class="card topic-card" data-topic="' . (int) $row['id'] . '"><div class="topic-card-meta">'
         . '<span class="badge">' . e(cat_name($row)) . '</span>'
-        . '<span class="badge">' . e(scope_text($row)) . '</span></div>'
+        . (sw_bund_only() ? '' : '<span class="badge">' . e(scope_text($row)) . '</span>') . '</div>'
         . '<h3 class="topic-card-title"><a href="' . e(url('/topic/' . (int) $row['id'])) . '">' . e((string) $row['title']) . '</a></h3>'
         . '<p class="topic-card-goal">' . e((string) $row['goal']) . '</p>'
         . p_votebar((int) $row['votes_for'], (int) $row['votes_against'], true);
@@ -3805,14 +4064,15 @@ function topic_form_html(array $errors, array $old, string $action, string $subm
         . '<textarea name="reasoning" rows="5" required minlength="' . SW_REASONING_MIN . '" maxlength="' . SW_REASONING_MAX . '">' . e((string) $old['reasoning']) . '</textarea></label>'
         . '<div class="form-row"><label><span>' . e(t('topic.f_category')) . '</span><select name="category_id" required>'
         . '<option value="">' . e(t('topic.f_choose')) . '</option>';
-    foreach (categories() as $category) {
+    foreach (categories_offer() as $category) {
         $sel = (int) $old['category_id'] === (int) $category['id'] ? ' selected' : '';
         $html .= '<option value="' . (int) $category['id'] . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
     }
     $html .= '</select></label>'
-        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
-        . scope_picker('scope', ($old['scope'] ?? 'de') !== '' ? (string) $old['scope'] : 'de', false)
-        . '</label></div>'
+        . (sw_bund_only() ? '' : '<label><span>' . e(t('topic.f_scope')) . '</span>'
+            . scope_picker('scope', ($old['scope'] ?? 'de') !== '' ? (string) $old['scope'] : 'de', false)
+            . '</label>')
+        . '</div>'
         . topic_end_fields($old)
         . '<div><button type="submit" class="btn btn-primary">' . e(t($submitKey)) . '</button></div></form>';
     return $html;
@@ -3831,6 +4091,9 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
 {
     $user = auth_user();
     $userId = $user === null ? null : (int) $user['id'];
+    if ($userId !== null) {
+        sw_lists_ensure_fresh();   // Auswahl im Formular ist damit auf dem neuesten Stand
+    }
     $html = '';
 
     $upcoming = $userId === null ? null : jury_upcoming_for($userId);
@@ -3838,7 +4101,7 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         $html .= '<div class="flash">' . e(t('me.jury_upcoming', ['date' => Clock::displayLocal((string) $upcoming['voting_starts_at'], t('common.date_format'))])) . '</div>';
     }
 
-    $scopeValue = query_str('gebiet', 160);
+    $scopeValue = sw_bund_only() ? '' : query_str('gebiet', 160);
     $scopeDecoded = $scopeValue === '' ? null : scope_decode($scopeValue);
     if ($scopeDecoded === null) {
         $scopeValue = '';
@@ -3943,14 +4206,14 @@ function v_main(array $formErrors = [], ?array $formOld = null): void
         . '<label><span>' . e(t('topics.search')) . '</span><input type="search" name="q" maxlength="80" value="' . e($filters['q']) . '"></label>'
         . '<label><span>' . e(t('topics.filter_category')) . '</span><select name="category">'
         . '<option value="">' . e(t('topics.filter_all')) . '</option>';
-    foreach (categories() as $category) {
+    foreach (categories_offer() as $category) {
         $sel = $filters['category'] === $category['slug'] ? ' selected' : '';
         $searchInner .= '<option value="' . e((string) $category['slug']) . '"' . $sel . '>' . e(cat_name($category)) . '</option>';
     }
     $searchInner .= '</select></label>'
-        . '<label><span>' . e(t('topic.f_scope')) . '</span>'
-        . scope_picker('gebiet', $filters['gebiet'], true)
-        . '</label>'
+        . (sw_bund_only() ? '' : '<label><span>' . e(t('topic.f_scope')) . '</span>'
+            . scope_picker('gebiet', $filters['gebiet'], true)
+            . '</label>')
         . '<label><span>' . e(t('topics.sort')) . '</span><select name="sort">'
         . '<option value="net"' . ($filters['sort'] === 'net' ? ' selected' : '') . '>' . e(t('topics.sort_net')) . '</option>'
         . '<option value="new"' . ($filters['sort'] === 'new' ? ' selected' : '') . '>' . e(t('topics.sort_new')) . '</option>'
@@ -3995,8 +4258,10 @@ function fav_menu(int $userId, int $topicId, string $catRef, string $catLabel, s
     $items = [
         ['topic', (string) $topicId, t('topic.this'), fav_is($userId, 'topic', (string) $topicId)],
         ['category', $catRef, $catLabel, fav_is($userId, 'category', $catRef)],
-        ['scope', $scopeRef, $scopeLabel, fav_is($userId, 'scope', $scopeRef)],
     ];
+    if (!sw_bund_only()) {
+        $items[] = ['scope', $scopeRef, $scopeLabel, fav_is($userId, 'scope', $scopeRef)];
+    }
     $any = false;
     foreach ($items as $item) {
         $any = $any || $item[3];
@@ -4103,7 +4368,7 @@ function v_topic(int $id): void
         . '<section class="card" data-topic="' . (int) $topic['id'] . '">'
         . '<div class="topic-card-meta">'
         . '<span class="badge">' . e(cat_name($topic)) . '</span>'
-        . '<span class="badge">' . e(scope_text($topic)) . '</span>'
+        . (sw_bund_only() ? '' : '<span class="badge">' . e(scope_text($topic)) . '</span>')
         . '<span class="badge">' . e(topic_end_text($topic)) . '</span>'
         . ($archived ? '<span class="badge badge-danger">' . e(t('topic.archived_badge')) . '</span>'
             : ($closed ? '<span class="badge badge-danger">' . e(t('topic.ended')) . '</span>' : ''))
@@ -5050,7 +5315,7 @@ function topic_form_read(): array
         'goal'        => post_str('goal', SW_GOAL_MAX, true),
         'reasoning'   => post_str('reasoning', SW_REASONING_MAX, true),
         'category_id' => post_int('category_id') ?? 0,
-        'scope'         => post_str('scope', 160),
+        'scope'         => sw_bund_only() ? 'de' : post_str('scope', 160),
         'end_by_date'   => isset($_POST['end_by_date']),
         'end_date'      => post_str('end_date', 10),
         'end_by_target' => isset($_POST['end_by_target']),
@@ -5234,6 +5499,8 @@ function web_main(): void
             . '<p style="color:#666">Details stehen im Server-Fehlerprotokoll.</p></body></html>';
         exit;
     }
+
+    register_shutdown_function('sw_sync_after_response');
 
     $scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php')));
     $base = rtrim($scriptDir, '/');
@@ -6030,26 +6297,87 @@ function cli_selftest(): int
         sw_regions_clean(['Land Eins' => ['Kreis A', 'Kreis A', 'Kreis B']]) === ['Land Eins' => ['Kreis A', 'Kreis B']]);
     $catLocal = [['alt', 'Alt', 'Old']];
     $check('Nur neue Kategorien werden uebernommen',
-        sw_categories_new($catLocal, [['alt', 'Anders', 'Other'], ['neu', 'Neu', 'New']]) === [['neu', 'Neu', 'New']]);
-    $check('Bestehende Kategorien bleiben unveraendert',
-        sw_categories_new($catLocal, [['alt', 'Boese', 'Evil']]) === []);
+        sw_categories_apply($catLocal, [['alt', 'Alt', 'Old'], ['neu', 'Neu', 'New']])['added'] === [['neu', 'Neu', 'New']]);
+    $check('Bestehende Kategorien werden nicht ueberschrieben',
+        sw_categories_apply($catLocal, [['alt', 'Boese', 'Evil']])['list'] === $catLocal);
+    $check('Fehlende Kategorie wird entfernt',
+        sw_categories_apply($catLocal, [['neu', 'Neu', 'New']])['gone'] === [['alt', 'Alt', 'Old']]);
     $many = [];
     for ($i = 0; $i < 40; $i++) {
         $many[] = ['neu' . $i, 'Neu ' . $i, 'New ' . $i];
     }
     $check('Hoechstzahl neuer Werte je Abgleich greift',
-        count(sw_categories_new($catLocal, $many)) === SW_SYNC_MAX_NEW);
+        count(sw_categories_apply($catLocal, $many)['added']) === SW_SYNC_MAX_NEW);
+    $vieleAlt = [];
+    for ($i = 0; $i < 40; $i++) {
+        $vieleAlt[] = ['alt' . $i, 'Alt ' . $i, 'Old ' . $i];
+    }
+    $check('Hoechstzahl entfernter Werte je Abgleich greift',
+        count(sw_categories_apply($vieleAlt, [])['gone']) === SW_SYNC_MAX_GONE
+        && count(sw_categories_apply($vieleAlt, [])['list']) === 40 - SW_SYNC_MAX_GONE);
     $regLocal = ['Land Eins' => ['Kreis A']];
-    $merge = sw_regions_merge($regLocal, ['Land Eins' => ['Kreis A', 'Kreis B'], 'Land Zwei' => ['Kreis C']]);
+    $merge = sw_regions_apply($regLocal, ['Land Eins' => ['Kreis A', 'Kreis B'], 'Land Zwei' => ['Kreis C']]);
     $check('Neue Gebiete werden ergaenzt, alte behalten',
         $merge['list'] === ['Land Eins' => ['Kreis A', 'Kreis B'], 'Land Zwei' => ['Kreis C']]
-        && count($merge['added']) === 3);
-    $check('Fehlende Werte in der Ferndatei loeschen nichts',
-        sw_regions_merge($regLocal, [])['list'] === $regLocal);
+        && count($merge['added']) === 3 && $merge['gone'] === []);
+    $check('Fehlender Kreis wird entfernt, das Land bleibt',
+        sw_regions_apply(['Land Eins' => ['Kreis A', 'Kreis B']], ['Land Eins' => ['Kreis A']])
+            === ['list' => ['Land Eins' => ['Kreis A']], 'added' => [], 'gone' => [['land' => 'Land Eins', 'kreis' => 'Kreis B']]]);
+    $check('Fehlendes Land wird entfernt',
+        sw_regions_apply(['Land Eins' => ['Kreis A'], 'Land Zwei' => []], ['Land Eins' => ['Kreis A']])['list']
+            === ['Land Eins' => ['Kreis A']]);
+    $leerRaeumung = sw_regions_apply(array_fill_keys(array_map(static function (int $i): string {
+        return 'Land ' . $i;
+    }, range(1, 40)), []), []);
+    $check('Leere Ferndatei raeumt nicht alles auf einmal',
+        count($leerRaeumung['gone']) === SW_SYNC_MAX_GONE && count($leerRaeumung['list']) === 40 - SW_SYNC_MAX_GONE);
     $check('Abweichende Leerzeichen erzeugen keinen Doppeleintrag',
-        sw_regions_merge(['Land Eins' => ['Kreis A']], sw_regions_clean(['Land Eins' => [' Kreis  A ']]))['added'] === []);
+        sw_regions_apply(['Land Eins' => ['Kreis A']], sw_regions_clean(['Land Eins' => [' Kreis  A ']]))['added'] === []);
     $check('Namen aus fremden Alphabeten werden verworfen',
         sw_list_text('Вayern', 60) === null && sw_list_text('Bayern', 60) === 'Bayern');
+    $check('Nachgebaute Buchstaben und fremde Ziffern werden verworfen',
+        sw_list_text('Ｅnergie', 60) === null
+        && sw_list_text('ﬁnanzen', 60) === null
+        && sw_list_text('Bezirk ٣', 60) === null
+        && sw_list_text('Bezirk 3', 60) === 'Bezirk 3');
+    $check('Gleicher Anzeigename verdraengt keine Kategorie',
+        sw_categories_apply([['umwelt-klima', 'Umwelt & Klima', 'Environment']],
+            [['umwelt-klima', 'Umwelt & Klima', 'Environment'], ['klima-echt', 'Umwelt und Klima', 'Environment']])['added'] === []);
+    $check('Gleicher Kreisname in anderem Land wird nicht doppelt angelegt',
+        sw_regions_apply(['Bayern' => ['Landkreis Roth']],
+            ['Bayern' => ['Landkreis Roth'], 'Bayern Sued' => ['Landkreis Roth']])['added'] === [['land' => 'Bayern Sued']]);
+    $check('Abweichende Schreibweise eines Landes trifft dasselbe Land',
+        sw_regions_apply(['Baden-Württemberg' => ['Ostalbkreis']],
+            ['Baden Wuerttemberg' => ['Ostalbkreis', 'Neuer Kreis']])['list']
+            === ['Baden-Württemberg' => ['Ostalbkreis', 'Neuer Kreis']]);
+    $check('Entfernte Kategorie bleibt fuer vorhandene Themen erhalten',
+        count(categories()) >= count(categories_offer()));
+    SW::$cfg['nur_bund'] = true;
+    $check('Nur-Bund: keine Gebietsauswahl im Formular',
+        strpos(topic_form_html([], ['title' => '', 'goal' => '', 'reasoning' => '', 'category_id' => 0,
+            'scope' => 'de', 'end_by_date' => true, 'end_date' => '', 'end_by_target' => false,
+            'end_value' => '', 'end_unit' => ''], '/topics', 'topic.submit'), 'name="scope"') === false);
+    $check('Nur-Bund: kein Gebiet in der Themenkarte',
+        strpos(p_topic_card(['id' => 1, 'title' => 'T', 'goal' => 'G', 'category_slug' => 'x',
+            'name_de' => 'K', 'name_en' => 'C', 'scope_name' => 'Bayern', 'scope_level' => 'bundesland',
+            'votes_for' => 0, 'votes_against' => 0]), 'Bayern') === false);
+    $check('Nur-Bund: eingereichtes Gebiet wird ignoriert',
+        (static function (): bool {
+            $_POST = ['title' => str_repeat('a', 20), 'goal' => str_repeat('b', 40),
+                'reasoning' => str_repeat('c', 60), 'category_id' => 1, 'scope' => 'bl:Bayern'];
+            [$e, $old] = topic_form_read();
+            $_POST = [];
+            return $old['scope'] === 'de';
+        })());
+    SW::$cfg['nur_bund'] = false;
+    $check('Listen liegen im Ordner der Anwendung',
+        sw_list_path(SW_REGIONS_FILE) === __DIR__ . '/regions.json'
+        && sw_list_path(SW_CATEGORIES_FILE) === __DIR__ . '/categories.json');
+    $check('Abgleich ohne Zeitplaner ist vorgesehen',
+        in_array((string) SW::$cfg['list_sync'], ['auto', 'cron'], true)
+        && function_exists('sw_sync_after_response'));
+    $check('Zu kleine Liste faellt auf die eingebaute zurueck',
+        count(sw_list_load('gibtesnicht.json', 'sw_regions_clean', SW_REGIONS, 4)) === 16);
 
     echo "== Sprachtabellen ==\n";
     $dupes = static function (string $const): array {
@@ -6204,6 +6532,11 @@ function cli_main(array $argv): int
         return cli_sync_keys($argv[2] ?? '');
     }
     if ($cmd === 'lists') {
+        printf("Abgleich:   %s\n", (string) SW::$cfg['list_sync'] === 'auto'
+            ? 'auto — die Seite gleicht selbst ab, kein Zeitplaner nötig'
+            : 'cron — nur über „php index.php cron“');
+        printf("Ordner:     %s\n", __DIR__);
+        printf("Gebiete:    %s\n", sw_bund_only() ? 'aus — nur Themen für ganz Deutschland' : 'an');
         printf("Kategorien: %d (Datei: %s)\n", count(sw_categories()), is_file(sw_list_path(SW_CATEGORIES_FILE)) ? 'ja' : 'nein — eingebaute Liste');
         printf("Gebiete:    %d Länder, %d Kreise (Datei: %s)\n", count(sw_regions()),
             array_sum(array_map('count', sw_regions())), is_file(sw_list_path(SW_REGIONS_FILE)) ? 'ja' : 'nein — eingebaute Liste');
