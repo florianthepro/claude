@@ -31,6 +31,7 @@ const SW_CONFIG = [
 
     // Abgleich der Listen: nur https://raw.githubusercontent.com/..., leer = kein Abgleich.
     // Es werden ausschließlich neue Werte ergänzt, nie welche geändert oder gelöscht.
+    'pc_locked' => true, // true = am Rechner erscheint nur der Hinweis, die Seite am Handy zu öffnen
     'nur_bund' => false, // true = alles gilt für ganz Deutschland; keine Gebietsauswahl, keine Gebietsanzeige
     'list_sync' => 'auto', // auto = die Seite gleicht selbst ab (kein Zeitplaner nötig), cron = nur über „php index.php cron“
     'categories_url' => 'https://raw.githubusercontent.com/florianthepro/buergerabstimmung/main/categories.json', // z. B. https://raw.githubusercontent.com/KONTO/REPO/main/categories.json
@@ -864,8 +865,20 @@ function consent_set(): void
 
 function consent_return(): string
 {
-    $to = query_str('to', 120);
-    return preg_match('#^/(topic/\d{1,10}|auth|about|imprint|privacy)?$#', $to) === 1 && $to !== '' ? $to : '/';
+    $to = query_str('to', 200);
+    $query = '';
+    $cut = strpos($to, '?');
+    if ($cut !== false) {
+        $query = substr($to, $cut + 1);
+        $to = substr($to, 0, $cut);
+    }
+    if ($to === '' || preg_match('#^/(topic/\d{1,10}|auth|about|imprint|privacy)?$#', $to) !== 1) {
+        return '/';
+    }
+    if ($query !== '' && preg_match('#^[A-Za-z0-9_.,:%=&+-]{1,150}\z#', $query) === 1) {
+        return $to . '?' . $query;
+    }
+    return $to;
 }
 
 function lang_from_browser(): string
@@ -878,6 +891,14 @@ function lang_from_browser(): string
 function lang_valid(string $code): bool
 {
     return in_array($code, (array) SW::$cfg['langs'], true);
+}
+
+// Gefragt wird nur, solange mehr als eine Sprache eingerichtet ist und noch
+// keine gewaehlt wurde. Sonst gibt es nichts zu entscheiden.
+function lang_must_ask(): bool
+{
+    return count((array) SW::$cfg['langs']) > 1
+        && lang_stored() === '' && lang_wanted() === '';
 }
 
 function lang_stored(): string
@@ -1436,6 +1457,41 @@ function sw_regions_clean(array $raw): array
         $out[$name] = $clean;
     }
     return $out;
+}
+
+// Erkennt einen Rechner an der Geraetekennung. Das ist eine Bequemlichkeitsweiche,
+// keine Sicherheitsschranke: die Kennung kann jeder frei setzen. Im Zweifel gilt ein
+// Geraet als Handy, damit unbekannte Geraete nicht ausgesperrt werden.
+function sw_is_desktop(): bool
+{
+    $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    if ($ua === '' || strlen($ua) > 512) {
+        return false;
+    }
+    if (preg_match('#(Mobi|Android|iPhone|iPod|IEMobile|Opera Mini|Windows Phone|BlackBerry)#i', $ua) === 1) {
+        return false;
+    }
+    return preg_match('#(Windows NT|Macintosh|X11|CrOS)#i', $ua) === 1;
+}
+
+function sw_pc_locked(): bool
+{
+    return !empty(SW::$cfg['pc_locked']);
+}
+
+// Diese Seiten bleiben am Rechner erreichbar: Impressum und Datenschutz muessen
+// staendig verfuegbar sein, und die Einrichtung macht niemand am Handy.
+function sw_lock_exempt(string $path): bool
+{
+    // Genau diese Pfade, kein Praefix: sonst kaeme man ueber /eid/beliebig an der
+    // Sperre vorbei und bekaeme wenigstens den Seitenrahmen zu sehen.
+    return in_array($path, [
+        '/about', '/imprint', '/privacy',
+        // Die Einrichtung macht niemand am Handy. Ohne /consent kaeme sie nicht
+        // an der Zustimmungsschranke vorbei, ohne die beiden POST-Ziele nicht ans Ende.
+        '/consent', '/setup', '/setup/check', '/setup/finish',
+        '/eid/start', '/eid/tctoken', '/eid/callback',
+    ], true);
 }
 
 function sw_bund_only(): bool
@@ -2732,6 +2788,8 @@ function account_delete(int $userId): void
 const SW_DE = [
     'app.tagline' => 'Digitale Bürgerbeteiligung',
     'banner.official' => 'Keine offizielle Seite der Bundesregierung oder einer Behörde.',
+    'lock.title' => 'Bitte am Handy öffnen',
+    'lock.body' => 'Zum Abstimmen werden der Personalausweis und ein Handy gebraucht. Diese Seite ist dafür gemacht und lässt sich nur dort nutzen.',
     'a11y.skip' => 'Zum Inhalt springen',
     'nav.topics' => 'Themen',
     'nav.jury' => 'Jury',
@@ -2962,6 +3020,8 @@ const SW_DE = [
 const SW_EN = [
     'app.tagline' => 'Digital citizen participation',
     'banner.official' => 'Not an official website of the German federal government or any public authority.',
+    'lock.title' => 'Please open this on a phone',
+    'lock.body' => 'Voting requires the national ID card and a phone. This site is built for that and can only be used there.',
     'a11y.skip' => 'Skip to content',
     'nav.topics' => 'Topics',
     'nav.jury' => 'Jury',
@@ -3195,24 +3255,24 @@ const SW_CSS = <<<'CSS'
   color-scheme: light dark;
   --page: #f2f2f7; --surface: #ffffff; --field: #efeff4;
   --ink: #000000; --muted: #8e8e93; --sep: #d1d1d6;
-  --accent: #3a76f0; --accent-ink: #ffffff; --accent-soft: rgba(58,118,240,0.12);
-  --danger: #d70015; --danger-soft: rgba(215,0,21,0.10);
-  --vote-for: #3a76f0; --vote-against: #aeaeb2; --track: #e5e5ea;
+  --accent: #0000ee; --accent-ink: #ffffff; --accent-soft: rgba(0,0,238,0.12);
+  --danger: #b22222; --danger-soft: rgba(178,34,34,0.10);
+  --vote-for: #0000ee; --vote-against: #aeaeb2; --track: #e5e5ea;
   --warn-bg: #ffd60a; --warn-ink: #1c1c00;
   --btn-dim: #dedee4; --btn-dim-ink: #5b5b60;
-  --btn-locked: #e7effd; --btn-locked-ink: #2c60d0;
+  --btn-locked: #f0eaf7; --btn-locked-ink: #551a8b;
   --radius: 14px; --radius-sm: 10px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --page: #000000; --surface: #1c1c1e; --field: #2c2c2e;
     --ink: #ffffff; --muted: #98989d; --sep: #38383a;
-    --accent: #4b86f7; --accent-ink: #ffffff; --accent-soft: rgba(75,134,247,0.22);
-    --danger: #ff453a; --danger-soft: rgba(255,69,58,0.18);
-    --vote-for: #4b86f7; --vote-against: #8e8e93; --track: #2c2c2e;
+    --accent: #7e7bf6; --accent-ink: #ffffff; --accent-soft: rgba(126,123,246,0.22);
+    --danger: #d96a55; --danger-soft: rgba(217,106,85,0.18);
+    --vote-for: #7e7bf6; --vote-against: #8e8e93; --track: #2c2c2e;
     --warn-bg: #ffd60a; --warn-ink: #1c1c00;
     --btn-dim: #0f0f11; --btn-dim-ink: #98989d;
-    --btn-locked: #26334c; --btn-locked-ink: #9dbdfc;
+    --btn-locked: #2a2140; --btn-locked-ink: #c4a5f0;
   }
 }
 
@@ -3475,6 +3535,23 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
   .provider-list { align-items: center; }
   .auth-action { justify-content: center; }
 }
+/* Ab dieser Breite sitzt ein Rechner davor: die Flaeche wird genutzt, statt
+   die schmale Handyspalte in die Mitte zu stellen. Fliesstext bleibt schmal,
+   weil eine 70rem breite Zeile niemand gern liest. */
+@media (min-width: 64rem) {
+  .shell { max-width: 70rem; padding: 0 2rem; }
+  .site-main { padding-top: 1.6rem; padding-bottom: 4rem; }
+  .topic-grid { grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
+  .topic-detail, .prose { max-width: 46rem; margin-inline: auto; }
+  .fav-chips, .filter-bar { max-width: none; }
+}
+.pc-lock { min-height: 82vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0.55rem; padding: 2rem 1.5rem; max-width: 32rem; margin: 0 auto; }
+.pc-lock .ico-lock { width: 3rem; height: 3rem; color: var(--accent); margin-bottom: 0.5rem; }
+.pc-lock h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
+.pc-lock h2 { font-size: 1.05rem; margin: 1.4rem 0 0; color: var(--muted); font-weight: 600; }
+.pc-lock p { margin: 0; color: var(--muted); line-height: 1.55; }
+.start-legal { display: flex; gap: 0.4rem 1.1rem; flex-wrap: wrap; justify-content: center; margin-top: 2.2rem; font-size: 0.9rem; }
+.pc-lock-nav { display: flex; gap: 0.4rem 1.1rem; flex-wrap: wrap; justify-content: center; margin-top: 2.2rem; font-size: 0.9rem; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .path-set input[type="radio"] { float: left; margin: .25rem .5rem 0 0; }
 .path-label { display: block; overflow: hidden; margin: 0 0 .4rem; }
@@ -4322,6 +4399,13 @@ function icon_flag(): string
         . ' stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 }
 
+function icon_lock(): string
+{
+    return '<svg class="ico ico-lock" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        . '<path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7M5.8 10.5h12.4v9H5.8z" fill="none" stroke="currentColor"'
+        . ' stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+
 function icon_home(): string
 {
     return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
@@ -4941,12 +5025,52 @@ function v_start(): void
         . '</head><body>' . $banner
         . '<main class="start-gate">'
         . '<p class="start-brand">' . e((string) SW::$cfg['app_name']) . '</p>'
-        . '<div class="start-langs">'
-        . '<a class="lang-btn" lang="de" href="' . e(base_path() . '/lang?set=de&to=' . rawurlencode($to)) . '">'
-        . flag_de() . '<span>Deutsch</span></a>'
-        . '<a class="lang-btn" lang="en" href="' . e(base_path() . '/lang?set=en&to=' . rawurlencode($to)) . '">'
-        . flag_en() . '<span>English</span></a>'
-        . '</div></main></body></html>';
+        . '<div class="start-langs">';
+    // Nur anbieten, was auch eingerichtet ist: ein Knopf fuer eine abgeschaltete
+    // Sprache fuehrte sonst wieder auf diese Seite zurueck.
+    $offer = ['de' => ['Deutsch', 'flag_de'], 'en' => ['English', 'flag_en']];
+    foreach ($offer as $code => $info) {
+        if (!lang_valid($code)) {
+            continue;
+        }
+        echo '<a class="lang-btn" lang="' . e($code) . '" href="'
+            . e(base_path() . '/lang?set=' . rawurlencode($code) . '&to=' . rawurlencode($to)) . '">'
+            . $info[1]() . '<span>' . e($info[0]) . '</span></a>';
+    }
+    // Impressum und Datenschutz muessen von jeder Seite aus erreichbar sein,
+    // auch von dieser ersten.
+    echo '</div>'
+        . '<nav class="start-legal">'
+        . '<a href="' . e(base_path() . '/about') . '">' . e(SW_DE['footer.about']) . ' / ' . e(SW_EN['footer.about']) . '</a>'
+        . '<a href="' . e(base_path() . '/imprint') . '">' . e(SW_DE['footer.imprint']) . ' / ' . e(SW_EN['footer.imprint']) . '</a>'
+        . '<a href="' . e(base_path() . '/privacy') . '">' . e(SW_DE['footer.privacy']) . ' / ' . e(SW_EN['footer.privacy']) . '</a>'
+        . '</nav></main></body></html>';
+    exit;
+}
+
+// Zweisprachig, weil hier noch keine Sprache gewaehlt wurde und keine gespeichert wird.
+function v_pc_lock(): void
+{
+    http_response_code(200);
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store');
+    echo '<!DOCTYPE html><html lang="de"><head>'
+        . '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        . '<meta name="referrer" content="no-referrer">'
+        . '<title>' . e(SW_DE['lock.title']) . ' · ' . e((string) SW::$cfg['app_name']) . '</title>'
+        . '<link rel="stylesheet" href="' . e(url('/a/app.css')) . '">'
+        . icon_links()
+        . '</head><body><main class="pc-lock">'
+        . icon_lock()
+        . '<h1 lang="de">' . e(SW_DE['lock.title']) . '</h1>'
+        . '<p lang="de">' . e(SW_DE['lock.body']) . '</p>'
+        . '<h2 lang="en">' . e(SW_EN['lock.title']) . '</h2>'
+        . '<p lang="en">' . e(SW_EN['lock.body']) . '</p>'
+        . '<nav class="pc-lock-nav">'
+        . '<a href="' . e(url('/about')) . '">' . e(SW_DE['footer.about']) . ' / ' . e(SW_EN['footer.about']) . '</a>'
+        . '<a href="' . e(url('/imprint')) . '">' . e(SW_DE['footer.imprint']) . ' / ' . e(SW_EN['footer.imprint']) . '</a>'
+        . '<a href="' . e(url('/privacy')) . '">' . e(SW_DE['footer.privacy']) . ' / ' . e(SW_EN['footer.privacy']) . '</a>'
+        . '</nav></main></body></html>';
     exit;
 }
 
@@ -5571,6 +5695,12 @@ function web_main(): void
     }
 
     send_security_headers();
+
+    // Vor der Sitzung: ein gesperrter Besucher bekommt keine Kennung und keinen Eintrag.
+    if (sw_pc_locked() && !sw_lock_exempt($path) && sw_is_desktop()) {
+        v_pc_lock();
+    }
+
     session_boot();
 
     $user = auth_user();
@@ -5601,7 +5731,10 @@ function web_main(): void
                 lang_store($wish);
                 redirect(consent_return());
             }
-            redirect(consent_return() . (lang_valid($wish) ? '?lang=' . rawurlencode($wish) : ''));
+            // Das Ziel kann bereits eine Abfrage tragen, dann wird angehaengt statt neu begonnen.
+            $backTo = consent_return();
+            $sep = strpos($backTo, '?') === false ? '?' : '&';
+            redirect($backTo . (lang_valid($wish) ? $sep . 'lang=' . rawurlencode($wish) : ''));
         }
 
         $public = $path === '/' || preg_match('#^/topic/\d{1,10}$#', $path) === 1
@@ -5610,9 +5743,21 @@ function web_main(): void
             v_error(403, 'error.consent');
         }
 
-        $langChosen = lang_stored() !== '' || lang_wanted() !== '';
+        $mustAsk = lang_must_ask();
+        // Beim ersten Aufruf wird die Sprache erfragt. Die Voreinstellung auf der
+        // Auswahlseite folgt weiterhin dem Browser, gespeichert wird nur nach Zustimmung.
+        if ($mustAsk && $reading && $path !== '/start' && $path !== '/setup'
+            && !in_array($path, ['/about', '/imprint', '/privacy'], true)
+            && strpos($path, '/eid/') !== 0
+            && strpos($path, '/api/') !== 0
+            && strpos($path, '/claim/') !== 0) {
+            $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
+            $back = $path . ($qs === '' ? '' : '?' . $qs);
+            // Ueberlanges Ziel wird fallengelassen, damit die Kopfzeile klein bleibt.
+            redirect('/start?to=' . rawurlencode(strlen($back) > 150 ? '/' : $back));
+        }
         if ($path === '/start' && $reading) {
-            if ($langChosen) {
+            if (!$mustAsk) {
                 redirect('/');
             }
             v_start();
@@ -6370,6 +6515,69 @@ function cli_selftest(): int
             return $old['scope'] === 'de';
         })());
     SW::$cfg['nur_bund'] = false;
+    $uaAlt = $_SERVER['HTTP_USER_AGENT'] ?? null;
+    $ua = static function (string $s): bool {
+        $_SERVER['HTTP_USER_AGENT'] = $s;
+        return sw_is_desktop();
+    };
+    $check('Rechner werden als Rechner erkannt',
+        $ua('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36')
+        && $ua('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15')
+        && $ua('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36'));
+    $check('Handys werden nicht als Rechner erkannt',
+        !$ua('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1')
+        && !$ua('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36')
+        && !$ua('Mozilla/5.0 (Android 14; Mobile; rv:120.0) Gecko/120.0 Firefox/120.0'));
+    $check('Unbekannte und leere Kennungen gelten als Handy',
+        !$ua('') && !$ua('irgendwas') && !$ua(str_repeat('A', 600)));
+    if ($uaAlt === null) {
+        unset($_SERVER['HTTP_USER_AGENT']);
+    } else {
+        $_SERVER['HTTP_USER_AGENT'] = $uaAlt;
+    }
+    $check('Impressum und Datenschutz bleiben am Rechner erreichbar',
+        sw_lock_exempt('/imprint') && sw_lock_exempt('/privacy') && sw_lock_exempt('/about')
+        && sw_lock_exempt('/setup') && sw_lock_exempt('/eid/callback')
+        && sw_lock_exempt('/eid/start') && sw_lock_exempt('/eid/tctoken')
+        && !sw_lock_exempt('/') && !sw_lock_exempt('/topic/1') && !sw_lock_exempt('/auth'));
+    $check('Sperre laesst sich nicht ueber erfundene Unterpfade umgehen',
+        !sw_lock_exempt('/eid/') && !sw_lock_exempt('/eid/..%2f') && !sw_lock_exempt('/eid/xyz')
+        && !sw_lock_exempt('/about/') && !sw_lock_exempt('/About') && !sw_lock_exempt('/imprint/../'));
+    $check('Einrichtung bleibt am Rechner moeglich',
+        sw_lock_exempt('/setup') && sw_lock_exempt('/setup/check')
+        && sw_lock_exempt('/setup/finish') && sw_lock_exempt('/consent'));
+    $getAlt = $_GET;
+    $ziel = static function (string $to): string {
+        $_GET['to'] = $to;
+        return consent_return();
+    };
+    $check('Ziel mit Abfrage bleibt erhalten',
+        $ziel('/?q=radwege&category=verkehr') === '/?q=radwege&category=verkehr'
+        && $ziel('/topic/12?x=1') === '/topic/12?x=1');
+    $check('Sprachanhang erzeugt kein zweites Fragezeichen', (static function (): bool {
+        foreach (['/', '/?q=rad&category=verkehr', '/topic/7'] as $to) {
+            $_GET['to'] = $to;
+            $back = consent_return();
+            $sep = strpos($back, '?') === false ? '?' : '&';
+            if (substr_count($back . $sep . 'lang=de', '?') !== 1) {
+                return false;
+            }
+        }
+        return true;
+    })());
+    $check('Fremdes Ziel wird weiterhin verworfen',
+        $ziel('https://boese.example/') === '/'
+        && $ziel('//boese.example/') === '/'
+        && $ziel('/setup') === '/'
+        && $ziel('/logout') === '/'
+        && $ziel('/topic/9?a=<script>') === '/topic/9');
+    $_GET = $getAlt;
+    $check('PC-Sperre ist abschaltbar',
+        in_array(SW::$cfg['pc_locked'], [true, false], true) && function_exists('sw_pc_locked'));
+    $check('Hinweisseite ist zweisprachig',
+        SW_DE['lock.title'] !== SW_EN['lock.title']
+        && strpos(SW_DE['lock.body'], 'Handy') !== false
+        && strpos(SW_EN['lock.body'], 'phone') !== false);
     $check('Listen liegen im Ordner der Anwendung',
         sw_list_path(SW_REGIONS_FILE) === __DIR__ . '/regions.json'
         && sw_list_path(SW_CATEGORIES_FILE) === __DIR__ . '/categories.json');
