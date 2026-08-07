@@ -47,6 +47,40 @@ function smt_mobile() {
     if (isset($_COOKIE['m'])) return $_COOKIE['m'] === '1';
     return (bool) preg_match('/Android|iPhone|iPod|iPad|Mobile|Silk|IEMobile|BlackBerry/i', $_SERVER['HTTP_USER_AGENT'] ?? '');
 }
+/* ---------------------------------------------------------------------------
+ *  Every visitor carries their own seed. While it lives in their browser the
+ *  same path gives them the same place; another visitor gets another world.
+ * ------------------------------------------------------------------------- */
+function smt_seed() {
+    static $s = null;
+    if ($s !== null) return $s;
+    $ok = '/^[a-z0-9]{6,20}$/';
+    if (isset($_GET['s']) && preg_match($ok, (string) $_GET['s'])) {
+        $s = (string) $_GET['s'];
+        @setcookie('smt_s', $s, time() + 31536000, '/');
+    } elseif (isset($_COOKIE['smt_s']) && preg_match($ok, (string) $_COOKIE['smt_s'])) {
+        $s = (string) $_COOKIE['smt_s'];
+    } else {
+        try { $n = random_int(0, PHP_INT_MAX); } catch (Exception $e) { $n = mt_rand(); }
+        $s = substr(base_convert((string) $n, 10, 36) . base_convert((string) mt_rand(), 10, 36), 0, 12);
+        @setcookie('smt_s', $s, time() + 31536000, '/');
+        $_COOKIE['smt_s'] = $s;
+    }
+    return $s;
+}
+/* the seed is folded into every derivation */
+function pseed($what) { return fnv(smt_seed() . '|' . $what); }
+
+/* the browser keeps it too, and hands it back if the cookie is lost */
+function keeper() {
+    return '<script>(function(){try{var m=document.cookie.match(/(?:^|; )smt_s=([a-z0-9]+)/),'
+        . 'l=localStorage.getItem("smt_s");'
+        . 'if(m){if(l!==m[1])localStorage.setItem("smt_s",m[1]);}'
+        . 'else if(l&&!sessionStorage.getItem("smt_r")){sessionStorage.setItem("smt_r","1");'
+        . 'document.cookie="smt_s="+l+";path=/;max-age=31536000";location.reload();}'
+        . '}catch(e){}})();</script>';
+}
+
 function fnv($s) { $h = 2166136261; for ($i=0,$n=strlen($s);$i<$n;$i++){ $h ^= ord($s[$i]); $h = ($h * 16777619) & 0xffffffff; } return $h; }
 
 /* ===========================================================================
@@ -81,8 +115,21 @@ function shell($title, $css, $body, $js = '', $mob = false) {
        . "body{overflow-x:hidden;touch-action:manipulation}.bk{position:fixed;left:0;bottom:0;z-index:99;"
        . "font:10px/1 monospace;letter-spacing:.2em;padding:1em 1.2em;color:#666;text-decoration:none}"
        . $css . "</style></head><body>" . $body
-       . "<a class=\"bk\" href=\"" . h(u()) . "\">&lt;</a>"
-       . ($js !== '' ? "<script>" . $js . "</script>" : "") . "</body></html>";
+       . apparatus_ways($title)
+       . ($js !== '' ? "<script>" . $js . "</script>" : "") . keeper() . "</body></html>";
+}
+
+/* an instrument is somewhere, not an endpoint: it has its own ways on */
+function apparatus_ways($title) {
+    $r  = rng(pseed('inst:' . $title));
+    $ex = exits(rp($r, $GLOBALS['WORDS']), $r, ri($r, 6, 14));
+    $o  = '<div style="position:fixed;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap;gap:.2em 1.1em;'
+        . 'padding:.6em .9em;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);font:10px/1.9 monospace;'
+        . 'letter-spacing:.12em;z-index:99">';
+    $o .= '<a href="' . h(u()) . '" style="color:#8a8a92;text-decoration:none">&lt;</a>';
+    foreach ($ex as $e)
+        $o .= '<a href="' . h($e[0]) . '" style="color:#7a7a84;text-decoration:none;opacity:.75">' . h($e[1]) . '</a>';
+    return $o . '</div>';
 }
 
 /* ---------------------------------------------------------------- 1 dials */
@@ -329,7 +376,7 @@ function ap_stars($mob) {
     $css = "body{background:#05060a;margin:0}svg{display:block;width:100vw;height:100vh;touch-action:manipulation}"
         . "circle{cursor:pointer}#n{position:fixed;left:0;right:0;top:16px;text-align:center;font:11px monospace;color:#3a4356;letter-spacing:.3em}";
     $pts = array();
-    $r = fnv('stars');
+    $r = pseed('stars');
     for ($i=0;$i<14;$i++){ $r = ($r * 1103515245 + 12345) & 0x7fffffff;
       $pts[] = array(6 + ($r % 88), 12 + (($r >> 9) % 74)); }
     $b = "<div id=n>&nbsp;</div><svg viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\"><g id=l></g>";
@@ -545,6 +592,17 @@ JS;
  *  no list of them anywhere.
  * ========================================================================= */
 
+define('EX_MIN', 12);
+define('EX_MAX', 48);
+
+/* the exits of a place, derived once and identically wherever they are needed */
+function place_exits($path) {
+    $r = rng(pseed('place:' . $path));
+    $roll = ri($r, 0, 99);
+    $n = ri($r, EX_MIN, EX_MAX);
+    return array('roll' => $roll, 'ex' => exits($path, $r, $n), 'r' => $r);
+}
+
 function rng($seed) {
     $s = $seed & 0xffffffff;
     return function () use (&$s) {
@@ -648,10 +706,330 @@ function lk($r, $href, $label, $acc) {
     }
 }
 
+/* ===========================================================================
+ *  MATTER. what is actually lying about in a place.
+ * ========================================================================= */
+
+$LINES = array(
+'the count was taken twice and did not settle','reading held at 0.037 mV for the length of the shift',
+'do not open before the frost has left the north face','ledger 4 continues in a hand that is not the clerk\'s',
+'item withdrawn; the accession card remains','checksum agrees; the contents do not',
+'moved to a room that is no longer on the plan','the barometer fell all night and no weather came',
+'signed for by a name struck through twice','three of the eleven crates are heavier empty',
+'measured at 41 mm along the fracture, both times','a smell of solder in a building with no power',
+'return to sender: sender not established','the tide table lists a fourth tide',
+'kept for reference; reference lost','annotation in the margin: again, and slower',
+'logged out at 03:11 and back in at 03:11','stair sealed pending survey; survey pending stair',
+'the plate is numbered 12 of 9','weight on arrival exceeds weight at dispatch by a hand',
+'this entry supersedes an entry that was never made','the key fits and turns and the door does not know it',
+'left running; nobody remembers to what end','the second witness could not be found to disagree',
+'catalogued under a heading since removed','the drip is regular to the second and answers nothing',
+'quiet on all channels except the disconnected one','a page torn out, the tear catalogued separately',
+'the register skips from 88 to 90 and is complete','held for collection past the collector',
+'the coordinate resolves to a wall','do not reconcile these figures; they were never apart',
+'the lamp is warm and has not been lit','measured drift: one degree per year, toward nothing named',
+'the interior is larger by the width of the door','stamped RECEIVED over a stamp that says RETURNED',
+'the last line of the manifest is the manifest','sealed with the seal missing',
+'not here. was moved. moved from where it is now.','the echo answers before the channel is opened',
+'41 g dry, 41 g wet, 39 g held in the hand','nichts unter der oberfläche bewegt sich',
+'quod mensum est bis, non convenit','the plate that follows 12 is 12',
+'a door catalogued twice under two thicknesses','coordinate withheld; it resolves inward',
+'carrier present; no traffic; the carrier is the traffic','return path exists and does not return',
+'weighed on collection; the collector was included','the index disagrees with all it indexes',
+'read the margin first; the margin was added last','the corridor is longer returning than going',
+'the room grows by the door each frost','a hand struck the name and signed the striking',
+'checksum recomputed; the file had recomputed first','the fourth prong is claimed by no particle',
+'filed under a letter the alphabet no longer keeps','ended at 03:11; resumed at 03:11; the minute is missing',
+);
+
+$SPEC = array('nail, iron, hand-forged','plate, gunmetal','float, copper','staff, painted','bolt, set in rock',
+'quire, unbound','sheet, foxed','key, brass, warm','lens, cracked','gauge, unmarked','rope, tarred',
+'clamp, brass','vessel, stoppered','tile, glazed','core, drilled','wire, twisted','seal, broken',
+'card, punched','disc, unlabelled','rod, graduated');
+
+/* ---- one piece of matter. eighteen kinds. ------------------------------ */
+function cblock($r, $pal, $mob, $i) {
+    global $LINES, $SPEC, $WORDS, $GLYPH;
+    list($bg,$ink,$acc,$rule,$font) = $pal;
+    $k = ri($r, 0, 17);
+    $pad = $mob ? '.9em' : '1.2em';
+
+    switch ($k) {
+
+    case 0: { /* a run of measurements */
+        $o = "<table style=\"border-collapse:collapse;font:" . ($mob?"11px":"12px") . "/1.5 monospace;width:100%;margin:1em 0\">";
+        $o .= "<tr style=\"opacity:.5\"><td>ch</td><td>t</td><td style=text-align:right>value</td><td>flag</td></tr>";
+        for ($j=0;$j<ri($r,6,18);$j++) {
+            $o .= "<tr><td style=\"padding:.1em .8em .1em 0;opacity:.55\">" . sprintf('%02d',ri($r,1,12)) . "</td>"
+               . "<td style=\"padding-right:.8em;opacity:.55\">" . sprintf('%02d:%02d:%02d',ri($r,0,23),ri($r,0,59),ri($r,0,59)) . "</td>"
+               . "<td style=\"text-align:right;padding-right:.8em\">" . rp($r,array(number_format($r()*100-50,3),'—','NaN','----',number_format($r()*9,4))) . "</td>"
+               . "<td style=\"color:$acc\">" . rp($r,array('.','.','.','*','L','X','hold','')) . "</td></tr>";
+        }
+        return $o . "</table>"; }
+
+    case 1: { /* a dump */
+        $o = "<pre style=\"font:" . ($mob?"10.5px":"12px") . "/1.5 monospace;overflow-x:auto;opacity:.85;margin:1em 0;border-left:2px solid $rule;padding-left:.8em\">";
+        $msg = rp($r,$LINES);
+        $mi = 0;
+        for ($ln=0;$ln<ri($r,5,14);$ln++) {
+            $o .= sprintf('%08x  ', $ln*16 + ri($r,0,3)*4096);
+            $asc='';
+            for ($c=0;$c<16;$c++) {
+                if ($ln>1 && $ln<6 && $mi<strlen($msg)) { $ch=$msg[$mi++]; $o.=sprintf('%02x ',ord($ch)); $asc.=h($ch); }
+                else { $v=ri($r,0,255); $o.=sprintf('%02x ',$v); $asc .= ($v>31&&$v<127)?h(chr($v)):'.'; }
+                if ($c===7) $o.=' ';
+            }
+            $o .= ' |' . $asc . "|\n";
+        }
+        return $o . "</pre>"; }
+
+    case 2: { /* a plot */
+        $w=$mob?300:520; $hh=$mob?110:150; $pts=''; $n=ri($r,14,40);
+        $y=$hh/2;
+        for($j=0;$j<$n;$j++){ $y += ($r()-0.5)*$hh*0.3; $y=max(6,min($hh-6,$y)); $pts .= ($j?' ':'') . round($j*$w/$n) . ',' . round($y); }
+        return "<svg viewBox=\"0 0 $w $hh\" style=\"width:100%;height:auto;margin:1em 0;border:1px solid $rule\">"
+           . "<line x1=0 y1=" . ($hh/2) . " x2=$w y2=" . ($hh/2) . " stroke=\"$rule\" stroke-width=.6 />"
+           . "<polyline points=\"$pts\" fill=none stroke=\"$acc\" stroke-width=1.2 /></svg>"; }
+
+    case 3: { /* a drawing of a thing */
+        $w=$mob?280:420; $hh=$mob?180:250; $o='';
+        for($j=0;$j<ri($r,4,10);$j++){
+            $x=ri($r,10,$w-90); $y=ri($r,10,$hh-70); $ww=ri($r,30,90); $hgt=ri($r,20,60);
+            $o .= "<rect x=$x y=$y width=$ww height=$hgt fill=none stroke=\"$ink\" stroke-width=.7 opacity=.7 />";
+            if(ri($r,0,1)) $o .= "<line x1=$x y1=$y x2=" . ($x+$ww) . " y2=" . ($y+$hgt) . " stroke=\"$rule\" stroke-width=.5 />";
+            $o .= "<text x=" . ($x+3) . " y=" . ($y-3) . " fill=\"$acc\" font-size=8 font-family=monospace>" . h(rp($r,$WORDS)) . "</text>";
+        }
+        for($j=0;$j<ri($r,2,6);$j++){ $y=ri($r,10,$hh-10);
+            $o .= "<line x1=6 y1=$y x2=" . ($w-6) . " y2=$y stroke=\"$rule\" stroke-width=.4 stroke-dasharray='3 3' />"; }
+        return "<svg viewBox=\"0 0 $w $hh\" style=\"width:100%;height:auto;margin:1em 0\">$o</svg>"; }
+
+    case 4: { /* specimens */
+        $o = "<div style=\"margin:1em 0;font-size:" . ($mob?"13px":"13px") . "\">";
+        for($j=0;$j<ri($r,4,12);$j++)
+            $o .= "<div style=\"padding:.28em 0;border-bottom:1px solid $rule;display:flex;gap:1em;justify-content:space-between\">"
+               . "<span style=\"opacity:.5;font-family:monospace;font-size:11px\">" . sprintf('%04d.%03d',ri($r,1900,2039),ri($r,1,400)) . "</span>"
+               . "<span style=\"flex:1\">" . h(rp($r,$SPEC)) . "</span>"
+               . "<span style=\"opacity:.55;font-family:monospace;font-size:11px\">" . ri($r,3,900) . " mm</span></div>";
+        return $o . "</div>"; }
+
+    case 5: { /* a figure in characters */
+        $rows=ri($r,5,11); $cols=$mob?26:44; $o='';
+        for($y=0;$y<$rows;$y++){ $l='';
+            for($x=0;$x<$cols;$x++){ $d=abs($x-$cols/2)/($cols/2)+abs($y-$rows/2)/($rows/2);
+                $l .= $d < 0.5 ? rp($r,array('#','8','&','%')) : ($d<0.9 ? rp($r,array('+','=','-',':')) : rp($r,array(' ','.',' ',' '))); }
+            $o .= $l . "\n"; }
+        return "<pre style=\"font:" . ($mob?"9px":"11px") . "/1.05 monospace;color:$acc;margin:1em 0;overflow-x:auto\">" . h($o) . "</pre>"; }
+
+    case 6: { /* a timetable */
+        $o = "<table style=\"border-collapse:collapse;font-size:" . ($mob?"12px":"12.5px") . ";margin:1em 0;width:100%\">";
+        for($j=0;$j<ri($r,5,13);$j++)
+            $o .= "<tr><td style=\"padding:.2em .8em .2em 0;font-family:monospace;color:$acc\">" . sprintf('%02d:%02d',ri($r,0,23),ri($r,0,59)) . "</td>"
+               . "<td style=\"padding:.2em .8em .2em 0\">" . h(rp($r,$WORDS)) . "</td>"
+               . "<td style=\"opacity:.5;text-align:right\">" . rp($r,array('+'.ri($r,1,40),'—','on time','not run','—')) . "</td></tr>";
+        return $o . "</table>"; }
+
+    case 7: /* found text */
+        return "<div style=\"margin:1.4em 0;padding:$pad;border-left:3px solid $acc;font-style:italic;font-size:"
+           . ($mob?"15px":"15px") . ";line-height:1.85;opacity:.9\">&hellip;" . h(rp($r,$LINES)) . ", "
+           . h(rp($r,$LINES)) . "&hellip;</div>";
+
+    case 8: { /* notation */
+        $o=''; for($j=0;$j<ri($r,3,7);$j++)
+            $o .= "<div style=\"margin:.35em 0\">" . h(rp($r,$WORDS)) . "<sub style=\"opacity:.6\">" . ri($r,0,9) . "</sub> "
+               . rp($r,array('=','≈','≠','→','⊢','∴')) . " " . number_format($r()*1000,ri($r,1,4))
+               . " <span style=\"opacity:.5\">" . rp($r,array('mV','mm','hPa','g','s','—','counts/s')) . "</span></div>";
+        return "<div style=\"font-family:monospace;font-size:" . ($mob?"12px":"13px") . ";margin:1em 0;padding:$pad;border:1px solid $rule\">$o</div>"; }
+
+    case 9: { /* a small country */
+        $w=$mob?280:420; $hh=$mob?160:220; $o=''; $prev=null;
+        for($j=0;$j<ri($r,6,16);$j++){ $x=ri($r,8,$w-8); $y=ri($r,8,$hh-8);
+            $o .= "<circle cx=$x cy=$y r=" . ri($r,1,3) . " fill=\"$acc\" />";
+            if($prev && ri($r,0,2)) $o .= "<line x1={$prev[0]} y1={$prev[1]} x2=$x y2=$y stroke=\"$rule\" stroke-width=.5 />";
+            if(ri($r,0,2)===0) $o .= "<text x=" . ($x+4) . " y=" . ($y-3) . " fill=\"$ink\" font-size=7 opacity=.6 font-family=monospace>" . h(rp($r,$WORDS)) . "</text>";
+            $prev=array($x,$y); }
+        return "<svg viewBox=\"0 0 $w $hh\" style=\"width:100%;height:auto;margin:1em 0;border:1px solid $rule\">$o</svg>"; }
+
+    case 10: { /* bars */
+        $n=ri($r,6,16); $w=$mob?300:480; $hh=$mob?120:160; $o=''; $bw=$w/$n;
+        for($j=0;$j<$n;$j++){ $v=ri($r,6,$hh-10);
+            $o .= "<rect x=" . round($j*$bw+1) . " y=" . ($hh-$v) . " width=" . round($bw-3) . " height=$v fill=\"" . (ri($r,0,6)?$rule:$acc) . "\" />"; }
+        return "<svg viewBox=\"0 0 $w $hh\" style=\"width:100%;height:auto;margin:1em 0\">$o</svg>"; }
+
+    case 11: { /* tallies */
+        $o=''; $x=0; $w=$mob?300:460;
+        while($x<$w-4){ $bw=ri($r,1,4); $o .= "<rect x=$x y=0 width=$bw height=40 fill=\"$ink\" />"; $x += $bw + ri($r,1,5); }
+        return "<svg viewBox=\"0 0 $w 40\" style=\"width:100%;height:" . ($mob?"30px":"40px") . ";margin:1em 0;opacity:.8\">$o</svg>"
+           . "<div style=\"font-family:monospace;font-size:10px;opacity:.45;letter-spacing:.3em\">" . strtoupper(dechex(ri($r,1048576,16777215))) . "</div>"; }
+
+    case 12: /* marginalia */
+        return "<div style=\"margin:1.2em 0;font-family:cursive,Georgia,serif;font-size:" . ($mob?"15px":"16px")
+           . ";transform:rotate(" . (ri($r,-2,2)) . "deg);opacity:.8;color:$acc\">" . h(rp($r,$LINES)) . "</div>";
+
+    case 13: { /* readouts */
+        $o=''; for($j=0;$j<ri($r,3,8);$j++)
+            $o .= "<div style=\"border:1px solid $rule;padding:" . ($mob?".6em":".8em") . ";min-width:" . ($mob?"78px":"96px") . "\">"
+               . "<div style=\"font-size:9px;opacity:.45;letter-spacing:.2em;text-transform:uppercase\">" . h(rp($r,$WORDS)) . "</div>"
+               . "<div style=\"font:" . ($mob?"18px":"22px") . " monospace;color:$acc\">" . rp($r,array(number_format($r()*99,2),ri($r,0,9999),'—','--.--')) . "</div></div>";
+        return "<div style=\"display:flex;flex-wrap:wrap;gap:6px;margin:1em 0\">$o</div>"; }
+
+    case 14: { /* a plate */
+        $w=$mob?280:400; $hh=$mob?180:260; $o='';
+        for($j=0;$j<ri($r,60,220);$j++)
+            $o .= "<rect x=" . ri($r,0,$w) . " y=" . ri($r,0,$hh) . " width=" . ri($r,1,7) . " height=" . ri($r,1,7)
+               . " fill=\"$ink\" opacity=\"" . round($r()*0.4,2) . "\" />";
+        return "<figure style=\"margin:1.2em 0\"><svg viewBox=\"0 0 $w $hh\" style=\"width:100%;height:auto;background:$rule;display:block\">$o</svg>"
+           . "<figcaption style=\"font-size:11px;opacity:.5;margin-top:.4em;font-family:monospace\">plate " . ri($r,1,120) . " of " . ri($r,1,9)
+           . " &middot; exposure " . ri($r,1,90) . " s &middot; " . h(rp($r,$WORDS)) . "</figcaption></figure>"; }
+
+    case 15: { /* inventory */
+        $o = "<div style=\"display:grid;grid-template-columns:repeat(auto-fill,minmax(" . ($mob?"84px":"104px") . ",1fr));gap:4px;margin:1em 0\">";
+        for($j=0;$j<ri($r,8,30);$j++)
+            $o .= "<div style=\"border:1px solid $rule;padding:.5em;font-size:10px;font-family:monospace\">"
+               . "<div style=\"color:$acc\">" . strtoupper(substr(dechex(ri($r,4096,65535)),0,4)) . "</div>"
+               . "<div style=\"opacity:.55\">" . h(rp($r,$WORDS)) . "</div></div>";
+        return $o . "</div>"; }
+
+    case 16: { /* log excerpt */
+        $o=''; for($j=0;$j<ri($r,5,16);$j++)
+            $o .= sprintf('%04d-%02d-%02dT%02d:%02d:%02dZ  %-5s  ',ri($r,1961,2031),ri($r,1,12),ri($r,1,28),
+                  ri($r,0,23),ri($r,0,59),ri($r,0,59),rp($r,array('INFO','WARN','HOLD','LOST','ECHO','----')))
+               . rp($r,$LINES) . "\n";
+        return "<pre style=\"font:" . ($mob?"10px":"11.5px") . "/1.7 monospace;overflow-x:auto;margin:1em 0;opacity:.8\">" . h($o) . "</pre>"; }
+
+    default: { /* an outline that goes nowhere */
+        $o=''; for($j=0;$j<ri($r,5,14);$j++){ $d=ri($r,0,4);
+            $o .= "<div style=\"padding-left:" . ($d*($mob?14:22)) . "px;opacity:" . (1-$d*0.13) . ";font-size:"
+               . ($mob?"13px":"13.5px") . ";padding-top:.15em\">" . str_repeat('&mdash;', max(0,$d)) . " "
+               . h(rp($r,$WORDS)) . " <span style=\"opacity:.45;font-family:monospace;font-size:11px\">"
+               . rp($r,array(ri($r,1,999),'—','?',ri($r,1,9).'/'.ri($r,1,9))) . "</span></div>"; }
+        return "<div style=\"margin:1em 0\">$o</div>"; }
+    }
+}
+
+/* a heap of matter for one place */
+function matter($r, $pal, $mob, $n) {
+    global $LINES;
+    list($bg,$ink,$acc,$rule,$font) = $pal;
+    $o = '';
+    for ($i = 0; $i < $n; $i++) {
+        if (ri($r,0,3) === 0)
+            $o .= "<h2 style=\"font-weight:400;font-size:" . ($mob?"15px":"16px") . ";margin:1.6em 0 .3em;"
+               . "letter-spacing:.14em;text-transform:uppercase;opacity:.55\">" . h(rp($r, $GLOBALS['WORDS'])) . " " . ri($r,2,99) . "</h2>";
+        $o .= cblock($r, $pal, $mob, $i);
+        if (ri($r,0,2) === 0)
+            $o .= "<p style=\"margin:.7em 0;font-size:" . ($mob?"14px":"14px") . ";line-height:1.75;opacity:.78\">"
+               . h(rp($r,$LINES)) . ". " . h(rp($r,$LINES)) . ".</p>";
+    }
+    return $o;
+}
+
+/* ===========================================================================
+ *  2113 — the way to see where you are. it is not linked from anywhere.
+ * ========================================================================= */
+function menu($path, $mob) {
+    global $APP, $WORDS;
+    $seg = $path === '' ? array() : explode('/', $path);
+    $me  = place_exits($path);
+    $ex  = $me['ex'];
+
+    /* siblings are the parent's exits */
+    $sib = array();
+    if ($seg) {
+        $par = implode('/', array_slice($seg, 0, -1));
+        $pe  = place_exits($par);
+        $sib = $pe['ex'];
+    }
+
+    /* what each target actually turns out to be, without going there */
+    $state = function ($href) {
+        $p = trim(substr($href, strlen(smt_base())), '/');
+        global $APP;
+        $head = $p === '' ? '' : explode('/', $p)[0];
+        if (isset($APP[$head])) return array('instrument', '#7ad8a8');
+        if (in_array($head, array('vault','attic','cellar','oubliette','strongroom','ossuary'), true)) return array('403', '#c05a48');
+        if ($p === '') return array('the way in', '#6a6a76');
+        $q = place_exits($p);
+        if ($q['roll'] < 5) return array('410', '#8a6a3a');
+        if ($q['roll'] < 8) return array('403', '#c05a48');
+        return array(count($q['ex']) . ' out', '#6a6a76');
+    };
+
+    $c = "html,body{margin:0}body{background:#0b0b0c;color:#d8d8dc;font:" . ($mob?"14px":"13px")
+       . "/1.65 'DejaVu Sans Mono',Menlo,monospace;padding:" . ($mob?"1.1rem .9rem 3rem":"2.4rem 2.6rem") . "}"
+       . "h1{font:400 " . ($mob?"15px":"14px") . "/1.4 monospace;letter-spacing:.34em;text-transform:uppercase;color:#7ad8a8;margin:0 0 1.6em}"
+       . "h2{font:400 11px/1.4 monospace;letter-spacing:.28em;text-transform:uppercase;color:#6a6a76;margin:2.2em 0 .6em;"
+       . "border-bottom:1px solid #23232a;padding-bottom:.4em}"
+       . "a{color:#d8d8dc;text-decoration:none;display:block;padding:" . ($mob?".62em .5em":".3em .5em") . ";border-bottom:1px solid #17171c}"
+       . "a:hover{background:#16161c;color:#7ad8a8}.p{color:#5a5a66}.t{color:#c8a44a}"
+       . "ul{list-style:none;margin:0;padding:0}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax("
+       . ($mob?"140px":"180px") . ",1fr));gap:0 14px}"
+       . ".c{color:#6a6a76;font-size:11px;margin:0 0 1.4em;line-height:1.8}";
+
+    $b = "<h1>2113</h1>";
+    $b .= "<div class=c>you are at <span class=t>/" . h($path) . "</span><br>"
+       . count($ex) . " ways out of here &middot; " . count($sib) . " beside it &middot; depth " . count($seg) . "<br>"
+       . "this listing is not reachable from any page. append <span class=t>?=2113</span> to any path.</div>";
+
+    /* ancestors */
+    if ($seg) {
+        $b .= "<h2>above</h2><ul>";
+        $acc2 = '';
+        $b .= "<li><a href=\"" . h(u()) . "?=2113\"><span class=p>/</span></a></li>";
+        foreach ($seg as $i => $s) {
+            $acc2 .= ($acc2 === '' ? '' : '/') . $s;
+            $b .= "<li><a href=\"" . h(u($acc2)) . "?=2113\"><span class=p>" . str_repeat('· ', $i+1) . "</span>" . h($s) . "</a></li>";
+        }
+        $b .= "</ul>";
+    }
+
+    $b .= "<h2>from here (" . count($ex) . ")</h2><ul class=g>";
+    foreach ($ex as $e) {
+        list($lab, $col) = $state($e[0]);
+        $b .= "<li><a href=\"" . h($e[0]) . "?=2113\">" . h($e[1] === '' ? '—' : $e[1])
+           . "<span class=p style=\"display:block;font-size:10px;overflow:hidden;text-overflow:ellipsis\">" . h($e[0])
+           . "</span><span style=\"display:block;font-size:10px;color:$col\">" . h($lab) . "</span></a></li>";
+    }
+    $b .= "</ul>";
+
+    if ($sib) {
+        $b .= "<h2>beside it (" . count($sib) . ")</h2><ul class=g>";
+        foreach ($sib as $e) {
+            list($lab, $col) = $state($e[0]);
+            $b .= "<li><a href=\"" . h($e[0]) . "?=2113\">" . h($e[1] === '' ? '—' : $e[1])
+               . "<span class=p style=\"display:block;font-size:10px;overflow:hidden;text-overflow:ellipsis\">" . h($e[0])
+               . "</span><span style=\"display:block;font-size:10px;color:$col\">" . h($lab) . "</span></a></li>";
+        }
+        $b .= "</ul>";
+    }
+
+    $b .= "<h2>the instruments (" . count($APP) . ")</h2><ul class=g>";
+    foreach ($APP as $s => $l)
+        $b .= "<li><a href=\"" . h(u($s)) . "\">" . h($l) . "<span class=p style=\"display:block;font-size:10px\">/" . h($s) . "</span></a></li>";
+    $b .= "</ul>";
+
+    $b .= "<h2>shut</h2><ul class=g>";
+    foreach (array('vault','attic','cellar','oubliette','strongroom','ossuary') as $z)
+        $b .= "<li><a href=\"" . h(u($z)) . "\">" . h($z) . "<span class=p style=\"display:block;font-size:10px\">403</span></a></li>";
+    $b .= "</ul>";
+
+    $b .= "<h2>elsewhere</h2><ul class=g>";
+    foreach (array_slice($WORDS, 0, 24) as $w)
+        $b .= "<li><a href=\"" . h(u($w)) . "?=2113\">" . h($w) . "</a></li>";
+    $b .= "</ul>";
+
+    http_response_code(200);
+    header('Content-Type: text/html; charset=utf-8');
+    header('X-Robots-Tag: noindex');
+    echo "<!doctype html><html lang=en><head><meta charset=utf-8>"
+       . "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+       . "<meta name=robots content=\"noindex,nofollow\"><title>2113 · /" . h($path) . "</title>"
+       . "<style>$c</style></head><body>$b" . keeper() . "</body></html>";
+}
+
 /* ---- the twenty ways a place can be put together ---------------------- */
 function place($path, $mob) {
     global $PAL, $WORDS, $GLYPH;
-    $seed = fnv('place:' . $path);
+    $seed = pseed('place:' . $path);
     $r    = rng($seed);
     $pal  = $PAL[$seed % count($PAL)];
     list($bg, $ink, $acc, $rule, $font) = $pal;
@@ -662,8 +1040,9 @@ function place($path, $mob) {
     if ($path !== '' && $roll < 5)  { gone($path, $mob); return; }
     if ($path !== '' && $roll < 8)  { sealed($path, $mob); return; }
 
-    $n  = ri($r, 6, 34);
+    $n  = ri($r, EX_MIN, EX_MAX);
     $ex = exits($path, $r, $n);
+    $heap = matter($r, $pal, $mob, $path === '' ? ri($r, 18, 30) : ri($r, 10, 26));
     $css = "html,body{margin:0}body{background:$bg;color:$ink;font-family:$font;min-height:100vh;"
          . "font-size:" . ($mob ? "16px" : "15px") . ";line-height:1.6;overflow-x:hidden}a{color:$acc}";
     $b = '';
@@ -841,8 +1220,15 @@ function place($path, $mob) {
     case 17: /* almost nothing */
         $css .= "#e{display:flex;align-items:center;justify-content:center;min-height:100vh}"
               . "#e a{width:" . ri($r,4,14) . "px;height:" . ri($r,4,14) . "px;background:$acc;display:block;border-radius:50%}";
-        $b = "<div id=e>" . "<a href=\"" . h($ex[0][0]) . "\"></a></div>";
-        $b .= "<div style=\"position:fixed;right:8px;bottom:6px;font-size:9px;opacity:.28\">" . lk($r,$ex[1][0],$ex[1][1],$ink) . "</div>";
+        $b = "<div id=e><a href=\"" . h($ex[0][0]) . "\"></a></div>";
+        /* it looks empty. it is not a dead end. */
+        $spots = array('left:8px;top:8px','right:8px;top:8px','left:8px;bottom:8px','right:8px;bottom:8px',
+                       'left:50%;top:6px','left:6px;top:50%','right:6px;top:50%','left:50%;bottom:16px',
+                       'left:24%;top:30%','right:22%;bottom:28%','left:70%;top:18%','left:16%;bottom:34%');
+        foreach (array_slice($ex, 1, 11) as $j => $e)
+            $b .= "<a href=\"" . h($e[0]) . "\" style=\"position:fixed;" . $spots[$j % count($spots)]
+               . ";font:9px monospace;color:$ink;opacity:" . (0.12 + ($j % 5) * 0.06)
+               . ";text-decoration:none;letter-spacing:.2em\">" . h($e[1]) . "</a>";
         break;
 
     case 18: /* dense mosaic */
@@ -865,6 +1251,22 @@ function place($path, $mob) {
         $b .= "</div>";
     }
 
+    /* the matter and the ways out are not arranged the same way twice */
+    $wrap = "padding:" . ($mob ? "1.1rem .9rem 4rem" : "2.6rem 3rem 5rem") . ";max-width:"
+          . ($mob ? "none" : rp($r, array('46em','60em','none','38em','72em'))) . ";margin:0 auto";
+    $mat  = "<div style=\"$wrap\">" . $heap . "</div>";
+    switch (ri($r, 0, 5)) {
+    case 0: $b = $mat . $b; break;
+    case 1: $b = $b . $mat; break;
+    case 2: $b = "<div style=\"display:flex;flex-wrap:wrap;align-items:flex-start\">"
+               . "<div style=\"flex:1 1 " . ($mob ? "100%" : "50%") . ";min-width:0\">" . $b . "</div>"
+               . "<div style=\"flex:1 1 " . ($mob ? "100%" : "44%") . ";min-width:0\">" . $mat . "</div></div>"; break;
+    case 3: $half = matter($r, $pal, $mob, ri($r, 5, 13));
+            $b = "<div style=\"$wrap\">" . $half . "</div>" . $b . $mat; break;
+    case 4: $b = $mat . $b . "<div style=\"$wrap\">" . matter($r, $pal, $mob, ri($r, 6, 16)) . "</div>"; break;
+    default: $b = $b . $mat;
+    }
+
     /* a way back, but not always, and never in the same corner */
     if (ri($r,0,100) < 38 && $path !== '' && substr_count($path, '/') >= 1) {
         $seg = explode('/', $path); array_pop($seg);
@@ -881,31 +1283,50 @@ function place($path, $mob) {
        . "<meta name=viewport content=\"width=device-width,initial-scale=1,viewport-fit=cover\">"
        . "<meta name=robots content=\"noindex,nofollow\"><title>"
        . h(rp($r, array($path === '' ? 'smtstrange' : $path, rp($r,$WORDS), (string) ri($r,100,99999), rp($r,$GLYPH), '·'))) . "</title>"
-       . "<style>$css</style></head><body>$b</body></html>";
+       . "<style>$css</style></head><body>$b" . keeper() . "</body></html>";
 }
 
 function gone($path, $mob) {
-    $r = rng(fnv('gone:' . $path));
-    $ex = exits($path, $r, ri($r,1,4));
+    $r = rng(pseed('gone:' . $path));
+    $ex = exits($path, $r, ri($r,7,18));
     $b = '';
-    foreach ($ex as $e) $b .= "<div style=\"margin:.4em 0\"><a href=\"" . h($e[0]) . "\" style=\"color:#7a6a52\">" . h($e[1]) . "</a></div>";
+    foreach ($ex as $e) $b .= "<span style=\"display:inline-block;margin:0 1em .6em 0\">"
+        . lk($r, $e[0], $e[1], '#8a7a52') . "</span>";
     http_response_code(410);
     echo "<!doctype html><html><head><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">"
        . "<title>410</title><style>html,body{margin:0}body{background:#121110;color:#4a453c;font:13px/1.9 monospace;"
        . "display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column}</style></head><body>"
-       . "<div style=\"opacity:.5\">410</div>$b</body></html>";
+       . "<div style=\"opacity:.5;margin-bottom:1.4em\">410 &middot; /" . h($path) . "</div>"
+       . "<div style=\"max-width:40em;text-align:center\">$b</div>" . keeper() . "</body></html>";
 }
 
-/* the one door that does not open */
+/* the one door that does not open. it is still not a dead end. */
 function sealed($p, $mob) {
-    $s = fnv('sealed' . $p); $rows = '';
-    for ($i=0;$i<10;$i++){ $s = ($s*1103515245+12345)&0x7fffffff;
-      $rows .= "<tr><td>" . strtoupper(base_convert((string)($s%60466175),10,36)) . "</td><td>" . number_format($s%9400000) . "</td></tr>"; }
-    $css = "body{background:#0d0b0b;color:#8a7a72;font:13px/1.7 monospace;padding:" . ($mob?"18px":"3rem 2rem") . "}"
-        . "h1{font:400 20px monospace;color:#c05a48;letter-spacing:.1em}table{border-collapse:collapse;margin:1.4em 0}"
-        . "td{padding:.15em 1.4em .15em 0;border-bottom:1px solid #1e1a1a}";
+    $r = rng(pseed('sealed' . $p));
+    $rows = '';
+    for ($i = 0; $i < ri($r, 8, 26); $i++)
+        $rows .= "<tr><td>" . strtoupper(base_convert((string) ri($r, 60466, 60466175), 10, 36)) . "</td>"
+              . "<td style=\"text-align:right;opacity:.6\">" . number_format(ri($r, 12, 9400000)) . "</td>"
+              . "<td style=\"opacity:.45\">" . rp($r, array('held','held','retained','—','sealed')) . "</td></tr>";
+    $ex = exits($p, $r, ri($r, 9, 22));
+    $ways = '';
+    foreach ($ex as $e) $ways .= "<span style=\"display:inline-block;margin:0 1.1em .5em 0\">"
+        . lk($r, $e[0], $e[1], '#c08a6a') . "</span>";
+    $css = "html,body{margin:0}body{background:#0d0b0b;color:#8a7a72;font:" . ($mob?"14px":"13px")
+         . "/1.75 monospace;padding:" . ($mob?"1.1rem .9rem 3rem":"2.6rem 3rem") . "}"
+         . "h1{font:400 " . ($mob?"20px":"22px") . " monospace;color:#c05a48;letter-spacing:.1em;margin:0 0 1em}"
+         . "table{border-collapse:collapse;margin:1.4em 0;width:100%;max-width:44em;font-size:" . ($mob?"11px":"12px") . "}"
+         . "td{padding:.15em 1.4em .15em 0;border-bottom:1px solid #1e1a1a}"
+         . "h2{font:400 11px monospace;letter-spacing:.3em;text-transform:uppercase;opacity:.4;margin:2.4em 0 .8em}";
     http_response_code(403);
-    shell('403', $css, "<h1>403</h1><table>$rows</table><div style='opacity:.5'>the mass is measured. the door is not.</div>", '', $mob);
+    header('Content-Type: text/html; charset=utf-8');
+    echo "<!doctype html><html lang=und><head><meta charset=utf-8>"
+       . "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+       . "<meta name=robots content=\"noindex,nofollow\"><title>403</title><style>$css</style></head><body>"
+       . "<h1>403</h1><div style=\"opacity:.55\">/" . h($p) . " &mdash; the mass is measured. the door is not.</div>"
+       . "<table>$rows</table>"
+       . "<h2>not through here</h2><div>$ways</div>"
+       . keeper() . "</body></html>";
 }
 
 /* ===========================================================================
@@ -915,6 +1336,11 @@ $mob  = smt_mobile();
 $path = smt_path();
 $seg  = $path === '' ? array() : explode('/', $path);
 $head = $seg[0] ?? '';
+
+/* the way to see where you are. ?=2113 on any path. PHP drops empty
+   parameter names, so the query string is read as it arrived. */
+$qs = $_SERVER['QUERY_STRING'] ?? '';
+if ($qs !== '' && preg_match('/(^|[?&=])2113($|&)/', $qs)) { menu($path, $mob); exit; }
 
 if ($path === 'favicon.ico') { http_response_code(204); exit; }
 if ($path === 'index.html' || $path === 'index.htm') { header('Location: ' . u(), true, 302); exit; }
