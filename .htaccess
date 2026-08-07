@@ -1,0 +1,48 @@
+# ::: smtstrange :::  nothing here is authoritative
+# 88 4f 20 6e 6f 74 20 74 68 65 20 77 68 6f 6c 65 20 6f 66 20 69 74
+
+Options -Indexes +FollowSymLinks -MultiViews
+ServerSignature Off
+DirectoryIndex index.php
+AddDefaultCharset utf-8
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Seal "closed; do not force"
+    Header always set Referrer-Policy "no-referrer"
+    Header always unset X-Powered-By
+    Header always unset Server
+</IfModule>
+
+# the engine's own configuration is not for reading
+<Files ".htaccess">
+    Require all denied
+</Files>
+<Files "~*">
+    Require all denied
+</Files>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # the mouth is index.php; the older index does not surface here
+    RewriteRule ^index\.html?$ / [R=302,L]
+
+    # version-control leftovers do not exist here
+    RewriteRule (^|/)\.git(/|$) - [F,L]
+
+    # sealed zones. there is no listing. and yet the mass is measurable.
+    RewriteRule ^(vault|attic|cellar|oubliette|reliquary|strongroom|ossuary|coldroom)(/.*)?$ - [F,L]
+
+    # everything that is not a real file on disk is decided by the engine
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+ErrorDocument 403 /index.php?__err=403
+ErrorDocument 404 /index.php?__err=404
+ErrorDocument 410 /index.php?__err=410
+
+# 51 6e 6f 74 20 65 76 65 72 79 20 64 6f 6f 72 20 69 73 20 61 20 64 6f 6f 72
