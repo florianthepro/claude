@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from . import gf256
+from .gf256 import Matrix, invert, matmul, mul, vandermonde
 from .primitives.aead import chacha20
 from .primitives.kdf import sha256
 
@@ -56,14 +56,14 @@ def aont_invert(package: bytes) -> bytes:
 
 # ------------------------------------------------------- Reed-Solomon k/n
 
-def _generator(k: int, n: int) -> gf256.Matrix:
+def _generator(k: int, n: int) -> Matrix:
     """Systematische Erzeugermatrix: die ersten k Zeilen sind die Einheit,
     jede Auswahl von k Zeilen ist invertierbar."""
     if not 1 <= k <= n <= 256:
         raise ValueError("es muss 1 <= k <= n <= 256 gelten")
-    vand = gf256.vandermonde(n, k)
-    top_inv = gf256.invert([row[:] for row in vand[:k]])
-    return gf256.matmul(vand, top_inv)
+    vand = vandermonde(n, k)
+    top_inv = invert([row[:] for row in vand[:k]])
+    return matmul(vand, top_inv)
 
 
 @dataclass(frozen=True)
@@ -101,7 +101,7 @@ def split(package: bytes, k: int, n: int) -> list[Share]:
                 if coeff:
                     col = columns[j]
                     for b in range(chunk):
-                        acc[b] ^= gf256.mul(coeff, col[b])
+                        acc[b] ^= mul(coeff, col[b])
             payload = bytes(acc)
         shares.append(Share(i, k, n, len(package), payload))
     return shares
@@ -124,7 +124,7 @@ def combine(shares: list[Share]) -> bytes:
     chosen = [picked[i] for i in sorted(picked)[:k]]
     matrix = _generator(k, n)
     sub = [matrix[s.index][:] for s in chosen]
-    inverse = gf256.invert(sub)
+    inverse = invert(sub)
 
     chunk = len(chosen[0].data)
     out = bytearray()
@@ -134,7 +134,7 @@ def combine(shares: list[Share]) -> bytes:
             if coeff:
                 col = chosen[j].data
                 for b in range(chunk):
-                    acc[b] ^= gf256.mul(coeff, col[b])
+                    acc[b] ^= mul(coeff, col[b])
         out += acc
     return bytes(out[:chosen[0].length])
 

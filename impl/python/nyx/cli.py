@@ -2,6 +2,7 @@
 
     python3 -m nyx.cli init                     Identitaet anlegen
     python3 -m nyx.cli wer                      eigene Adresse zeigen
+    python3 -m nyx.cli demo                     Vorfuehrung ohne Netz
     python3 -m nyx.cli knoten [--port 8443]     Knoten betreiben
     python3 -m nyx.cli senden <adresse> <text>
     python3 -m nyx.cli holen
@@ -178,6 +179,43 @@ def cmd_holen(args) -> int:
     return 0
 
 
+def cmd_demo(args) -> int:
+    """Vorfuehrung ohne Netz: zwei Teilnehmer in einem Prozess."""
+    import random
+
+    from .directory import Chain
+    from .drops import DropNetwork
+    from .store import StorageNode
+
+    chain = Chain(bits=8)
+    knoten = [StorageNode(f"knoten-{i:02d}", pow_bits=8) for i in range(20)]
+    drops = DropNetwork(knoten)
+    rng = random.Random(20260803)
+
+    alice = Client(Identity.create(), chain, drops, rng)
+    bob = Client(Identity.create(), chain, drops, rng)
+    alice.announce()
+    bob.announce()
+    print(f"Alice  {alice.identity.address}")
+    print(f"Bob    {bob.identity.address}\n")
+
+    alice.send(bob.identity.address, {"t": "chat", "text": "Kannst du das lesen?"})
+    print(f"Ablagen im Netz            {drops.total_entries()} Teile auf 20 Knoten")
+
+    beispiel = next(n for n in knoten if n._entries)
+    tag, eintrag = next(iter(beispiel._entries.items()))
+    print(f"Was ein Knoten sieht       Tag {tag[:24]}…")
+    print(f"                           {eintrag.blob[:20].hex()}…")
+
+    for absender, umschlag in bob.poll():
+        print(f"\nBob empfaengt              {umschlag['text']!r}")
+        print(f"von                        {absender}")
+
+    print(f"\nAblagen nach der Abholung  {drops.total_entries()}")
+    print("Schwelle unterschritten    ja — die Nachricht ist unwiederbringlich weg")
+    return 0
+
+
 def cmd_pruefen(args) -> int:
     client = build_client(args.node)
     peer = client.chain.resolve(args.adresse)
@@ -226,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=cmd_init)
 
     sub.add_parser("wer", help="eigene Adresse zeigen").set_defaults(func=cmd_wer)
+    sub.add_parser("demo", help="Vorfuehrung ohne Netz").set_defaults(func=cmd_demo)
 
     p = sub.add_parser("knoten", help="Knoten betreiben")
     p.add_argument("--host", default="127.0.0.1")

@@ -23,8 +23,7 @@ import random
 import time
 from dataclasses import dataclass, field
 
-from . import directory as dirmod
-from .directory import Chain
+from .directory import Chain, bind_record, prekey_record
 from .drops import DropNetwork, drop_tag, tag_secret
 from .identity import Identity, PublicIdentity
 from .primitives import AuthError, hkdf, hmac_sha256
@@ -87,9 +86,9 @@ class Client:
 
     def announce(self) -> None:
         """Veroeffentlicht BIND und PREKEY im Verzeichnis."""
-        self.chain.submit(dirmod.bind_record(self.identity))
+        self.chain.submit(bind_record(self.identity))
         body, _ = self.prekeys.publish()
-        self.chain.submit(dirmod.prekey_record(self.identity, body))
+        self.chain.submit(prekey_record(self.identity, body))
         self.chain.seal()
 
     # -- Sitzungsaufbau --------------------------------------------------
