@@ -824,6 +824,13 @@ function ask_claude(array $questions): array
             $out[(int) $nr] = $folder;
         }
     }
+    // Keine einzige brauchbare Zuordnung heisst: die Gegenstelle liefert etwas
+    // anderes als erwartet - etwa nur eine Bestaetigung. Dann lieber abbrechen,
+    // sonst landet alles unbesehen in Persoenlich.
+    if ($out === []) {
+        return [[], 'Die Antwort enthaelt keine Zuordnung. Antwortet die Gegenstelle '
+            . 'wirklich mit dem JSON, oder bestaetigt sie nur den Auftrag?'];
+    }
     return [$out, null];
 }
 

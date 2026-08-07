@@ -620,32 +620,10 @@ function resolve_answer(string $answer, ?string $aliasPath): ?string
 
 const DEFAULT_MODEL = 'claude-sonnet-5';
 
-const DEFAULT_API_URL = 'https://api.anthropic.com/v1/messages';
-
-/** Zwei Wege zur KI: die Messages-API oder eine Routine auf claude.ai. */
-
-/** Zwei Wege zur KI: die Messages-API oder eine Routine auf claude.ai. */
-const API_KINDS = [
-    'messages' => 'Claude-API (api.anthropic.com)',
-    'routine'  => 'Claude-Routine (claude.ai/code/routines)',
-];
-
 function api_url(): string
 {
-    $url = (string) (config()['api_url'] ?? '');
-    return str_starts_with($url, 'https://') ? $url : DEFAULT_API_URL;
+    return (string) (config()['api_url'] ?? '');
 }
-
-function api_kind(): string
-{
-    $kind = (string) (config()['api_kind'] ?? 'messages');
-    return isset(API_KINDS[$kind]) ? $kind : 'messages';
-}
-
-/**
- * Baut Anfrage und Kopfzeilen fuer den gewaehlten Weg.
- * @return array{0:string,1:list<string>}
- */
 
 /**
  * Baut Anfrage und Kopfzeilen fuer den gewaehlten Weg.
@@ -747,7 +725,7 @@ function ask_claude(array $questions): array
         . "Zeilen:\n{$lines}\n"
         . "Antworte ausschliesslich mit JSON, Zeilennummer auf Ordner: {\"0\": \"Ordner\"}\n";
 
-    [$payload, $headers] = api_request(api_kind(), $prompt, 4096, $key);
+    [$payload, $headers] = api_request('routine', $prompt, 4096, $key);
     [$code, $raw, $error] = https_post(api_url(), $payload, $headers);
     if ($error !== null) {
         return [[], 'Claude nicht erreichbar: ' . $error];
@@ -778,6 +756,13 @@ function ask_claude(array $questions): array
         if (isset($questions[(int) $nr]) && array_key_exists($folder, $catalogueKeys)) {
             $out[(int) $nr] = $folder;
         }
+    }
+    // Keine einzige brauchbare Zuordnung heisst: die Gegenstelle liefert etwas
+    // anderes als erwartet - etwa nur eine Bestaetigung. Dann lieber abbrechen,
+    // sonst landet alles unbesehen in Persoenlich.
+    if ($out === []) {
+        return [[], 'Die Antwort enthaelt keine Zuordnung. Antwortet die Gegenstelle '
+            . 'wirklich mit dem JSON, oder bestaetigt sie nur den Auftrag?'];
     }
     return [$out, null];
 }
@@ -1014,168 +999,6 @@ function run_cycle(string $id, bool $initial = false): array
     return $result;
 }
 
-/** @return list<array{name:string,ok:bool,detail:string,required:bool}> */
-function checks_system(): array
-{
-    $out = [];
-
-    $php = PHP_VERSION;
-    $out[] = ['name' => 'PHP-Version', 'ok' => PHP_VERSION_ID >= 80100,
-        'detail' => PHP_VERSION_ID >= 80100 ? $php : $php . ' - noetig ist 8.1 oder neuer',
-        'required' => true];
-
-    foreach (['sodium' => 'php-sodium', 'mbstring' => 'php-mbstring',
-              'curl' => 'php-curl'] as $ext => $pkg) {
-        $have = extension_loaded($ext);
-        $out[] = ['name' => 'Erweiterung ' . $ext, 'ok' => $have,
-            'detail' => $have ? 'geladen' : 'apt install ' . $pkg, 'required' => true];
-    }
-
-    $limit = trim((string) ini_get('memory_limit'));
-    $bytes = ini_bytes($limit);
-    $out[] = ['name' => 'Speicherlimit', 'ok' => $bytes < 0 || $bytes >= 128 * 1024 * 1024,
-        'detail' => $limit === '' ? 'unbekannt' : ($bytes < 0 ? 'ohne Begrenzung' : $limit),
-        'required' => false];
-
-    $dir = data_dir();
-    $writable = (is_dir($dir) || @mkdir($dir, 0700, true)) && is_writable($dir);
-    $out[] = ['name' => 'Datenverzeichnis', 'ok' => $writable,
-        'detail' => $writable ? $dir . ' beschreibbar' : $dir . ' nicht beschreibbar',
-        'required' => true];
-
-    $free = @disk_free_space($dir) ?: 0;
-    $out[] = ['name' => 'Freier Speicher', 'ok' => $free >= 100 * 1024 * 1024,
-        'detail' => $free > 0 ? round($free / 1048576) . ' MB frei' : 'unbekannt',
-        'required' => false];
-
-    foreach (net_checks(DEFAULT_API_URL) as $row) {
-        $out[] = $row;
-    }
-    return $out;
-}
-
-/** Netzwerk: DNS und die drei Ports, die der Server nach aussen braucht. */
-
-/** Netzwerk: DNS und die drei Ports, die der Server nach aussen braucht. */
-function net_checks(string $url): array
-{
-    $out = [];
-    $apiHost = (string) (parse_url($url, PHP_URL_HOST) ?: 'api.anthropic.com');
-
-    $reach = static function (string $host, int $port): array {
-        if (gethostbyname($host) === $host && !filter_var($host, FILTER_VALIDATE_IP)) {
-            return [false, $host . ' laesst sich nicht aufloesen - DNS pruefen (Port 53)'];
-        }
-        $errno = 0;
-        $errstr = '';
-        $sock = @stream_socket_client("tcp://{$host}:{$port}", $errno, $errstr, 3);
-        if ($sock === false) {
-            return [false, net_hint($host, $port, $errno, trim($errstr))];
-        }
-        fclose($sock);
-        return [true, $host . ':' . $port . ' erreichbar'];
-    };
-
-    [$ok, $detail] = $reach($apiHost, 443);
-    $out[] = ['name' => 'Ausgehend 443 - Claude', 'ok' => $ok, 'detail' => $detail,
-        'required' => true];
-
-    // Von den IMAP-Servern reicht einer. Wer nur iCloud einsetzt, braucht
-    // Google nicht - die einzelnen Zeilen sind deshalb nur Hinweise.
-    $anyImap = false;
-    foreach ([['imap.mail.me.com', 'iCloud'], ['imap.gmail.com', 'Google']] as [$host, $label]) {
-        [$ok, $detail] = $reach($host, 993);
-        $anyImap = $anyImap || $ok;
-        $out[] = ['name' => $label . ' - imap:993', 'ok' => $ok, 'detail' => $detail,
-            'required' => false];
-    }
-    $out[] = ['name' => 'Ausgehend 993 - IMAP', 'ok' => $anyImap,
-        'detail' => $anyImap ? 'offen' : 'Kein IMAP-Server erreichbar. Port 993 freigeben.',
-        'required' => true];
-    return $out;
-}
-
-function ini_bytes(string $value): int
-{
-    if ($value === '' || $value === '-1') {
-        return -1;
-    }
-    $n = (int) $value;
-    return match (strtolower(substr($value, -1))) {
-        'g' => $n * 1073741824,
-        'm' => $n * 1048576,
-        'k' => $n * 1024,
-        default => $n,
-    };
-}
-
-/** Eine einzelne Zeile: antwortet die Gegenstelle mit diesem Token? */
-
-/** Eine einzelne Zeile: antwortet die Gegenstelle mit diesem Token? */
-function check_key(string $url, string $key, ?string $kind = null): array
-{
-    $kind = $kind !== null && isset(API_KINDS[$kind]) ? $kind : api_kind();
-    if (!str_starts_with($url, 'https://')) {
-        return ['name' => 'Verbindung zur KI', 'ok' => false,
-            'detail' => 'Die API-URL muss mit https:// beginnen.', 'required' => true];
-    }
-    if ($key === '') {
-        return ['name' => 'Verbindung zur KI', 'ok' => false,
-            'detail' => 'Noch kein Token eingetragen.', 'required' => true];
-    }
-    if (($cached = key_probe_cached($url . '|' . $kind, $key)) !== null) {
-        return $cached;
-    }
-    foreach (net_checks($url) as $row) {
-        if ($row['required'] && !$row['ok'] && str_contains($row['name'], '443')) {
-            return ['name' => 'Verbindung zur KI', 'ok' => false,
-                'detail' => $row['detail'], 'required' => true];
-        }
-    }
-    // Der Test laeuft mit dem eingetippten Token, nicht mit dem gespeicherten.
-    [$payload, $headers] = api_request($kind, 'Antworte nur mit: ok', 16, $key);
-    [$code, $raw, $error] = https_post($url, $payload, $headers);
-    $ok = $error === null && $code >= 200 && $code < 300;
-    if ($error !== null) {
-        $detail = $error;
-    } elseif ($ok) {
-        $detail = 'Die KI antwortet.';
-    } elseif ($code === 401 || $code === 403) {
-        $detail = 'Token abgelehnt (' . $code . '). Tippfehler oder Leerzeichen?';
-    } else {
-        $body = json_decode((string) $raw, true);
-        $detail = 'HTTP ' . $code . ' ' . (string) ($body['error']['message'] ?? '');
-    }
-    $row = ['name' => 'Verbindung zur KI', 'ok' => $ok, 'detail' => trim($detail),
-        'required' => true];
-    key_probe_store($url . '|' . $kind, $key, $row);
-    return $row;
-}
-
-/** Die Liste wird im Sekundentakt geholt - der Schluessel aber nicht jedes Mal geprueft. */
-
-/** Die Liste wird im Sekundentakt geholt - der Schluessel aber nicht jedes Mal geprueft. */
-const KEY_PROBE_TTL = 20;
-
-function key_probe_id(string $url, string $key): string
-{
-    return hash('sha256', $url . "\0" . $key);
-}
-
-function key_probe_cached(string $url, string $key): ?array
-{
-    $entry = jread(data_dir() . '/keycheck.json');
-    return ($entry['id'] ?? '') === key_probe_id($url, $key)
-        && time() - (int) ($entry['t'] ?? 0) < KEY_PROBE_TTL
-        ? (array) $entry['row'] : null;
-}
-
-function key_probe_store(string $url, string $key, array $row): void
-{
-    jwrite(data_dir() . '/keycheck.json',
-        ['id' => key_probe_id($url, $key), 't' => time(), 'row' => $row]);
-}
-
 function session_begin(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
@@ -1222,25 +1045,6 @@ function e(?string $v): string
 
 /** Einfache Mengenbegrenzung je Absender und Zeitfenster. */
 
-/** Einfache Mengenbegrenzung je Absender und Zeitfenster. */
-function rate_ok(string $bucket, int $max, int $window): bool
-{
-    $now = time();
-    $state = locked(data_dir() . '/rate.json',
-        static function (array $d) use ($bucket, $now, $window): array {
-            foreach ($d as $k => $v) {
-                if ($now - (int) ($v['start'] ?? 0) >= $window) {
-                    unset($d[$k]);
-                }
-            }
-            $e = $d[$bucket] ?? ['start' => $now, 'n' => 0];
-            $e['n'] = (int) $e['n'] + 1;
-            $d[$bucket] = $e;
-            return $d;
-        });
-    return (int) ($state[$bucket]['n'] ?? 0) <= $max;
-}
-
 function throttled(string $bucket): bool
 {
     $entry = jread(data_dir() . '/logins.json')[$bucket] ?? null;
@@ -1267,16 +1071,6 @@ function note_try(string $bucket, bool $ok): void
         }
         return $d;
     });
-}
-
-function json_out(int $code, array $data): never
-{
-    http_response_code($code);
-    header('Content-Type: application/json; charset=utf-8');
-    header('Cache-Control: no-store');
-    header('X-Content-Type-Options: nosniff');
-    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
 }
 
 function head(string $title, ?string $nonce = null): void
@@ -1388,81 +1182,6 @@ function msgs(?string $notice, ?string $error): void
  * versteckten Feldern - so laesst sich kein Schritt ueberspringen.
  */
 
-function stamp(?string $iso): string
-{
-    $t = $iso !== null && $iso !== '' ? strtotime($iso) : false;
-    return $t === false ? '-' : date('d.m.Y H:i', $t);
-}
-
-/** Blendet Uhrzeiten oder Minuten aus, je nach gewaehltem Zeitplan. */
-
-/**
- * Holt eine Pruefliste im Sekundentakt nach und schaltet den Knopf frei.
- * Immer nur eine Anfrage zugleich, sonst stauen sich die Zeitablaeufe.
- */
-function checklist_script(string $nonce, string $endpoint, string $listId,
-                          string $buttonId, string $hintId, bool $withKey = false): void
-{
-    ?>
-<script nonce="<?= e($nonce) ?>">
-(function () {
-  var list = document.getElementById(<?= json_encode($listId) ?>);
-  var go = document.getElementById(<?= json_encode($buttonId) ?>);
-  var hint = document.getElementById(<?= json_encode($hintId) ?>);
-  var withKey = <?= $withKey ? 'true' : 'false' ?>;
-  function esc(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
-    });
-  }
-  function again() { setTimeout(tick, 1000); }
-  function tick() {
-    var q = <?= json_encode($endpoint) ?>;
-    if (withKey) {
-      q += '&url=' + encodeURIComponent(document.getElementById('au').value)
-         + '&key=' + encodeURIComponent(document.getElementById('ak').value);
-    }
-    fetch(q, {cache: 'no-store'})
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var all = true, html = '';
-        (d.pruefungen || []).forEach(function (c) {
-          if (c.required && !c.ok) { all = false; }
-          html += '<li class="' + (c.ok ? 'good' : 'bad') + '"><span class="st">'
-               + (c.ok ? '✓' : '✗') + '</span><span class="nm">' + esc(c.name)
-               + '</span><span class="dt">' + esc(c.detail) + '</span></li>';
-        });
-        list.innerHTML = html;
-        go.disabled = !all;
-        hint.textContent = all ? 'Alles bereit.' : 'Wird jede Sekunde erneut geprueft.';
-      })
-      .catch(function () {})
-      .then(again);
-  }
-  tick();
-  var kd = document.getElementById('kd');
-  if (kd) {
-    kd.addEventListener('change', function () {
-      var m = document.createElement('input');
-      m.type = 'hidden'; m.name = 'wechsel'; m.value = '1';
-      kd.form.appendChild(m);
-      kd.form.submit();
-    });
-  }
-  var copy = document.getElementById('copy');
-  if (copy) {
-    copy.addEventListener('click', function () {
-      var t = document.getElementById('auftrag').textContent;
-      if (navigator.clipboard) { navigator.clipboard.writeText(t); }
-      copy.textContent = 'Kopiert';
-      setTimeout(function () { copy.textContent = 'Text kopieren'; }, 1500);
-    });
-  }
-})();
-</script>
-    <?php
-}
-
 /** Der Auftrag, den der Betreiber der KI vorlegt. Kurz und ohne Beiwerk. */
 function routine_text(string $kind = 'messages', string $name = 'icm'): string
 {
@@ -1494,6 +1213,35 @@ function routine_text(string $kind = 'messages', string $name = 'icm'): string
 
 
 // ===========================================================================
+// Routine ansprechen
+// ===========================================================================
+
+/** Einmal anklopfen: antwortet die Routine mit dem Token? */
+function sa_ki_test(string $url, string $key): ?string
+{
+    if (!str_starts_with($url, 'https://')) {
+        return 'Die API-URL muss mit https:// beginnen.';
+    }
+    if ($key === '') {
+        return 'Das API-Token fehlt.';
+    }
+    [$payload, $headers] = api_request('routine', 'Antworte nur mit: ok', 16, $key);
+    [$code, $raw, $error] = https_post($url, $payload, $headers);
+    if ($error !== null) {
+        return 'Keine Verbindung: ' . $error;
+    }
+    if ($code === 401 || $code === 403) {
+        return 'Das Token wurde abgelehnt (' . $code . '). Tippfehler oder Leerzeichen?';
+    }
+    if ($code < 200 || $code >= 300) {
+        $body = json_decode((string) $raw, true);
+        return trim('Die Routine antwortet mit HTTP ' . $code . '. '
+            . (string) ($body['error']['message'] ?? ($body['message'] ?? '')));
+    }
+    return null;
+}
+
+// ===========================================================================
 // Konten
 // ===========================================================================
 
@@ -1508,30 +1256,36 @@ function sa_find(string $address): ?array
 }
 
 /**
- * Legt ein Konto an, nachdem die Anmeldedaten am Server geprueft wurden.
- * @return array{0:?array,1:?string,2:?string} [Konto, Zugangscode, Fehler]
+ * Konto anlegen oder das Passwort auffrischen. Geprueft wird immer am Server.
+ * @return array{0:?array,1:?string} [Konto, Fehler]
  */
-function sa_add(string $address, string $password): array
+function sa_konto(string $address, string $password): array
 {
     $address = strtolower(trim($address));
     if (!filter_var($address, FILTER_VALIDATE_EMAIL)) {
-        return [null, null, 'Das ist keine gueltige E-Mail-Adresse.'];
+        return [null, 'Das ist keine gueltige E-Mail-Adresse.'];
     }
     if ($password === '') {
-        return [null, null, 'Das app-spezifische Passwort fehlt.'];
-    }
-    if (sa_find($address) !== null) {
-        return [null, null, 'Diese Adresse ist schon eingetragen.'];
-    }
-    if (count(users()) >= SA_MAX_KONTEN) {
-        return [null, null, 'Es sind keine Plaetze mehr frei.'];
+        return [null, 'Das app-spezifische Passwort fehlt.'];
     }
     try {
         (new Imap(SA_HOST, SA_PORT))->login($address, $password);
     } catch (ImapError $e) {
-        return [null, null, $e->getMessage()];
+        return [null, $e->getMessage()];
     }
-    $code = new_token();
+    $u = sa_find($address);
+    if ($u !== null) {
+        // Bekanntes Postfach: das gerade gepruefte Passwort uebernehmen.
+        $neu = enc($password);
+        sodium_memzero($password);
+        return [user_set((string) $u['id'], static function (array $x) use ($neu): array {
+            $x['password'] = $neu;
+            return $x;
+        }), null];
+    }
+    if (count(users()) >= SA_MAX_KONTEN) {
+        return [null, 'Es sind keine Plaetze mehr frei.'];
+    }
     $id = bin2hex(random_bytes(8));
     jwrite(user_path($id), [
         'id' => $id, 'address' => $address, 'password' => enc($password),
@@ -1540,275 +1294,69 @@ function sa_add(string $address, string $password): array
         'privateappleid' => false, 'domains' => [], 'addresses' => [],
         'knowledge' => [], 'known_folders' => [],
         'schedule' => ['mode' => 'interval', 'interval' => SA_INTERVAL, 'times' => []],
-        'code_hash' => hash('sha256', $code),
         'status' => 'neu', 'created' => gmdate('c'),
     ]);
     sodium_memzero($password);
-    return [user_load($id), $code, null];
-}
-
-/** Kontozugang ueber den einmal angezeigten Code. */
-function sa_auth(string $address, string $code): ?array
-{
-    $u = sa_find(strtolower(trim($address)));
-    if ($u === null) {
-        return null;
-    }
-    return hash_equals((string) ($u['code_hash'] ?? ''), hash('sha256', trim($code))) ? $u : null;
+    return [user_load($id), null];
 }
 
 // ===========================================================================
-// Einrichtung
+// Ansichten
 // ===========================================================================
 
-function sa_setup(): never
+function sa_setup(?string $error): never
 {
-    if (!is_array($_SESSION['setup'] ?? null)) {
-        $_SESSION['setup'] = ['kind' => 'messages'];
-    }
-    $kind = (string) ($_SESSION['setup']['kind'] ?? 'messages');
-    $error = null;
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        csrf_ok();
-        $kind = isset(API_KINDS[(string) ($_POST['api_kind'] ?? '')])
-            ? (string) $_POST['api_kind'] : 'messages';
-        $_SESSION['setup']['kind'] = $kind;
-        if (($_POST['wechsel'] ?? '') !== '') {
-            go();                        // nur die Zustellart gewechselt
-        }
-        $url = trim((string) ($_POST['api_url'] ?? '')) ?: DEFAULT_API_URL;
-        $key = trim((string) ($_POST['api_key'] ?? ''));
-        $zugang = trim((string) ($_POST['zugang'] ?? ''));
-        $offen = array_filter(checks_system(), static fn(array $c) => $c['required'] && !$c['ok']);
-        if ($offen !== []) {
-            $error = 'Noch offen: ' . implode(', ', array_column($offen, 'name'));
-        } elseif (!($row = check_key($url, $key, $kind))['ok']) {
-            $error = $row['detail'];
-        } else {
-            config_set(static fn(array $c): array => [
-                'setup_done' => true,
-                'api_url' => $url, 'api_key' => enc($key), 'api_kind' => $kind,
-                'model' => DEFAULT_MODEL,
-                'zugang_hash' => $zugang === '' ? '' : password_hash($zugang, PASSWORD_DEFAULT),
-                'created' => gmdate('c'),
-            ]);
-            unset($_SESSION['setup']);
-            session_regenerate_id(true);
-            go();
-        }
-    }
-
     $nonce = base64_encode(random_bytes(16));
-    head('Postfach sortieren - einrichten', $nonce);
-    $routine = $kind === 'routine';
+    head('Einrichten', $nonce);
     ?>
-<main class="narrow" style="max-width:600px">
-  <h1>Einrichten</h1>
-  <?php msgs(null, $error); ?>
-  <section class="card">
-    <h2>Voraussetzungen</h2>
-    <ul class="chk" id="chk"><li><span class="st">&hellip;</span><span class="nm">wird geprueft</span></li></ul>
-  </section>
-  <section class="card">
-    <h2>Was der Server nach aussen braucht</h2>
-    <table>
-      <tr><td>443/TCP</td><td class="muted">zur KI</td></tr>
-      <tr><td>993/TCP</td><td class="muted">zu <?= e(SA_HOST) ?>, IMAP ueber TLS</td></tr>
-      <tr><td>53</td><td class="muted">DNS</td></tr>
-      <tr><td>80 und 443</td><td class="muted">eingehend, fuer diese Seite</td></tr>
-    </table>
-  </section>
-  <form method="post" autocomplete="off">
-    <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-    <section class="card">
-      <h2>1. Woher die Antwort kommt</h2>
-      <div class="f"><select id="kd" name="api_kind">
-        <?php foreach (API_KINDS as $k => $label): ?>
-          <option value="<?= e($k) ?>" <?= $k === $kind ? 'selected' : '' ?>><?= e($label) ?></option>
-        <?php endforeach; ?>
-      </select></div>
-    </section>
-    <section class="card">
-      <h2>2. Diesen Text in die KI geben</h2>
-      <p class="muted" style="margin:0 0 10px"><?= $routine
-          ? 'Auf claude.ai/code/routines eine Routine anlegen und den Text als Auftrag '
-            . 'einsetzen. Danach gibt die Routine dir eine API-URL und ein Token.'
-          : 'Der Text beschreibt, was die KI tun soll. Das Token kommt aus der '
-            . 'Anthropic-Konsole.' ?></p>
-      <pre id="auftrag"><?= e(routine_text($kind, 'simple-apple')) ?></pre>
-      <div style="margin-top:10px"><button class="q" type="button" id="copy">Text kopieren</button></div>
-    </section>
-    <section class="card">
-      <h2>3. Zugang eintragen</h2>
-      <div class="f"><label for="au">API-URL</label>
-        <input id="au" name="api_url" value="<?= e($routine ? '' : DEFAULT_API_URL) ?>"
-               placeholder="<?= e($routine ? 'aus der Routine' : DEFAULT_API_URL) ?>"></div>
-      <div class="f"><label for="ak">API-Token</label>
-        <input id="ak" name="api_key" type="password" required>
-        <div class="hint">Wird verschluesselt abgelegt und nie wieder angezeigt.</div></div>
-    </section>
-    <section class="card">
-      <h2>4. Wer darf sich eintragen</h2>
-      <div class="f"><label for="zg">Zugangscode</label>
-        <input id="zg" name="zugang" type="text">
-        <div class="hint">Ohne Code kann jeder, der die Seite kennt, ein Postfach
-          eintragen - und dabei dein KI-Token verbrauchen. Leer lassen nur, wenn
-          die Seite ohnehin nicht oeffentlich erreichbar ist.</div></div>
-      <button id="go" type="submit" disabled>Einrichten</button>
-      <div class="hint" id="gohint">Erst moeglich, wenn alles gruen ist.</div>
-    </section>
-  </form>
-<?php checklist_script($nonce, '?check=all', 'chk', 'go', 'gohint', true); ?>
-</main></body></html>
-    <?php
-    exit;
-}
-
-// ===========================================================================
-// Oberflaeche
-// ===========================================================================
-
-function sa_head(?string $notice, ?string $error): void
-{
-    ?>
-<header><div class="in"><b>Postfach sortieren</b>
-  <a href="?">Eintragen</a><a href="?konto">Mein Postfach</a></div></header>
 <main class="narrow" style="max-width:520px">
-  <?php msgs($notice, $error);
-}
-
-function sa_page_neu(?string $notice, ?string $error): never
-{
-    $zugang = (string) (config()['zugang_hash'] ?? '') !== '';
-    head('Postfach sortieren');
-    sa_head($notice, $error);
-    ?>
   <section class="card">
-    <form method="post" autocomplete="off">
-      <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-      <input type="hidden" name="aktion" value="anlegen">
-      <div class="f"><label for="ad">iCloud-Adresse</label>
-        <input id="ad" name="address" type="email" required autofocus></div>
-      <div class="f"><label for="pw">App-spezifisches Passwort</label>
-        <input id="pw" name="password" type="password" required>
-        <div class="hint">appleid.apple.com &rarr; Anmeldung und Sicherheit &rarr;
-          App-spezifische Passwoerter. Nicht das Passwort deiner Apple ID.</div></div>
-      <?php if ($zugang): ?>
-        <div class="f"><label for="zg">Zugangscode</label>
-          <input id="zg" name="zugang" type="password" required></div>
-      <?php endif; ?>
-      <button type="submit">Postfach eintragen</button>
-    </form>
-  </section>
-  <section class="card">
-    <h2>Was danach passiert</h2>
-    <ol style="margin:0;padding-left:18px">
-      <li>Alles aus dem Archiv und den eigenen Ordnern geht in den Posteingang.</li>
-      <li>Die eigenen Ordner werden geloescht und neu angelegt.</li>
-      <li>Jede Nachricht wird einsortiert.</li>
-      <li>Danach alle <?= SA_INTERVAL ?> Minuten die neue Post.</li>
-    </ol>
-    <p class="muted" style="margin:12px 0 0">Gesendet, Entwuerfe, Werbung und
-      Papierkorb bleiben unberuehrt. Gelesen werden nur Absender und Empfaenger,
-      nie der Inhalt einer Nachricht. Geloescht wird keine Nachricht.</p>
-  </section>
-  <section class="card">
-    <h2>Ordner</h2>
-    <table>
-      <?php foreach (folders_catalogue() as $name => $was): ?>
-        <tr><td><?= e($name) ?></td><td class="muted"><?= e($was) ?></td></tr>
-      <?php endforeach; ?>
-    </table>
-  </section>
-</main></body></html>
-    <?php
-    exit;
-}
-
-function sa_page_code(array $u, string $code): never
-{
-    head('Postfach sortieren');
-    sa_head(null, null);
-    ?>
-  <section class="card">
-    <div style="font-weight:600;margin:0 0 12px"><?= e($u['address']) ?> ist eingetragen</div>
-    <div class="f"><label>Dein Zugangscode</label><pre><?= e($code) ?></pre>
-      <div class="hint">Jetzt sichern. Er wird nur dieses eine Mal angezeigt und
-        ist der einzige Weg zurueck zu diesem Postfach.</div></div>
-    <form method="post">
-      <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-      <input type="hidden" name="aktion" value="start">
-      <button type="submit">Jetzt aufraeumen</button>
-      <div class="hint">Das dauert je nach Postfach ein bis zwei Minuten.</div>
-    </form>
-  </section>
-</main></body></html>
-    <?php
-    exit;
-}
-
-function sa_page_konto(?array $u, ?string $notice, ?string $error): never
-{
-    head('Postfach sortieren');
-    sa_head($notice, $error);
-    if ($u === null) {
-        ?>
-  <section class="card">
-    <form method="post" autocomplete="off">
-      <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-      <input type="hidden" name="aktion" value="anmelden">
-      <div class="f"><label for="ad">iCloud-Adresse</label>
-        <input id="ad" name="address" type="email" required autofocus></div>
-      <div class="f"><label for="cd">Zugangscode</label>
-        <input id="cd" name="code" type="password" required></div>
-      <button type="submit">Anzeigen</button>
-    </form>
-  </section>
-</main></body></html>
-        <?php
-        exit;
-    }
-    $st = (string) ($u['status'] ?? 'neu');
-    ?>
-  <section class="card">
-    <div style="font-weight:600;margin:0 0 12px"><?= e($u['address']) ?></div>
-    <table>
-      <tr><td>Zustand</td><td class="muted"><?= e(match ($st) {
-          'bereit' => 'sortiert alle ' . SA_INTERVAL . ' Minuten',
-          'neu_initialisieren' => (string) ($u['halt'] ?? 'angehalten'),
-          default => 'noch nicht aufgeraeumt',
-      }) ?></td></tr>
-      <tr><td>Letzter Lauf</td><td class="muted"><?= e(stamp($u['last_run'] ?? null)) ?></td></tr>
-      <tr><td>Bekannte Absender</td><td class="muted"><?= array_sum(array_map('count',
-          (array) ($u['knowledge'] ?? []))) ?></td></tr>
-      <tr><td>Ordner</td><td class="muted"><?= count($u['known_folders'] ?? []) ?></td></tr>
-    </table>
-    <?php if (!empty($u['last_error'])): ?>
-      <div class="msg err" style="margin:14px 0 0"><?= e((string) $u['last_error']) ?></div>
-    <?php endif; ?>
-    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
-      <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-        <input type="hidden" name="aktion" value="sortieren">
-        <button <?= $st === 'bereit' ? '' : 'class="q"' ?> type="submit">Jetzt sortieren</button></form>
-      <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-        <input type="hidden" name="aktion" value="start">
-        <button <?= $st === 'bereit' ? 'class="d"' : '' ?> type="submit">
-          <?= $st === 'bereit' ? 'Neu aufraeumen' : 'Aufraeumen' ?></button></form>
-      <form method="post" class="inline">
-        <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-        <input type="hidden" name="aktion" value="entfernen">
-        <button class="d" type="submit">Postfach entfernen</button></form>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <button class="q" type="button" id="copy">Auftrag kopieren</button>
+      <span class="hint" style="margin:0">in eine Routine auf claude.ai einsetzen</span>
     </div>
-    <?php if ($st === 'bereit'): ?>
-      <div class="hint" style="margin-top:8px">Neu aufraeumen holt alles zurueck in
-        den Posteingang und sortiert von vorne.</div>
-    <?php endif; ?>
+    <pre id="auftrag"><?= e(routine_text('routine', 'simple-apple')) ?></pre>
+    <?php msgs(null, $error); ?>
+    <form method="post" autocomplete="off" style="margin-top:16px">
+      <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+      <div class="f"><label for="au">API-URL</label>
+        <input id="au" name="api_url" required autofocus
+               value="<?= e($_POST['api_url'] ?? '') ?>"
+               placeholder="https://api.anthropic.com/v1/claude_code/routines/trig_.../fire"></div>
+      <div class="f"><label for="ak">API-Token</label>
+        <input id="ak" name="api_key" type="password" required></div>
+      <button type="submit">Weiter</button>
+    </form>
   </section>
+</main>
+<script nonce="<?= e($nonce) ?>">
+document.getElementById('copy').addEventListener('click', function () {
+  var t = document.getElementById('auftrag').textContent, b = this;
+  if (navigator.clipboard) { navigator.clipboard.writeText(t); }
+  b.textContent = 'Kopiert';
+  setTimeout(function () { b.textContent = 'Auftrag kopieren'; }, 1500);
+});
+</script></body></html>
+    <?php
+    exit;
+}
+
+function sa_page(?string $notice, ?string $error): never
+{
+    head('Postfach sortieren');
+    ?>
+<main class="narrow" style="max-width:400px">
+  <?php msgs($notice, $error); ?>
   <section class="card">
-    <form method="post"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-      <input type="hidden" name="aktion" value="abmelden">
-      <button class="q" type="submit">Abmelden</button></form>
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+      <div class="f"><label for="ad">iCloud-Adresse</label>
+        <input id="ad" name="address" type="email" required autofocus
+               value="<?= e($_POST['address'] ?? '') ?>"></div>
+      <div class="f"><label for="pw">App-spezifisches Passwort</label>
+        <input id="pw" name="password" type="password" required></div>
+      <button type="submit">Sortieren</button>
+    </form>
   </section>
 </main></body></html>
     <?php
@@ -1822,104 +1370,53 @@ function sa_page_konto(?array $u, ?string $notice, ?string $error): never
 function sa_web(): never
 {
     session_begin();
-    $setup = (config()['setup_done'] ?? false) === true;
 
-    if (isset($_GET['check'])) {
-        // Nur waehrend der Einrichtung offen, danach zu.
-        if ($setup || !is_array($_SESSION['setup'] ?? null)) {
-            json_out(403, ['error' => 'Nicht erlaubt']);
+    if ((config()['setup_done'] ?? false) !== true) {
+        $error = null;
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            csrf_ok();
+            $url = trim((string) ($_POST['api_url'] ?? ''));
+            $key = trim((string) ($_POST['api_key'] ?? ''));
+            $error = sa_ki_test($url, $key);
+            if ($error === null) {
+                config_set(static fn(array $c): array => [
+                    'setup_done' => true, 'api_url' => $url, 'api_key' => enc($key),
+                    'model' => DEFAULT_MODEL, 'created' => gmdate('c'),
+                ]);
+                session_regenerate_id(true);
+                go();
+            }
         }
-        if (!rate_ok('check|' . (string) ($_SERVER['REMOTE_ADDR'] ?? ''), 90, 60)) {
-            json_out(429, ['error' => 'Zu viele Anfragen']);
-        }
-        $kind = isset(API_KINDS[(string) ($_SESSION['setup']['kind'] ?? '')])
-            ? (string) $_SESSION['setup']['kind'] : 'messages';
-        json_out(200, ['pruefungen' => array_merge(checks_system(), [check_key(
-            trim((string) ($_GET['url'] ?? '')) ?: DEFAULT_API_URL,
-            trim((string) ($_GET['key'] ?? '')), $kind)])]);
-    }
-
-    if (!$setup) {
-        sa_setup();
+        sa_setup($error);
     }
 
     $notice = null;
     $error = null;
-    $konto = isset($_SESSION['konto']) ? user_load((string) $_SESSION['konto']) : null;
-
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_ok();
-        $aktion = (string) ($_POST['aktion'] ?? '');
         $bucket = 'sa|' . (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-
-        if ($aktion === 'anlegen') {
-            if (throttled($bucket)) {
-                $error = 'Zu viele Versuche. Spaeter erneut.';
+        if (throttled($bucket)) {
+            $error = 'Zu viele Versuche. Spaeter erneut.';
+        } else {
+            [$u, $fehler] = sa_konto((string) ($_POST['address'] ?? ''),
+                (string) ($_POST['password'] ?? ''));
+            if ($fehler !== null) {
+                note_try($bucket, false);
+                $error = $fehler;
             } else {
-                $hash = (string) (config()['zugang_hash'] ?? '');
-                if ($hash !== '' && !password_verify((string) ($_POST['zugang'] ?? ''), $hash)) {
-                    note_try($bucket, false);
-                    $error = 'Der Zugangscode stimmt nicht.';
-                } else {
-                    [$u, $code, $fehler] = sa_add((string) ($_POST['address'] ?? ''),
-                        (string) ($_POST['password'] ?? ''));
-                    if ($fehler !== null) {
-                        note_try($bucket, false);
-                        $error = $fehler;
-                    } else {
-                        note_try($bucket, true);
-                        session_regenerate_id(true);
-                        $_SESSION['konto'] = $u['id'];
-                        $_SESSION['csrf'] = new_token();
-                        sa_page_code($u, (string) $code);
-                    }
+                note_try($bucket, true);
+                // Beim ersten Mal aufraeumen, danach nur die neue Post.
+                $neu = (string) ($u['status'] ?? 'neu') !== 'bereit';
+                $r = run_cycle((string) $u['id'], $neu);
+                $error = $r['fehler'];
+                if ($error === null) {
+                    $notice = sprintf('%d gelesen, %d einsortiert. Weiter alle %d Minuten.',
+                        $r['gelesen'], $r['verschoben'], SA_INTERVAL);
                 }
-            }
-        } elseif ($aktion === 'anmelden') {
-            if (throttled($bucket)) {
-                $error = 'Zu viele Versuche. Spaeter erneut.';
-            } else {
-                $u = sa_auth((string) ($_POST['address'] ?? ''), (string) ($_POST['code'] ?? ''));
-                if ($u === null) {
-                    note_try($bucket, false);
-                    $error = 'Adresse oder Code stimmt nicht.';
-                } else {
-                    note_try($bucket, true);
-                    session_regenerate_id(true);
-                    $_SESSION['konto'] = $u['id'];
-                    $_SESSION['csrf'] = new_token();
-                    go('konto');
-                }
-            }
-        } elseif ($aktion === 'abmelden') {
-            $_SESSION = [];
-            session_destroy();
-            go();
-        } elseif ($konto !== null) {
-            $id = (string) $konto['id'];
-            if ($aktion === 'start' || $aktion === 'sortieren') {
-                $r = run_cycle($id, $aktion === 'start');
-                $konto = user_load($id);
-                if ($r['fehler'] !== null) {
-                    $error = $r['fehler'];
-                } else {
-                    $notice = sprintf('%d gelesen, %d einsortiert.',
-                        $r['gelesen'], $r['verschoben']);
-                }
-            } elseif ($aktion === 'entfernen') {
-                @unlink(user_path($id));
-                @unlink(user_path($id) . '.lock');
-                $_SESSION = [];
-                session_destroy();
-                go();
             }
         }
     }
-
-    if (isset($_GET['konto']) || $konto !== null) {
-        sa_page_konto($konto, $notice, $error);
-    }
-    sa_page_neu($notice, $error);
+    sa_page($notice, $error);
 }
 
 function sa_cron(): never
