@@ -1,31 +1,41 @@
 <?php
 /**
- * icm - Postfaecher sortieren. Eine Datei.
+ * simple-apple-v2.php - iCloud-Postfach sortieren lassen.
  *
- * Debian, nginx, PHP 8.1+, Erweiterungen sodium, mbstring, curl.
+ * Eine Datei, sonst nichts. Kein Composer, keine ext/imap, kein require.
+ * Kann neben index.php liegen, teilt sich aber nichts mit ihr.
  *
- * Ausgehend noetig:  443/TCP zur Claude-API, 993/TCP zu den IMAP-Servern, DNS.
- * Eingehend:         80/443 fuer die Oberflaeche.
+ * Einrichtung: Voraussetzungen pruefen, dann die KI verbinden. Danach steht
+ * dauerhaft ein Formular bereit: iCloud-Adresse und app-spezifisches Passwort.
+ * Das Postfach wird einmal aufgeraeumt und danach im festen Takt sortiert.
  *
- * Cron:  *5 * * * *  php /pfad/index.php cron
+ * Keine Domains, keine Nebenadressen, kein Private Relay.
+ *
+ * Ablage: simple-apple-data neben dieser Datei.
+ * Cron alle fuenf Minuten:  php /pfad/simple-apple-v2.php cron
  */
 
 declare(strict_types=1);
 
-const VERSION = '3.0';
+const VERSION = '2.0';
+const SA_INTERVAL = 15;        // Minuten zwischen zwei Durchlaeufen
+const SA_MAX_KONTEN = 50;
+const SA_HOST = 'imap.mail.me.com';
+const SA_PORT = 993;
+
 const TOTP_WINDOW = 1;
+
 const LOGIN_MAX = 5;
+
 const LOGIN_LOCK = 900;
+
 const MAX_BODY = 8388608;
+
 const BATCH = 200;
-const RELAY_DOMAIN = 'privaterelay.appleid.com';
+
 const STEP = 5;                       // kleinste Zeiteinheit in Minuten
 
-const PROVIDERS = [
-    'icloud' => ['name' => 'iCloud', 'host' => 'imap.mail.me.com', 'port' => 993, 'apple' => true],
-    'google' => ['name' => 'Google', 'host' => 'imap.gmail.com', 'port' => 993, 'apple' => false],
-    'other'  => ['name' => 'Anderer', 'host' => '', 'port' => 993, 'apple' => false],
-];
+const RELAY_DOMAIN = 'privaterelay.appleid.com';
 
 /** Voreinstellung. Der Admin kann die Liste aendern. */
 const DEFAULT_FOLDERS = [
@@ -39,20 +49,15 @@ const DEFAULT_FOLDERS = [
     'Behoerden'       => 'Aemter, Krankenkasse, Aerzte, Telekommunikation, Vertraege',
     'Spam'            => 'unerwuenschte Massenmail, Dating',
     'Persoenlich'     => 'echte Menschen und alles nicht sicher Zuordenbare',
-    'Alias'           => 'Post an eine Nebenadresse - der Pfad wird hier gesetzt',
 ];
 
 const SYSTEM_FOLDERS = ['inbox', 'sent', 'sent messages', 'drafts', 'deleted messages',
     'trash', 'junk', 'archive', 'notes', 'outbox', '[gmail]'];
 
-// ===========================================================================
-// Ablage
-// ===========================================================================
-
 function data_dir(): string
 {
-    $env = getenv('ICM_DATA_DIR');
-    return is_string($env) && $env !== '' ? rtrim($env, '/') : __DIR__ . '/icm-data';
+    $env = getenv('SA_DATA_DIR');
+    return is_string($env) && $env !== '' ? rtrim($env, '/') : __DIR__ . '/simple-apple-data';
 }
 
 function bail(string $msg): never
@@ -111,6 +116,8 @@ function config_set(callable $fn): array
 }
 
 /** Ordnerkatalog aus der Konfiguration, sonst die Voreinstellung. */
+
+/** Ordnerkatalog aus der Konfiguration, sonst die Voreinstellung. */
 function folders_catalogue(): array
 {
     $custom = config()['folders'] ?? null;
@@ -123,7 +130,7 @@ function folders_catalogue(): array
             $out[$name] = (string) $what;
         }
     }
-    $out['Alias'] ??= DEFAULT_FOLDERS['Alias'];
+    unset($out['Alias']);   // hier gibt es keine Nebenadressen
     return $out;
 }
 
@@ -134,6 +141,8 @@ function user_path(string $id): string
     }
     return data_dir() . '/users/' . $id . '.json';
 }
+
+/** @return list<array> */
 
 /** @return list<array> */
 function users(): array
@@ -159,10 +168,6 @@ function user_set(string $id, callable $fn): array
 {
     return locked(user_path($id), $fn);
 }
-
-// ===========================================================================
-// Krypto
-// ===========================================================================
 
 function key_bytes(): string
 {
@@ -198,67 +203,6 @@ function new_token(): string
 {
     return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
 }
-
-function b32enc(string $bytes): string
-{
-    $a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    $bits = '';
-    foreach (str_split($bytes) as $c) {
-        $bits .= str_pad(decbin(ord($c)), 8, '0', STR_PAD_LEFT);
-    }
-    $out = '';
-    foreach (str_split($bits, 5) as $chunk) {
-        $out .= $a[bindec(str_pad($chunk, 5, '0', STR_PAD_RIGHT))];
-    }
-    return $out;
-}
-
-function b32dec(string $text): string
-{
-    $a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    $bits = '';
-    foreach (str_split(strtoupper(preg_replace('/[^A-Za-z2-7]/', '', $text) ?? '')) as $c) {
-        $i = strpos($a, $c);
-        if ($i !== false) {
-            $bits .= str_pad(decbin($i), 5, '0', STR_PAD_LEFT);
-        }
-    }
-    $out = '';
-    foreach (str_split($bits, 8) as $chunk) {
-        if (strlen($chunk) === 8) {
-            $out .= chr(bindec($chunk));
-        }
-    }
-    return $out;
-}
-
-function totp_at(string $secret, int $counter): string
-{
-    $h = hash_hmac('sha1', pack('N*', 0, $counter), b32dec($secret), true);
-    $o = ord($h[19]) & 0x0F;
-    $v = ((ord($h[$o]) & 0x7F) << 24) | ((ord($h[$o + 1]) & 0xFF) << 16)
-        | ((ord($h[$o + 2]) & 0xFF) << 8) | (ord($h[$o + 3]) & 0xFF);
-    return str_pad((string) ($v % 1000000), 6, '0', STR_PAD_LEFT);
-}
-
-function totp_check(string $secret, string $code, int $last = -1): ?int
-{
-    $code = preg_replace('/\D/', '', $code) ?? '';
-    if (strlen($code) !== 6 || $secret === '') {
-        return null;
-    }
-    $now = intdiv(time(), 30);
-    for ($i = -TOTP_WINDOW; $i <= TOTP_WINDOW; $i++) {
-        if ($now + $i > $last && hash_equals(totp_at($secret, $now + $i), $code)) {
-            return $now + $i;
-        }
-    }
-    return null;
-}
-
-// ===========================================================================
-// IMAP
-// ===========================================================================
 
 final class ImapError extends RuntimeException {}
 
@@ -585,6 +529,8 @@ function mutf7_decode(string $name): string
 }
 
 /** @return array{from:?string,to:list<string>} */
+
+/** @return array{from:?string,to:list<string>} */
 function parse_head(string $raw): array
 {
     $raw = preg_replace('/\r?\n[ \t]+/', ' ', str_replace("\r\n", "\n", $raw)) ?? $raw;
@@ -611,10 +557,6 @@ function parse_head(string $raw): array
     }
     return ['from' => $from, 'to' => $to];
 }
-
-// ===========================================================================
-// Ordnerlogik
-// ===========================================================================
 
 function folder_shape_ok(string $name): bool
 {
@@ -676,12 +618,11 @@ function resolve_answer(string $answer, ?string $aliasPath): ?string
     return $answer === 'Alias' ? $aliasPath : $answer;
 }
 
-// ===========================================================================
-// Claude
-// ===========================================================================
-
 const DEFAULT_MODEL = 'claude-sonnet-5';
+
 const DEFAULT_API_URL = 'https://api.anthropic.com/v1/messages';
+
+/** Zwei Wege zur KI: die Messages-API oder eine Routine auf claude.ai. */
 
 /** Zwei Wege zur KI: die Messages-API oder eine Routine auf claude.ai. */
 const API_KINDS = [
@@ -700,6 +641,11 @@ function api_kind(): string
     $kind = (string) (config()['api_kind'] ?? 'messages');
     return isset(API_KINDS[$kind]) ? $kind : 'messages';
 }
+
+/**
+ * Baut Anfrage und Kopfzeilen fuer den gewaehlten Weg.
+ * @return array{0:string,1:list<string>}
+ */
 
 /**
  * Baut Anfrage und Kopfzeilen fuer den gewaehlten Weg.
@@ -727,6 +673,8 @@ function api_secret(): string
 }
 
 /** Zieht den Antworttext heraus, egal in welcher Huelle er steckt. */
+
+/** Zieht den Antworttext heraus, egal in welcher Huelle er steckt. */
 function api_answer_text(string $raw): string
 {
     $body = json_decode($raw, true);
@@ -749,6 +697,8 @@ function api_answer_text(string $raw): string
 }
 
 /** Die Aliasregeln entfallen, wenn es den Ordner Alias gar nicht gibt. */
+
+/** Die Aliasregeln entfallen, wenn es den Ordner Alias gar nicht gibt. */
 function alias_rules(): string
 {
     if (!array_key_exists('Alias', folders_catalogue())) {
@@ -758,6 +708,11 @@ function alias_rules(): string
         . "  Diese beiden gehen immer vor.\n"
         . "- \"Alias\" ist nur bei (Nebenadresse) gueltig.\n";
 }
+
+/**
+ * @param list<array{from:string,to:string,art:string}> $questions
+ * @return array{0:array<string,string>,1:?string}
+ */
 
 /**
  * @param list<array{from:string,to:string,art:string}> $questions
@@ -828,6 +783,8 @@ function ask_claude(array $questions): array
 }
 
 /** @return array{0:int,1:?string,2:?string} [status, body, fehler] */
+
+/** @return array{0:int,1:?string,2:?string} [status, body, fehler] */
 function https_post(string $url, string $payload, array $headers): array
 {
     if (function_exists('curl_init')) {
@@ -854,10 +811,6 @@ function https_post(string $url, string $payload, array $headers): array
     return $raw === false ? [0, null, 'Anfrage fehlgeschlagen'] : [$code, (string) $raw, null];
 }
 
-// ===========================================================================
-// Zeitplan
-// ===========================================================================
-
 function schedule_due(array $user, int $now): bool
 {
     $last = isset($user['last_run']) ? strtotime((string) $user['last_run']) : 0;
@@ -872,10 +825,6 @@ function schedule_due(array $user, int $now): bool
     $interval = max(STEP, (int) ($user['schedule']['interval'] ?? 60));
     return $last === 0 || ($now - $last) >= $interval * 60;
 }
-
-// ===========================================================================
-// Durchlauf
-// ===========================================================================
 
 /**
  * @return array{gelesen:int,verschoben:int,offen:int,fehler:?string}
@@ -1065,10 +1014,6 @@ function run_cycle(string $id, bool $initial = false): array
     return $result;
 }
 
-// ===========================================================================
-// Selbsttest fuer das Setup
-// ===========================================================================
-
 /** @return list<array{name:string,ok:bool,detail:string,required:bool}> */
 function checks_system(): array
 {
@@ -1108,6 +1053,8 @@ function checks_system(): array
     }
     return $out;
 }
+
+/** Netzwerk: DNS und die drei Ports, die der Server nach aussen braucht. */
 
 /** Netzwerk: DNS und die drei Ports, die der Server nach aussen braucht. */
 function net_checks(string $url): array
@@ -1163,6 +1110,8 @@ function ini_bytes(string $value): int
 }
 
 /** Eine einzelne Zeile: antwortet die Gegenstelle mit diesem Token? */
+
+/** Eine einzelne Zeile: antwortet die Gegenstelle mit diesem Token? */
 function check_key(string $url, string $key, ?string $kind = null): array
 {
     $kind = $kind !== null && isset(API_KINDS[$kind]) ? $kind : api_kind();
@@ -1204,6 +1153,8 @@ function check_key(string $url, string $key, ?string $kind = null): array
 }
 
 /** Die Liste wird im Sekundentakt geholt - der Schluessel aber nicht jedes Mal geprueft. */
+
+/** Die Liste wird im Sekundentakt geholt - der Schluessel aber nicht jedes Mal geprueft. */
 const KEY_PROBE_TTL = 20;
 
 function key_probe_id(string $url, string $key): string
@@ -1224,60 +1175,6 @@ function key_probe_store(string $url, string $key, array $row): void
     jwrite(data_dir() . '/keycheck.json',
         ['id' => key_probe_id($url, $key), 't' => time(), 'row' => $row]);
 }
-
-// ===========================================================================
-// Cron
-// ===========================================================================
-
-function cron(): never
-{
-    if ((config()['setup_done'] ?? false) !== true) {
-        bail('Noch nicht eingerichtet.');
-    }
-    $now = time();
-    foreach (users() as $user) {
-        if ((string) ($user['status'] ?? '') !== 'bereit' || !schedule_due($user, $now)) {
-            continue;
-        }
-        $r = run_cycle((string) $user['id']);
-        printf("%s: %d gelesen, %d verschoben, %d offen%s\n", $user['address'],
-            $r['gelesen'], $r['verschoben'], $r['offen'],
-            $r['fehler'] !== null ? ' - ' . $r['fehler'] : '');
-    }
-    exit(0);
-}
-
-// ===========================================================================
-// Start
-// ===========================================================================
-
-function boot(): void
-{
-    foreach (['sodium' => 'php-sodium', 'mbstring' => 'php-mbstring'] as $ext => $pkg) {
-        if (!extension_loaded($ext)) {
-            bail("PHP-Erweiterung {$ext} fehlt (apt install {$pkg}).");
-        }
-    }
-    if (!is_dir(data_dir())) {
-        @mkdir(data_dir(), 0700, true);
-    }
-    @mkdir(data_dir() . '/users', 0700, true);
-    if (!is_file(data_dir() . '/.htaccess')) {
-        @file_put_contents(data_dir() . '/.htaccess', "Require all denied\n");
-    }
-}
-
-boot();
-
-if (PHP_SAPI === 'cli') {
-    ($argv[1] ?? '') === 'cron' ? cron() : bail('Aufruf: php index.php cron');
-}
-
-web();
-
-// ===========================================================================
-// Web
-// ===========================================================================
 
 function session_begin(): void
 {
@@ -1309,6 +1206,8 @@ function csrf_ok(): void
 }
 
 /** Weiterleitung auf diese Datei, notfalls mit Abfrage. Nie relativ. */
+
+/** Weiterleitung auf diese Datei, notfalls mit Abfrage. Nie relativ. */
 function go(string $query = ''): never
 {
     $path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
@@ -1320,6 +1219,8 @@ function e(?string $v): string
 {
     return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 }
+
+/** Einfache Mengenbegrenzung je Absender und Zeitfenster. */
 
 /** Einfache Mengenbegrenzung je Absender und Zeitfenster. */
 function rate_ok(string $bucket, int $max, int $window): bool
@@ -1377,342 +1278,6 @@ function json_out(int $code, array $data): never
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
-
-function web(): never
-{
-    session_begin();
-    $config = config();
-    $setup = ($config['setup_done'] ?? false) === true;
-
-    // Live-Pruefungen. Vor dem Setup nur fuer den, der gerade im passenden
-    // Schritt steht, danach nur fuer den angemeldeten Admin.
-    if (isset($_GET['check'])) {
-        $admin = !empty($_SESSION['admin']);
-        $inSetup = !$setup && is_array($_SESSION['setup'] ?? null);
-        if (!$admin && !$inSetup) {
-            json_out(403, ['error' => 'Nicht erlaubt']);
-        }
-        if (!rate_ok('check|' . (string) ($_SERVER['REMOTE_ADDR'] ?? ''), 90, 60)) {
-            json_out(429, ['error' => 'Zu viele Anfragen']);
-        }
-        if ($_GET['check'] === 'key') {
-            // Der Tokentest geht nach draussen - nur im dritten Schritt oder als Admin.
-            if (!$admin && (int) ($_SESSION['setup']['step'] ?? 0) !== 3) {
-                json_out(403, ['error' => 'Nicht erlaubt']);
-            }
-            json_out(200, ['pruefungen' => [check_key(
-                trim((string) ($_GET['url'] ?? '')) ?: DEFAULT_API_URL,
-                trim((string) ($_GET['key'] ?? '')))]]);
-        }
-        json_out(200, ['pruefungen' => checks_system()]);
-    }
-
-    if (!$setup) {
-        setup_flow();
-    }
-
-    if (isset($_GET['usr'])) {
-        portal();
-    }
-
-    if (($_GET['page'] ?? '') === 'logout') {
-        csrf_ok();
-        $_SESSION = [];
-        session_destroy();
-        go();
-    }
-
-    if (empty($_SESSION['admin'])) {
-        $error = null;
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            csrf_ok();
-            $bucket = 'admin|' . (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-            if (throttled($bucket)) {
-                $error = 'Zu viele Fehlversuche. Spaeter erneut.';
-            } else {
-                $ok = password_verify((string) ($_POST['password'] ?? ''),
-                    (string) $config['password_hash']);
-                $step = $ok ? totp_check((string) $config['totp_secret'],
-                    (string) ($_POST['code'] ?? ''), (int) ($config['totp_last'] ?? 0)) : null;
-                if ($ok && $step !== null) {
-                    note_try($bucket, true);
-                    session_regenerate_id(true);
-                    $_SESSION['admin'] = true;
-                    $_SESSION['csrf'] = new_token();
-                    config_set(static function (array $c) use ($step): array {
-                        $c['totp_last'] = $step;
-                        return $c;
-                    });
-                    go();
-                }
-                note_try($bucket, false);
-                $error = 'Anmeldung fehlgeschlagen.';
-            }
-        }
-        page_login($error);
-    }
-
-    $notice = null;
-    $error = null;
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        csrf_ok();
-        [$notice, $error] = admin_action();
-    }
-
-    $view = (string) ($_GET['view'] ?? '');
-    if ($view === 'user' && ($u = user_load((string) ($_GET['id'] ?? ''))) !== null) {
-        page_user($u, $notice, $error);
-    }
-    if ($view === 'system') {
-        page_system($notice, $error);
-    }
-    page_users($notice, $error);
-}
-
-/** @return array{0:?string,1:?string} */
-function admin_action(): array
-{
-    $action = (string) ($_POST['action'] ?? '');
-
-    if ($action === 'add') {
-        $provider = (string) ($_POST['provider'] ?? 'icloud');
-        if (!isset(PROVIDERS[$provider])) {
-            return [null, 'Unbekannter Anbieter.'];
-        }
-        $address = strtolower(trim((string) ($_POST['address'] ?? '')));
-        $password = (string) ($_POST['password'] ?? '');
-        $host = $provider === 'other'
-            ? strtolower(trim((string) ($_POST['host'] ?? ''))) : PROVIDERS[$provider]['host'];
-        $port = $provider === 'other' ? (int) ($_POST['port'] ?? 993) : PROVIDERS[$provider]['port'];
-        if (!filter_var($address, FILTER_VALIDATE_EMAIL)) {
-            return [null, 'Keine gueltige E-Mail-Adresse.'];
-        }
-        if ($password === '') {
-            return [null, 'Anwendungspasswort fehlt.'];
-        }
-        if ($host === '' || !preg_match('/^[a-z0-9.-]+$/', $host) || $port < 1 || $port > 65535) {
-            return [null, 'IMAP-Server oder Port ungueltig.'];
-        }
-        foreach (users() as $x) {
-            if (strtolower((string) $x['address']) === $address) {
-                return [null, 'Diese Adresse gibt es schon.'];
-            }
-        }
-        try {
-            (new Imap($host, $port))->login($address, $password);
-        } catch (ImapError $e) {
-            return [null, $e->getMessage()];
-        }
-        $id = bin2hex(random_bytes(8));
-        jwrite(user_path($id), ['id' => $id, 'address' => $address, 'password' => enc($password),
-            'provider' => $provider, 'host' => $host, 'port' => $port,
-            'apple' => (bool) PROVIDERS[$provider]['apple'], 'privateappleid' => false,
-            'domains' => [], 'addresses' => [], 'knowledge' => [], 'known_folders' => [],
-            'schedule' => ['mode' => 'interval', 'interval' => 60, 'times' => []],
-            'totp_secret' => '', 'status' => 'neu', 'created' => gmdate('c')]);
-        sodium_memzero($password);
-        return [$address . ' angelegt. Verbindung steht.', null];
-    }
-
-    $id = (string) ($_POST['id'] ?? '');
-    if ($id !== '' && user_load($id) === null) {
-        return [null, 'Nutzer nicht gefunden.'];
-    }
-
-    if ($action === 'init' || $action === 'run') {
-        $r = run_cycle($id, $action === 'init');
-        return $r['fehler'] !== null
-            ? [null, $r['fehler']]
-            : [sprintf('%d gelesen, %d einsortiert, %d offen.',
-                $r['gelesen'], $r['verschoben'], $r['offen']), null];
-    }
-
-    if ($action === 'delete') {
-        @unlink(user_path($id));
-        @unlink(user_path($id) . '.lock');
-        return ['Nutzer entfernt.', null];
-    }
-
-    if ($action === 'save_user') {
-        $domains = [];
-        foreach (preg_split('/[\s,]+/', (string) ($_POST['domains'] ?? '')) ?: [] as $d) {
-            $d = strtolower(trim(ltrim($d, '@')));
-            if ($d !== '' && preg_match('/^[a-z0-9.-]+\.[a-z]{2,}$/', $d)) {
-                $domains[] = $d;
-            }
-        }
-        $addresses = [];
-        foreach (preg_split('/[\s,]+/', (string) ($_POST['addresses'] ?? '')) ?: [] as $a) {
-            $a = strtolower(trim($a));
-            if ($a !== '' && filter_var($a, FILTER_VALIDATE_EMAIL)) {
-                $addresses[] = $a;
-            }
-        }
-        $mode = ($_POST['mode'] ?? 'interval') === 'times' ? 'times' : 'interval';
-        $interval = max(STEP, min(10080, (int) round(((int) ($_POST['interval'] ?? 60)) / STEP) * STEP));
-        $times = [];
-        foreach (preg_split('/[\s,]+/', (string) ($_POST['times'] ?? '')) ?: [] as $t) {
-            if (preg_match('/^([01]\d|2[0-3]):([0-5]\d)$/', trim($t), $m)
-                && (int) $m[2] % STEP === 0) {
-                $times[] = trim($t);
-            }
-        }
-        if ($mode === 'times' && $times === []) {
-            return [null, 'Keine gueltige Uhrzeit. Format 08:00, nur ' . STEP . '-Minuten-Schritte.'];
-        }
-        $relay = !empty($_POST['privateappleid']);
-        $totp = !empty($_POST['totp_on']);
-        user_set($id, static function (array $u) use ($domains, $addresses, $mode,
-                                                      $interval, $times, $relay, $totp): array {
-            $u['domains'] = array_values(array_unique($domains));
-            $u['addresses'] = array_values(array_unique($addresses));
-            $u['schedule'] = ['mode' => $mode, 'interval' => $interval, 'times' => $times];
-            $u['privateappleid'] = !empty($u['apple']) && $relay;
-            if ($totp && ($u['totp_secret'] ?? '') === '') {
-                $u['totp_secret'] = b32enc(random_bytes(20));
-            } elseif (!$totp) {
-                $u['totp_secret'] = '';
-            }
-            return $u;
-        });
-        return ['Gespeichert.', null];
-    }
-
-    if ($action === 'save_folders') {
-        $lines = preg_split('/\R/', (string) ($_POST['folders'] ?? '')) ?: [];
-        $catalogue = [];
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-            [$name, $what] = array_pad(explode('|', $line, 2), 2, '');
-            $name = trim($name);
-            if (!folder_shape_ok($name)) {
-                return [null, 'Ordnername nicht erlaubt: ' . $name];
-            }
-            $catalogue[$name] = trim($what);
-        }
-        if (!isset($catalogue['Alias'])) {
-            return [null, 'Der Eintrag "Alias" muss bestehen bleiben.'];
-        }
-        config_set(static function (array $c) use ($catalogue): array {
-            $c['folders'] = $catalogue;
-            return $c;
-        });
-        foreach (users() as $u) {
-            user_set((string) $u['id'], static function (array $x): array {
-                $x['status'] = 'neu_initialisieren';
-                $x['halt'] = 'Die Ordnerliste wurde geaendert.';
-                return $x;
-            });
-        }
-        return ['Ordner gespeichert. Alle Nutzer muessen neu initialisiert werden.', null];
-    }
-
-    if ($action === 'save_api') {
-        $url = trim((string) ($_POST['api_url'] ?? ''));
-        $key = trim((string) ($_POST['api_key'] ?? ''));
-        $model = trim((string) ($_POST['model'] ?? '')) ?: DEFAULT_MODEL;
-        $kind = isset(API_KINDS[(string) ($_POST['api_kind'] ?? '')])
-            ? (string) $_POST['api_kind'] : api_kind();
-        if ($url !== '' && !str_starts_with($url, 'https://')) {
-            return [null, 'Die API-URL muss mit https:// beginnen.'];
-        }
-        if (!preg_match('/^[A-Za-z0-9._-]{1,60}$/', $model)) {
-            return [null, 'Modellname ungueltig.'];
-        }
-        // Nichts speichern, was nicht antwortet - sonst steht der Betrieb.
-        $row = check_key($url !== '' ? $url : api_url(), $key !== '' ? $key : api_secret(), $kind);
-        if (!$row['ok']) {
-            return [null, $row['detail']];
-        }
-        config_set(static function (array $c) use ($url, $key, $model, $kind): array {
-            if ($url !== '') {
-                $c['api_url'] = $url;
-            }
-            if ($key !== '') {
-                $c['api_key'] = enc($key);
-            }
-            $c['api_kind'] = $kind;
-            $c['model'] = $model;
-            return $c;
-        });
-        return ['Gespeichert. Die KI antwortet.', null];
-    }
-
-    return [null, null];
-}
-
-// --- Portal fuer einzelne Nutzer ------------------------------------------
-
-function portal(): never
-{
-    $error = null;
-    if (empty($_SESSION['portal'])) {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            csrf_ok();
-            $bucket = 'usr|' . (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-            if (throttled($bucket)) {
-                $error = 'Zu viele Fehlversuche.';
-            } else {
-                $address = strtolower(trim((string) ($_POST['address'] ?? '')));
-                $found = null;
-                foreach (users() as $u) {
-                    if (strtolower((string) $u['address']) === $address
-                        && ($u['totp_secret'] ?? '') !== '') {
-                        $found = $u;
-                    }
-                }
-                $step = $found !== null ? totp_check((string) $found['totp_secret'],
-                    (string) ($_POST['code'] ?? ''), (int) ($found['totp_last'] ?? 0)) : null;
-                if ($found !== null && $step !== null) {
-                    note_try($bucket, true);
-                    session_regenerate_id(true);
-                    $_SESSION['portal'] = $found['id'];
-                    $_SESSION['csrf'] = new_token();
-                    user_set((string) $found['id'], static function (array $u) use ($step): array {
-                        $u['totp_last'] = $step;
-                        return $u;
-                    });
-                    go('usr');
-                }
-                note_try($bucket, false);
-                $error = 'Anmeldung fehlgeschlagen.';
-            }
-        }
-        page_portal_login($error);
-    }
-
-    $user = user_load((string) $_SESSION['portal']);
-    if ($user === null) {
-        $_SESSION = [];
-        session_destroy();
-        go('usr');
-    }
-    $notice = null;
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        csrf_ok();
-        if (($_POST['action'] ?? '') === 'logout') {
-            $_SESSION = [];
-            session_destroy();
-            go('usr');
-        }
-        // Der Nutzer darf nur seine eigenen Adressen und den Zeitplan aendern -
-        // keine andere Aktion des Adminbereichs ist hier erreichbar.
-        if (($_POST['action'] ?? '') === 'save_user') {
-            $_POST['id'] = $user['id'];
-            $_POST['totp_on'] = '1';          // den eigenen Zugang nicht aussperren
-            [$notice] = admin_action();
-            $user = user_load((string) $user['id']) ?? $user;
-        }
-    }
-    page_portal($user, $notice);
-}
-
-// ===========================================================================
-// Ansicht
-// ===========================================================================
 
 function head(string $title, ?string $nonce = null): void
 {
@@ -1808,18 +1373,6 @@ function head(string $title, ?string $nonce = null): void
     <?php
 }
 
-function nav(string $on): void
-{
-    ?>
-<header><div class="in"><b>icm</b>
- <a href="?" class="<?= $on === 'users' ? 'on' : '' ?>">Nutzer</a>
- <a href="?view=system" class="<?= $on === 'system' ? 'on' : '' ?>">System</a>
- <form method="post" action="?page=logout"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-  <button class="q" type="submit">Abmelden</button></form>
-</div></header><main>
-    <?php
-}
-
 function msgs(?string $notice, ?string $error): void
 {
     if ($notice !== null) {
@@ -1834,244 +1387,14 @@ function msgs(?string $notice, ?string $error): void
  * Einrichtung in drei Schritten. Der Stand liegt in der Sitzung, nicht in
  * versteckten Feldern - so laesst sich kein Schritt ueberspringen.
  */
-function setup_flow(): never
+
+function stamp(?string $iso): string
 {
-    $state = $_SESSION['setup'] ?? null;
-    if (!is_array($state)) {
-        $state = ['step' => 1, 'secret' => b32enc(random_bytes(20)), 'hash' => null];
-        $_SESSION['setup'] = $state;
-    }
-    $step = (int) $state['step'];
-    $error = null;
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        csrf_ok();
-        $want = (int) ($_POST['step'] ?? 0);
-        if (($_POST['zurueck'] ?? '') !== '') {
-            $_SESSION['setup']['step'] = max(1, $want - 1);
-            go();
-        }
-        if ($want !== $step) {
-            $error = 'Bitte die Seite neu laden.';
-        } elseif ($step === 1) {
-            $offen = array_filter(checks_system(),
-                static fn(array $c) => $c['required'] && !$c['ok']);
-            if ($offen !== []) {
-                $error = 'Noch offen: ' . implode(', ', array_column($offen, 'name'));
-            } else {
-                $_SESSION['setup']['step'] = 2;
-                go();
-            }
-        } elseif ($step === 2) {
-            $pass = (string) ($_POST['password'] ?? '');
-            if (strlen($pass) < 12) {
-                $error = 'Das Passwort braucht mindestens 12 Zeichen.';
-            } elseif ($pass !== (string) ($_POST['password2'] ?? '')) {
-                $error = 'Die beiden Passwoerter sind nicht gleich.';
-            } elseif (totp_check((string) $state['secret'], (string) ($_POST['code'] ?? '')) === null) {
-                $error = 'Der Code stimmt nicht. Uhrzeit des Servers pruefen.';
-            } else {
-                $_SESSION['setup']['hash'] = password_hash($pass, PASSWORD_DEFAULT);
-                $_SESSION['setup']['step'] = 3;
-                sodium_memzero($pass);
-                go();
-            }
-        } elseif ($step === 3) {
-            $kind = isset(API_KINDS[(string) ($_POST['api_kind'] ?? '')])
-                ? (string) $_POST['api_kind'] : 'messages';
-            $_SESSION['setup']['kind'] = $kind;
-            if (($_POST['wechsel'] ?? '') !== '') {
-                go();                       // nur die Zustellart gewechselt
-            }
-            $url = trim((string) ($_POST['api_url'] ?? '')) ?: DEFAULT_API_URL;
-            $key = trim((string) ($_POST['api_key'] ?? ''));
-            $row = check_key($url, $key, $kind);
-            if (!$row['ok']) {
-                $error = $row['detail'];
-            } elseif (!is_string($state['hash'])) {
-                $error = 'Das Adminkonto fehlt. Bitte von vorn beginnen.';
-                $_SESSION['setup']['step'] = 2;
-            } else {
-                config_set(static fn(array $c): array => [
-                    'setup_done' => true,
-                    'password_hash' => (string) $_SESSION['setup']['hash'],
-                    'totp_secret' => (string) $_SESSION['setup']['secret'],
-                    'totp_last' => 0,
-                    'api_url' => $url,
-                    'api_key' => enc($key),
-                    'api_kind' => $kind,
-                    'model' => DEFAULT_MODEL,
-                    'created' => gmdate('c'),
-                ]);
-                unset($_SESSION['setup']);
-                session_regenerate_id(true);
-                go();
-            }
-        }
-        $step = (int) $_SESSION['setup']['step'];
-    }
-
-    match ($step) {
-        2 => page_setup_admin((string) $state['secret'], $error),
-        3 => page_setup_ki((string) ($_SESSION['setup']['kind'] ?? 'messages'), $error),
-        default => page_setup_checks($error),
-    };
+    $t = $iso !== null && $iso !== '' ? strtotime($iso) : false;
+    return $t === false ? '-' : date('d.m.Y H:i', $t);
 }
 
-function setup_head(int $step, ?string $error): void
-{
-    $titel = [1 => 'Voraussetzungen', 2 => 'Adminkonto', 3 => 'KI verbinden'];
-    ?>
-<main class="narrow" style="max-width:600px">
-  <ol class="steps">
-    <?php foreach ($titel as $n => $t): ?>
-      <li class="<?= $n === $step ? 'on' : ($n < $step ? 'done' : '') ?>">
-        <span class="n"><?= $n < $step ? '&check;' : $n ?></span><?= e($t) ?></li>
-    <?php endforeach; ?>
-  </ol>
-  <h1><?= e($titel[$step]) ?></h1>
-  <?php msgs(null, $error);
-}
-
-function page_setup_checks(?string $error): never
-{
-    $nonce = base64_encode(random_bytes(16));
-    head('icm einrichten', $nonce);
-    setup_head(1, $error);
-    ?>
-  <section class="card">
-    <ul class="chk" id="chk"><li><span class="st">&hellip;</span><span class="nm">wird geprueft</span></li></ul>
-  </section>
-  <section class="card">
-    <h2>Was der Server nach aussen braucht</h2>
-    <table>
-      <tr><td>443/TCP</td><td class="muted">zur Claude-API</td></tr>
-      <tr><td>993/TCP</td><td class="muted">zum Postfach, IMAP ueber TLS</td></tr>
-      <tr><td>53</td><td class="muted">DNS</td></tr>
-      <tr><td>80 und 443</td><td class="muted">eingehend, fuer diese Seite</td></tr>
-    </table>
-  </section>
-  <form method="post">
-    <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-    <input type="hidden" name="step" value="1">
-    <button id="go" type="submit" disabled>Weiter</button>
-    <span class="hint" id="gohint">Wartet auf die Pruefung.</span>
-  </form>
-<?php checklist_script($nonce, '?check=system', 'chk', 'go', 'gohint'); ?>
-</main></body></html>
-    <?php
-    exit;
-}
-
-function page_setup_admin(string $secret, ?string $error): never
-{
-    head('icm einrichten');
-    setup_head(2, $error);
-    ?>
-  <form method="post" autocomplete="off">
-    <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-    <input type="hidden" name="step" value="2">
-    <section class="card">
-      <div class="f"><label for="p">Passwort</label>
-        <input id="p" name="password" type="password" required minlength="12" autofocus>
-        <div class="hint">Mindestens 12 Zeichen. Es gibt keinen Benutzernamen.</div></div>
-      <div class="f"><label for="p2">Passwort wiederholen</label>
-        <input id="p2" name="password2" type="password" required></div>
-    </section>
-    <section class="card">
-      <h2>Zweiter Faktor</h2>
-      <div class="f"><label>Geheimnis fuer die Authenticator-App</label>
-        <pre><?= e(chunk_split($secret, 4, ' ')) ?></pre>
-        <div class="hint">Jetzt eintragen und sichern. Danach wird es nicht mehr angezeigt.</div></div>
-      <div class="f"><label for="c">Code aus der App</label>
-        <input id="c" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required
-               autocomplete="one-time-code"></div>
-    </section>
-    <div style="display:flex;gap:8px">
-      <button class="q" type="submit" name="zurueck" value="1" formnovalidate>Zurueck</button>
-      <button type="submit">Weiter</button>
-    </div>
-  </form>
-</main></body></html>
-    <?php
-    exit;
-}
-
-function page_setup_ki(string $kind, ?string $error): never
-{
-    $nonce = base64_encode(random_bytes(16));
-    head('icm einrichten', $nonce);
-    setup_head(3, $error);
-    $routine = $kind === 'routine';
-    ?>
-  <form method="post" autocomplete="off" id="kiform">
-    <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-    <input type="hidden" name="step" value="3">
-  <section class="card">
-    <h2>1. Woher die Antwort kommt</h2>
-    <div class="f"><select id="kd" name="api_kind">
-      <?php foreach (API_KINDS as $k => $label): ?>
-        <option value="<?= e($k) ?>" <?= $k === $kind ? 'selected' : '' ?>><?= e($label) ?></option>
-      <?php endforeach; ?>
-    </select></div>
-  </section>
-  <section class="card">
-    <h2>2. Diesen Text in die KI geben</h2>
-    <p class="muted" style="margin:0 0 10px"><?= $routine
-        ? 'Auf claude.ai/code/routines eine Routine anlegen und den Text als Auftrag einsetzen. '
-          . 'Danach gibt die Routine dir eine API-URL und ein Token.'
-        : 'Der Text beschreibt, was die KI tun soll. Das Token kommt aus der Anthropic-Konsole.' ?></p>
-    <pre id="auftrag"><?= e(routine_text($kind)) ?></pre>
-    <div style="margin-top:10px"><button class="q" type="button" id="copy">Text kopieren</button></div>
-  </section>
-  <section class="card">
-    <h2>3. Zugang eintragen</h2>
-    <div>
-      <div class="f"><label for="au">API-URL</label>
-        <input id="au" name="api_url"
-               value="<?= e($routine ? '' : DEFAULT_API_URL) ?>"
-               placeholder="<?= e($routine ? 'https://claude.ai/api/... aus der Routine' : DEFAULT_API_URL) ?>"></div>
-      <div class="f"><label for="ak">API-Token</label>
-        <input id="ak" name="api_key" type="password" required autofocus>
-        <div class="hint">Wird verschluesselt abgelegt und nie wieder angezeigt.</div></div>
-      <ul class="chk" id="chk"><li><span class="st">&hellip;</span><span class="nm">Token eintragen</span></li></ul>
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="q" type="submit" name="zurueck" value="1" formnovalidate>Zurueck</button>
-        <button id="go" type="submit" disabled>Fertig</button>
-      </div>
-      <div class="hint" id="gohint">Erst moeglich, wenn die KI antwortet.</div>
-    </div>
-  </section>
-  </form>
-<?php checklist_script($nonce, '?check=key', 'chk', 'go', 'gohint', true); ?>
-</main></body></html>
-    <?php
-    exit;
-}
-
-/** Der Auftrag, den der Betreiber der KI vorlegt. Kurz und ohne Beiwerk. */
-function routine_text(string $kind = 'messages', string $name = 'icm'): string
-{
-    $folders = '';
-    foreach (folders_catalogue() as $folder => $what) {
-        $folders .= "- {$folder}: {$what}\n";
-    }
-    $weg = $kind === 'routine' ? 'per HTTP an diese Routine' : 'ueber die Messages-API';
-    return "Auftrag fuer {$name} (Postfach sortieren)\n\n"
-        . "Ein Webserver schickt dir {$weg} Zeilen der Form\n"
-        . "  0) absender@example.com -> empfaenger@example.com (Hauptadresse)\n"
-        . "Du antwortest ausschliesslich mit JSON: {\"0\": \"Ordner\"}\n\n"
-        . "Erlaubte Ordner:\n" . $folders . "\n"
-        . "Regeln:\n"
-        . (array_key_exists('Alias', folders_catalogue())
-            ? "- (Nebenadresse) bedeutet Alias - ausser Sicherheit oder Finanzen, die gehen vor.\n"
-            : '')
-        . "- Finanzen nur, wo echtes Geld dahintersteht. Newsletter eines Zahlungsdienstes\n"
-        . "  gehoeren nach Werbung.\n"
-        . "- Unsicher? Persoenlich.\n\n"
-        . "Der Server liest nur Absender und Empfaenger, nie den Inhalt einer Nachricht.\n"
-        . "Gebraucht werden dafuer die API-URL und ein API-Token.\n";
-}
+/** Blendet Uhrzeiten oder Minuten aus, je nach gewaehltem Zeitplan. */
 
 /**
  * Holt eine Pruefliste im Sekundentakt nach und schaltet den Knopf frei.
@@ -2140,347 +1463,501 @@ function checklist_script(string $nonce, string $endpoint, string $listId,
     <?php
 }
 
-function page_login(?string $error): never
+/** Der Auftrag, den der Betreiber der KI vorlegt. Kurz und ohne Beiwerk. */
+function routine_text(string $kind = 'messages', string $name = 'icm'): string
 {
-    head('icm');
+    $folders = '';
+    foreach (folders_catalogue() as $folder => $what) {
+        $folders .= "- {$folder}: {$what}\n";
+    }
+    $weg = $kind === 'routine' ? 'per HTTP an diese Routine' : 'ueber die Messages-API';
+    return "Auftrag fuer {$name} (Postfach sortieren)\n\n"
+        . "Ein Webserver schickt dir {$weg} Zeilen der Form\n"
+        . "  0) absender@example.com -> empfaenger@example.com (Hauptadresse)\n"
+        . "Du antwortest ausschliesslich mit JSON: {\"0\": \"Ordner\"}\n\n"
+        . "Erlaubte Ordner:\n" . $folders . "\n"
+        . "Regeln:\n"
+        . (array_key_exists('Alias', folders_catalogue())
+            ? "- (Nebenadresse) bedeutet Alias - ausser Sicherheit oder Finanzen, die gehen vor.\n"
+            : '')
+        . "- Finanzen nur, wo echtes Geld dahintersteht. Newsletter eines Zahlungsdienstes\n"
+        . "  gehoeren nach Werbung.\n"
+        . "- Unsicher? Persoenlich.\n\n"
+        . "Der Server liest nur Absender und Empfaenger, nie den Inhalt einer Nachricht.\n"
+        . "Gebraucht werden dafuer die API-URL und ein API-Token.\n";
+}
+
+/**
+ * Holt eine Pruefliste im Sekundentakt nach und schaltet den Knopf frei.
+ * Immer nur eine Anfrage zugleich, sonst stauen sich die Zeitablaeufe.
+ */
+
+
+// ===========================================================================
+// Konten
+// ===========================================================================
+
+function sa_find(string $address): ?array
+{
+    foreach (users() as $u) {
+        if (strcasecmp((string) $u['address'], $address) === 0) {
+            return $u;
+        }
+    }
+    return null;
+}
+
+/**
+ * Legt ein Konto an, nachdem die Anmeldedaten am Server geprueft wurden.
+ * @return array{0:?array,1:?string,2:?string} [Konto, Zugangscode, Fehler]
+ */
+function sa_add(string $address, string $password): array
+{
+    $address = strtolower(trim($address));
+    if (!filter_var($address, FILTER_VALIDATE_EMAIL)) {
+        return [null, null, 'Das ist keine gueltige E-Mail-Adresse.'];
+    }
+    if ($password === '') {
+        return [null, null, 'Das app-spezifische Passwort fehlt.'];
+    }
+    if (sa_find($address) !== null) {
+        return [null, null, 'Diese Adresse ist schon eingetragen.'];
+    }
+    if (count(users()) >= SA_MAX_KONTEN) {
+        return [null, null, 'Es sind keine Plaetze mehr frei.'];
+    }
+    try {
+        (new Imap(SA_HOST, SA_PORT))->login($address, $password);
+    } catch (ImapError $e) {
+        return [null, null, $e->getMessage()];
+    }
+    $code = new_token();
+    $id = bin2hex(random_bytes(8));
+    jwrite(user_path($id), [
+        'id' => $id, 'address' => $address, 'password' => enc($password),
+        'host' => SA_HOST, 'port' => SA_PORT,
+        // Ohne Nebenadressen: leer, damit jede Mail als Hauptadresse gilt.
+        'privateappleid' => false, 'domains' => [], 'addresses' => [],
+        'knowledge' => [], 'known_folders' => [],
+        'schedule' => ['mode' => 'interval', 'interval' => SA_INTERVAL, 'times' => []],
+        'code_hash' => hash('sha256', $code),
+        'status' => 'neu', 'created' => gmdate('c'),
+    ]);
+    sodium_memzero($password);
+    return [user_load($id), $code, null];
+}
+
+/** Kontozugang ueber den einmal angezeigten Code. */
+function sa_auth(string $address, string $code): ?array
+{
+    $u = sa_find(strtolower(trim($address)));
+    if ($u === null) {
+        return null;
+    }
+    return hash_equals((string) ($u['code_hash'] ?? ''), hash('sha256', trim($code))) ? $u : null;
+}
+
+// ===========================================================================
+// Einrichtung
+// ===========================================================================
+
+function sa_setup(): never
+{
+    if (!is_array($_SESSION['setup'] ?? null)) {
+        $_SESSION['setup'] = ['kind' => 'messages'];
+    }
+    $kind = (string) ($_SESSION['setup']['kind'] ?? 'messages');
+    $error = null;
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        csrf_ok();
+        $kind = isset(API_KINDS[(string) ($_POST['api_kind'] ?? '')])
+            ? (string) $_POST['api_kind'] : 'messages';
+        $_SESSION['setup']['kind'] = $kind;
+        if (($_POST['wechsel'] ?? '') !== '') {
+            go();                        // nur die Zustellart gewechselt
+        }
+        $url = trim((string) ($_POST['api_url'] ?? '')) ?: DEFAULT_API_URL;
+        $key = trim((string) ($_POST['api_key'] ?? ''));
+        $zugang = trim((string) ($_POST['zugang'] ?? ''));
+        $offen = array_filter(checks_system(), static fn(array $c) => $c['required'] && !$c['ok']);
+        if ($offen !== []) {
+            $error = 'Noch offen: ' . implode(', ', array_column($offen, 'name'));
+        } elseif (!($row = check_key($url, $key, $kind))['ok']) {
+            $error = $row['detail'];
+        } else {
+            config_set(static fn(array $c): array => [
+                'setup_done' => true,
+                'api_url' => $url, 'api_key' => enc($key), 'api_kind' => $kind,
+                'model' => DEFAULT_MODEL,
+                'zugang_hash' => $zugang === '' ? '' : password_hash($zugang, PASSWORD_DEFAULT),
+                'created' => gmdate('c'),
+            ]);
+            unset($_SESSION['setup']);
+            session_regenerate_id(true);
+            go();
+        }
+    }
+
+    $nonce = base64_encode(random_bytes(16));
+    head('Postfach sortieren - einrichten', $nonce);
+    $routine = $kind === 'routine';
     ?>
-<main class="narrow"><h1>Anmelden</h1>
+<main class="narrow" style="max-width:600px">
+  <h1>Einrichten</h1>
   <?php msgs(null, $error); ?>
-  <form method="post" class="card" autocomplete="off">
+  <section class="card">
+    <h2>Voraussetzungen</h2>
+    <ul class="chk" id="chk"><li><span class="st">&hellip;</span><span class="nm">wird geprueft</span></li></ul>
+  </section>
+  <section class="card">
+    <h2>Was der Server nach aussen braucht</h2>
+    <table>
+      <tr><td>443/TCP</td><td class="muted">zur KI</td></tr>
+      <tr><td>993/TCP</td><td class="muted">zu <?= e(SA_HOST) ?>, IMAP ueber TLS</td></tr>
+      <tr><td>53</td><td class="muted">DNS</td></tr>
+      <tr><td>80 und 443</td><td class="muted">eingehend, fuer diese Seite</td></tr>
+    </table>
+  </section>
+  <form method="post" autocomplete="off">
     <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-    <div class="f"><label for="p">Passwort</label>
-      <input id="p" name="password" type="password" required autofocus></div>
-    <div class="f"><label for="c">Code</label>
-      <input id="c" name="code" inputmode="numeric" pattern="[0-9]{6}" required
-             autocomplete="one-time-code"></div>
-    <button type="submit">Anmelden</button>
-  </form></main></body></html>
+    <section class="card">
+      <h2>1. Woher die Antwort kommt</h2>
+      <div class="f"><select id="kd" name="api_kind">
+        <?php foreach (API_KINDS as $k => $label): ?>
+          <option value="<?= e($k) ?>" <?= $k === $kind ? 'selected' : '' ?>><?= e($label) ?></option>
+        <?php endforeach; ?>
+      </select></div>
+    </section>
+    <section class="card">
+      <h2>2. Diesen Text in die KI geben</h2>
+      <p class="muted" style="margin:0 0 10px"><?= $routine
+          ? 'Auf claude.ai/code/routines eine Routine anlegen und den Text als Auftrag '
+            . 'einsetzen. Danach gibt die Routine dir eine API-URL und ein Token.'
+          : 'Der Text beschreibt, was die KI tun soll. Das Token kommt aus der '
+            . 'Anthropic-Konsole.' ?></p>
+      <pre id="auftrag"><?= e(routine_text($kind, 'simple-apple')) ?></pre>
+      <div style="margin-top:10px"><button class="q" type="button" id="copy">Text kopieren</button></div>
+    </section>
+    <section class="card">
+      <h2>3. Zugang eintragen</h2>
+      <div class="f"><label for="au">API-URL</label>
+        <input id="au" name="api_url" value="<?= e($routine ? '' : DEFAULT_API_URL) ?>"
+               placeholder="<?= e($routine ? 'aus der Routine' : DEFAULT_API_URL) ?>"></div>
+      <div class="f"><label for="ak">API-Token</label>
+        <input id="ak" name="api_key" type="password" required>
+        <div class="hint">Wird verschluesselt abgelegt und nie wieder angezeigt.</div></div>
+    </section>
+    <section class="card">
+      <h2>4. Wer darf sich eintragen</h2>
+      <div class="f"><label for="zg">Zugangscode</label>
+        <input id="zg" name="zugang" type="text">
+        <div class="hint">Ohne Code kann jeder, der die Seite kennt, ein Postfach
+          eintragen - und dabei dein KI-Token verbrauchen. Leer lassen nur, wenn
+          die Seite ohnehin nicht oeffentlich erreichbar ist.</div></div>
+      <button id="go" type="submit" disabled>Einrichten</button>
+      <div class="hint" id="gohint">Erst moeglich, wenn alles gruen ist.</div>
+    </section>
+  </form>
+<?php checklist_script($nonce, '?check=all', 'chk', 'go', 'gohint', true); ?>
+</main></body></html>
     <?php
     exit;
 }
 
-function page_users(?string $notice, ?string $error): never
+// ===========================================================================
+// Oberflaeche
+// ===========================================================================
+
+function sa_head(?string $notice, ?string $error): void
 {
-    $list = users();
-    $nonce = base64_encode(random_bytes(16));
-    head('icm', $nonce);
-    nav('users');
-    msgs($notice, $error);
+    ?>
+<header><div class="in"><b>Postfach sortieren</b>
+  <a href="?">Eintragen</a><a href="?konto">Mein Postfach</a></div></header>
+<main class="narrow" style="max-width:520px">
+  <?php msgs($notice, $error);
+}
+
+function sa_page_neu(?string $notice, ?string $error): never
+{
+    $zugang = (string) (config()['zugang_hash'] ?? '') !== '';
+    head('Postfach sortieren');
+    sa_head($notice, $error);
     ?>
   <section class="card">
-    <table>
-      <tr><th>Adresse</th><th>Anbieter</th><th>Status</th><th>Plan</th><th></th></tr>
-      <?php if ($list === []): ?>
-        <tr><td colspan="5" class="muted">Kein Nutzer angelegt.</td></tr>
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+      <input type="hidden" name="aktion" value="anlegen">
+      <div class="f"><label for="ad">iCloud-Adresse</label>
+        <input id="ad" name="address" type="email" required autofocus></div>
+      <div class="f"><label for="pw">App-spezifisches Passwort</label>
+        <input id="pw" name="password" type="password" required>
+        <div class="hint">appleid.apple.com &rarr; Anmeldung und Sicherheit &rarr;
+          App-spezifische Passwoerter. Nicht das Passwort deiner Apple ID.</div></div>
+      <?php if ($zugang): ?>
+        <div class="f"><label for="zg">Zugangscode</label>
+          <input id="zg" name="zugang" type="password" required></div>
       <?php endif; ?>
-      <?php foreach ($list as $u):
-          $st = (string) ($u['status'] ?? 'neu');
-          [$cls, $txt] = match ($st) {
-              'bereit' => ['ok', 'bereit'],
-              'neu_initialisieren' => ['err', 'neu initialisieren'],
-              default => ['warn', 'nicht initialisiert'],
-          };
-          $sch = $u['schedule'] ?? [];
-          $plan = ($sch['mode'] ?? 'interval') === 'times'
-              ? implode(' ', array_slice((array) ($sch['times'] ?? []), 0, 4))
-              : 'alle ' . (int) ($sch['interval'] ?? 60) . ' min'; ?>
-      <tr>
-        <td><a href="?view=user&amp;id=<?= e($u['id']) ?>"><?= e($u['address']) ?></a>
-          <?php if (!empty($u['last_error'])): ?>
-            <div class="muted"><?= e(mb_substr((string) $u['last_error'], 0, 100)) ?></div>
-          <?php endif; ?></td>
-        <td class="muted"><?= e(PROVIDERS[$u['provider']]['name'] ?? '') ?></td>
-        <td><span class="tag <?= $cls ?>"><?= e($txt) ?></span></td>
-        <td class="muted"><?= e($plan) ?></td>
-        <td style="text-align:right">
-          <form method="post" class="inline">
-            <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-            <input type="hidden" name="id" value="<?= e($u['id']) ?>">
-            <input type="hidden" name="action" value="<?= $st === 'bereit' ? 'run' : 'init' ?>">
-            <button type="submit"><?= $st === 'bereit' ? 'Sortieren' : 'Initialisieren' ?></button>
-          </form></td>
-      </tr>
+      <button type="submit">Postfach eintragen</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>Was danach passiert</h2>
+    <ol style="margin:0;padding-left:18px">
+      <li>Alles aus dem Archiv und den eigenen Ordnern geht in den Posteingang.</li>
+      <li>Die eigenen Ordner werden geloescht und neu angelegt.</li>
+      <li>Jede Nachricht wird einsortiert.</li>
+      <li>Danach alle <?= SA_INTERVAL ?> Minuten die neue Post.</li>
+    </ol>
+    <p class="muted" style="margin:12px 0 0">Gesendet, Entwuerfe, Werbung und
+      Papierkorb bleiben unberuehrt. Gelesen werden nur Absender und Empfaenger,
+      nie der Inhalt einer Nachricht. Geloescht wird keine Nachricht.</p>
+  </section>
+  <section class="card">
+    <h2>Ordner</h2>
+    <table>
+      <?php foreach (folders_catalogue() as $name => $was): ?>
+        <tr><td><?= e($name) ?></td><td class="muted"><?= e($was) ?></td></tr>
       <?php endforeach; ?>
     </table>
   </section>
-
-  <section class="card">
-    <details>
-      <summary>Nutzer hinzufuegen</summary>
-      <form method="post" autocomplete="off">
-        <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-        <input type="hidden" name="action" value="add">
-        <div class="cols">
-          <div>
-            <div class="f"><label for="ad">E-Mail</label>
-              <input id="ad" name="address" type="email" required></div>
-            <div class="f"><label for="pw">Anwendungspasswort</label>
-              <input id="pw" name="password" type="password" required></div>
-          </div>
-          <div>
-            <div class="f"><label for="pv">Anbieter</label>
-              <select id="pv" name="provider">
-                <?php foreach (PROVIDERS as $k => $p): ?>
-                  <option value="<?= e($k) ?>"><?= e($p['name']) ?></option>
-                <?php endforeach; ?>
-              </select></div>
-            <div id="own" style="display:none">
-              <div class="f two">
-                <div><label for="ho">IMAP-Server</label><input id="ho" name="host"></div>
-                <div><label for="po">Port</label>
-                  <input id="po" name="port" type="number" value="993"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="submit">Anlegen</button>
-      </form>
-    </details>
-  </section>
-</main>
-<script nonce="<?= e($nonce) ?>">
-(function () {
-  var sel = document.getElementById('pv'), own = document.getElementById('own');
-  if (!sel) { return; }
-  function sync() { own.style.display = sel.value === 'other' ? 'block' : 'none'; }
-  sel.addEventListener('change', sync); sync();
-})();
-</script></body></html>
-    <?php
-    exit;
-}
-
-function stamp(?string $iso): string
-{
-    $t = $iso !== null && $iso !== '' ? strtotime($iso) : false;
-    return $t === false ? '-' : date('d.m.Y H:i', $t);
-}
-
-/** Blendet Uhrzeiten oder Minuten aus, je nach gewaehltem Zeitplan. */
-function schedule_script(string $nonce): void
-{
-    ?>
-<script nonce="<?= e($nonce) ?>">
-(function () {
-  var sel = document.getElementById('md');
-  var t = document.getElementById('bt'), i = document.getElementById('bi');
-  if (!sel) { return; }
-  function sync() {
-    var times = sel.value === 'times';
-    t.style.display = times ? 'block' : 'none';
-    i.style.display = times ? 'none' : 'block';
-  }
-  sel.addEventListener('change', sync); sync();
-})();
-</script>
-    <?php
-}
-
-function page_user(array $u, ?string $notice, ?string $error): never
-{
-    $nonce = base64_encode(random_bytes(16));
-    head('icm - ' . (string) $u['address'], $nonce);
-    nav('users');
-    msgs($notice, $error);
-    $st = (string) ($u['status'] ?? 'neu');
-    $sch = $u['schedule'] ?? ['mode' => 'interval', 'interval' => 60, 'times' => []];
-    ?>
-  <h1><?= e($u['address']) ?></h1>
-  <?php if ($st === 'neu'): ?>
-    <div class="msg warn">Noch nicht initialisiert.</div>
-  <?php elseif ($st === 'neu_initialisieren'): ?>
-    <div class="msg err"><?= e((string) ($u['halt'] ?? 'Angehalten.')) ?></div>
-  <?php endif; ?>
-  <div class="cols">
-    <section class="card">
-      <form method="post">
-        <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-        <input type="hidden" name="id" value="<?= e($u['id']) ?>">
-        <input type="hidden" name="action" value="save_user">
-        <div class="f"><label for="dm">Eigene Domains</label>
-          <textarea id="dm" name="domains"><?= e(implode("\n", (array) ($u['domains'] ?? []))) ?></textarea></div>
-        <div class="f"><label for="ax">Weitere Adressen</label>
-          <textarea id="ax" name="addresses"><?= e(implode("\n", (array) ($u['addresses'] ?? []))) ?></textarea></div>
-        <?php if (!empty($u['apple'])): ?>
-          <div class="f"><label style="font-weight:400;display:flex;gap:8px;align-items:center">
-            <input type="checkbox" name="privateappleid" style="width:auto"
-                   <?= !empty($u['privateappleid']) ? 'checked' : '' ?>> Private Apple ID</label></div>
-        <?php endif; ?>
-        <div class="f"><label for="md">Zeitplan</label>
-          <select id="md" name="mode">
-            <option value="interval" <?= ($sch['mode'] ?? '') !== 'times' ? 'selected' : '' ?>>Intervall</option>
-            <option value="times" <?= ($sch['mode'] ?? '') === 'times' ? 'selected' : '' ?>>Uhrzeiten</option>
-          </select></div>
-        <div class="f" id="bt"><label for="tm">Uhrzeiten</label>
-          <input id="tm" name="times" placeholder="08:00 20:00"
-                 value="<?= e(implode(' ', (array) ($sch['times'] ?? []))) ?>">
-          <div class="hint">Mehrere durch Leerzeichen, nur <?= STEP ?>-Minuten-Schritte.</div></div>
-        <div class="f" id="bi"><label for="iv">Alle wie viele Minuten</label>
-          <input id="iv" name="interval" type="number" min="<?= STEP ?>" step="<?= STEP ?>"
-                 value="<?= (int) ($sch['interval'] ?? 60) ?>"></div>
-        <div class="f"><label style="font-weight:400;display:flex;gap:8px;align-items:center">
-          <input type="checkbox" name="totp_on" style="width:auto"
-                 <?= ($u['totp_secret'] ?? '') !== '' ? 'checked' : '' ?>> Eigener Zugang unter <code>?usr</code></label>
-          <?php if (($u['totp_secret'] ?? '') !== ''): ?>
-            <pre style="margin-top:8px"><?= e((string) $u['totp_secret']) ?></pre>
-          <?php endif; ?></div>
-        <button type="submit">Speichern</button>
-      </form>
-    </section>
-    <div>
-      <section class="card">
-        <table>
-          <tr><td>Server</td><td class="muted"><?= e($u['host'] . ':' . $u['port']) ?></td></tr>
-          <tr><td>Letzter Lauf</td><td class="muted"><?= e(stamp($u['last_run'] ?? null)) ?></td></tr>
-          <tr><td>Bekannte Absender</td><td class="muted"><?= array_sum(array_map('count', (array) ($u['knowledge'] ?? []))) ?></td></tr>
-          <tr><td>Ordner</td><td class="muted"><?= count($u['known_folders'] ?? []) ?></td></tr>
-        </table>
-        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-          <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-            <input type="hidden" name="id" value="<?= e($u['id']) ?>">
-            <input type="hidden" name="action" value="run">
-            <button <?= $st === 'bereit' ? '' : 'class="q"' ?> type="submit">Sortieren</button></form>
-          <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-            <input type="hidden" name="id" value="<?= e($u['id']) ?>">
-            <input type="hidden" name="action" value="init">
-            <button <?= $st === 'bereit' ? 'class="d"' : '' ?> type="submit">
-              <?= $st === 'bereit' ? 'Neu initialisieren' : 'Initialisieren' ?></button></form>
-          <form method="post" class="inline" style="margin-left:auto">
-            <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-            <input type="hidden" name="id" value="<?= e($u['id']) ?>">
-            <input type="hidden" name="action" value="delete"><button class="d" type="submit">Entfernen</button></form>
-        </div>
-        <?php if ($st === 'bereit'): ?>
-          <div class="hint" style="margin-top:8px">Neu initialisieren raeumt alle Ordner in den
-            Posteingang, loescht sie und sortiert von vorne.</div>
-        <?php endif; ?>
-      </section>
-    </div>
-  </div>
-<?php schedule_script($nonce); ?>
 </main></body></html>
     <?php
     exit;
 }
 
-function page_system(?string $notice, ?string $error): never
+function sa_page_code(array $u, string $code): never
 {
-    $config = config();
-    $text = '';
-    foreach (folders_catalogue() as $name => $what) {
-        $text .= $name . ' | ' . $what . "\n";
-    }
-    head('icm - System');
-    nav('system');
-    msgs($notice, $error);
+    head('Postfach sortieren');
+    sa_head(null, null);
     ?>
-  <div class="cols">
-    <section class="card">
-      <h2>Ordner</h2>
-      <form method="post">
-        <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-        <input type="hidden" name="action" value="save_folders">
-        <div class="f"><textarea name="folders" style="min-height:280px"><?= e($text) ?></textarea>
-          <div class="hint">Eine Zeile je Ordner: <code>Name | Beschreibung</code>.
-            <code>Alias</code> muss bleiben. Nach dem Speichern muessen alle Nutzer neu
-            initialisiert werden.</div></div>
-        <button type="submit">Speichern</button>
-      </form>
-    </section>
-    <div>
-      <section class="card">
-        <h2>Claude</h2>
-        <form method="post">
-          <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-          <input type="hidden" name="action" value="save_api">
-          <div class="f"><label for="kd">Zustellart</label>
-            <select id="kd" name="api_kind">
-              <?php foreach (API_KINDS as $k => $label): ?>
-                <option value="<?= e($k) ?>" <?= $k === api_kind() ? 'selected' : '' ?>><?= e($label) ?></option>
-              <?php endforeach; ?>
-            </select></div>
-          <div class="f"><label for="au">API-URL</label>
-            <input id="au" name="api_url" value="<?= e($config['api_url'] ?? DEFAULT_API_URL) ?>"></div>
-          <div class="f"><label for="ak">API-Token</label>
-            <input id="ak" name="api_key" type="password" placeholder="gespeichert"></div>
-          <div class="f"><label for="mo">Modell</label>
-            <input id="mo" name="model" value="<?= e($config['model'] ?? DEFAULT_MODEL) ?>"></div>
-          <button type="submit">Speichern</button>
-        </form>
-      </section>
-      <section class="card">
-        <h2>Cron</h2>
-        <pre>*/<?= STEP ?> * * * * php <?= e(__FILE__) ?> cron</pre>
-      </section>
-    </div>
-  </div>
-</main></body></html>
-    <?php
-    exit;
-}
-
-function page_portal_login(?string $error): never
-{
-    head('icm');
-    ?>
-<main class="narrow"><h1>Anmelden</h1>
-  <?php msgs(null, $error); ?>
-  <form method="post" class="card" autocomplete="off">
-    <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-    <div class="f"><label for="a">E-Mail</label><input id="a" name="address" type="email" required></div>
-    <div class="f"><label for="c">Code</label>
-      <input id="c" name="code" inputmode="numeric" pattern="[0-9]{6}" required
-             autocomplete="one-time-code"></div>
-    <button type="submit">Anmelden</button>
-  </form></main></body></html>
-    <?php
-    exit;
-}
-
-function page_portal(array $u, ?string $notice): never
-{
-    $sch = $u['schedule'] ?? ['mode' => 'interval', 'interval' => 60, 'times' => []];
-    $nonce = base64_encode(random_bytes(16));
-    head('icm', $nonce);
-    ?>
-<header><div class="in"><b>icm</b><span class="muted"><?= e($u['address']) ?></span>
- <form method="post"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-  <input type="hidden" name="action" value="logout">
-  <button class="q" type="submit">Abmelden</button></form>
-</div></header><main class="narrow" style="max-width:520px">
-  <?php msgs($notice, null); ?>
   <section class="card">
+    <div style="font-weight:600;margin:0 0 12px"><?= e($u['address']) ?> ist eingetragen</div>
+    <div class="f"><label>Dein Zugangscode</label><pre><?= e($code) ?></pre>
+      <div class="hint">Jetzt sichern. Er wird nur dieses eine Mal angezeigt und
+        ist der einzige Weg zurueck zu diesem Postfach.</div></div>
     <form method="post">
       <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-      <input type="hidden" name="action" value="save_user">
-      <div class="f"><label for="dm">Eigene Domains</label>
-        <textarea id="dm" name="domains"><?= e(implode("\n", (array) ($u['domains'] ?? []))) ?></textarea></div>
-      <div class="f"><label for="ax">Weitere Adressen</label>
-        <textarea id="ax" name="addresses"><?= e(implode("\n", (array) ($u['addresses'] ?? []))) ?></textarea></div>
-      <?php if (!empty($u['apple'])): ?>
-        <div class="f"><label style="font-weight:400;display:flex;gap:8px;align-items:center">
-          <input type="checkbox" name="privateappleid" style="width:auto"
-                 <?= !empty($u['privateappleid']) ? 'checked' : '' ?>> Private Apple ID</label></div>
-      <?php endif; ?>
-      <input type="hidden" name="totp_on" value="1">
-      <div class="f"><label for="md">Zeitplan</label>
-        <select id="md" name="mode">
-          <option value="interval" <?= ($sch['mode'] ?? '') !== 'times' ? 'selected' : '' ?>>Intervall</option>
-          <option value="times" <?= ($sch['mode'] ?? '') === 'times' ? 'selected' : '' ?>>Uhrzeiten</option>
-        </select></div>
-      <div class="f two">
-        <div><label for="tm">Uhrzeiten</label>
-          <input id="tm" name="times" placeholder="08:00 20:00"
-                 value="<?= e(implode(' ', (array) ($sch['times'] ?? []))) ?>"></div>
-        <div><label for="iv">Minuten</label>
-          <input id="iv" name="interval" type="number" min="5" step="5"
-                 value="<?= (int) ($sch['interval'] ?? 60) ?>"></div>
-      </div>
-      <button type="submit">Speichern</button>
+      <input type="hidden" name="aktion" value="start">
+      <button type="submit">Jetzt aufraeumen</button>
+      <div class="hint">Das dauert je nach Postfach ein bis zwei Minuten.</div>
     </form>
   </section>
-<?php schedule_script($nonce); ?>
 </main></body></html>
     <?php
     exit;
 }
+
+function sa_page_konto(?array $u, ?string $notice, ?string $error): never
+{
+    head('Postfach sortieren');
+    sa_head($notice, $error);
+    if ($u === null) {
+        ?>
+  <section class="card">
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+      <input type="hidden" name="aktion" value="anmelden">
+      <div class="f"><label for="ad">iCloud-Adresse</label>
+        <input id="ad" name="address" type="email" required autofocus></div>
+      <div class="f"><label for="cd">Zugangscode</label>
+        <input id="cd" name="code" type="password" required></div>
+      <button type="submit">Anzeigen</button>
+    </form>
+  </section>
+</main></body></html>
+        <?php
+        exit;
+    }
+    $st = (string) ($u['status'] ?? 'neu');
+    ?>
+  <section class="card">
+    <div style="font-weight:600;margin:0 0 12px"><?= e($u['address']) ?></div>
+    <table>
+      <tr><td>Zustand</td><td class="muted"><?= e(match ($st) {
+          'bereit' => 'sortiert alle ' . SA_INTERVAL . ' Minuten',
+          'neu_initialisieren' => (string) ($u['halt'] ?? 'angehalten'),
+          default => 'noch nicht aufgeraeumt',
+      }) ?></td></tr>
+      <tr><td>Letzter Lauf</td><td class="muted"><?= e(stamp($u['last_run'] ?? null)) ?></td></tr>
+      <tr><td>Bekannte Absender</td><td class="muted"><?= array_sum(array_map('count',
+          (array) ($u['knowledge'] ?? []))) ?></td></tr>
+      <tr><td>Ordner</td><td class="muted"><?= count($u['known_folders'] ?? []) ?></td></tr>
+    </table>
+    <?php if (!empty($u['last_error'])): ?>
+      <div class="msg err" style="margin:14px 0 0"><?= e((string) $u['last_error']) ?></div>
+    <?php endif; ?>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+        <input type="hidden" name="aktion" value="sortieren">
+        <button <?= $st === 'bereit' ? '' : 'class="q"' ?> type="submit">Jetzt sortieren</button></form>
+      <form method="post" class="inline"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+        <input type="hidden" name="aktion" value="start">
+        <button <?= $st === 'bereit' ? 'class="d"' : '' ?> type="submit">
+          <?= $st === 'bereit' ? 'Neu aufraeumen' : 'Aufraeumen' ?></button></form>
+      <form method="post" class="inline">
+        <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+        <input type="hidden" name="aktion" value="entfernen">
+        <button class="d" type="submit">Postfach entfernen</button></form>
+    </div>
+    <?php if ($st === 'bereit'): ?>
+      <div class="hint" style="margin-top:8px">Neu aufraeumen holt alles zurueck in
+        den Posteingang und sortiert von vorne.</div>
+    <?php endif; ?>
+  </section>
+  <section class="card">
+    <form method="post"><input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+      <input type="hidden" name="aktion" value="abmelden">
+      <button class="q" type="submit">Abmelden</button></form>
+  </section>
+</main></body></html>
+    <?php
+    exit;
+}
+
+// ===========================================================================
+// Ablauf
+// ===========================================================================
+
+function sa_web(): never
+{
+    session_begin();
+    $setup = (config()['setup_done'] ?? false) === true;
+
+    if (isset($_GET['check'])) {
+        // Nur waehrend der Einrichtung offen, danach zu.
+        if ($setup || !is_array($_SESSION['setup'] ?? null)) {
+            json_out(403, ['error' => 'Nicht erlaubt']);
+        }
+        if (!rate_ok('check|' . (string) ($_SERVER['REMOTE_ADDR'] ?? ''), 90, 60)) {
+            json_out(429, ['error' => 'Zu viele Anfragen']);
+        }
+        $kind = isset(API_KINDS[(string) ($_SESSION['setup']['kind'] ?? '')])
+            ? (string) $_SESSION['setup']['kind'] : 'messages';
+        json_out(200, ['pruefungen' => array_merge(checks_system(), [check_key(
+            trim((string) ($_GET['url'] ?? '')) ?: DEFAULT_API_URL,
+            trim((string) ($_GET['key'] ?? '')), $kind)])]);
+    }
+
+    if (!$setup) {
+        sa_setup();
+    }
+
+    $notice = null;
+    $error = null;
+    $konto = isset($_SESSION['konto']) ? user_load((string) $_SESSION['konto']) : null;
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        csrf_ok();
+        $aktion = (string) ($_POST['aktion'] ?? '');
+        $bucket = 'sa|' . (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+
+        if ($aktion === 'anlegen') {
+            if (throttled($bucket)) {
+                $error = 'Zu viele Versuche. Spaeter erneut.';
+            } else {
+                $hash = (string) (config()['zugang_hash'] ?? '');
+                if ($hash !== '' && !password_verify((string) ($_POST['zugang'] ?? ''), $hash)) {
+                    note_try($bucket, false);
+                    $error = 'Der Zugangscode stimmt nicht.';
+                } else {
+                    [$u, $code, $fehler] = sa_add((string) ($_POST['address'] ?? ''),
+                        (string) ($_POST['password'] ?? ''));
+                    if ($fehler !== null) {
+                        note_try($bucket, false);
+                        $error = $fehler;
+                    } else {
+                        note_try($bucket, true);
+                        session_regenerate_id(true);
+                        $_SESSION['konto'] = $u['id'];
+                        $_SESSION['csrf'] = new_token();
+                        sa_page_code($u, (string) $code);
+                    }
+                }
+            }
+        } elseif ($aktion === 'anmelden') {
+            if (throttled($bucket)) {
+                $error = 'Zu viele Versuche. Spaeter erneut.';
+            } else {
+                $u = sa_auth((string) ($_POST['address'] ?? ''), (string) ($_POST['code'] ?? ''));
+                if ($u === null) {
+                    note_try($bucket, false);
+                    $error = 'Adresse oder Code stimmt nicht.';
+                } else {
+                    note_try($bucket, true);
+                    session_regenerate_id(true);
+                    $_SESSION['konto'] = $u['id'];
+                    $_SESSION['csrf'] = new_token();
+                    go('konto');
+                }
+            }
+        } elseif ($aktion === 'abmelden') {
+            $_SESSION = [];
+            session_destroy();
+            go();
+        } elseif ($konto !== null) {
+            $id = (string) $konto['id'];
+            if ($aktion === 'start' || $aktion === 'sortieren') {
+                $r = run_cycle($id, $aktion === 'start');
+                $konto = user_load($id);
+                if ($r['fehler'] !== null) {
+                    $error = $r['fehler'];
+                } else {
+                    $notice = sprintf('%d gelesen, %d einsortiert.',
+                        $r['gelesen'], $r['verschoben']);
+                }
+            } elseif ($aktion === 'entfernen') {
+                @unlink(user_path($id));
+                @unlink(user_path($id) . '.lock');
+                $_SESSION = [];
+                session_destroy();
+                go();
+            }
+        }
+    }
+
+    if (isset($_GET['konto']) || $konto !== null) {
+        sa_page_konto($konto, $notice, $error);
+    }
+    sa_page_neu($notice, $error);
+}
+
+function sa_cron(): never
+{
+    if ((config()['setup_done'] ?? false) !== true) {
+        bail('Noch nicht eingerichtet.');
+    }
+    $now = time();
+    foreach (users() as $u) {
+        if ((string) ($u['status'] ?? '') !== 'bereit' || !schedule_due($u, $now)) {
+            continue;
+        }
+        $r = run_cycle((string) $u['id']);
+        printf("%s: %d gelesen, %d verschoben%s\n", $u['address'], $r['gelesen'],
+            $r['verschoben'], $r['fehler'] !== null ? ' - ' . $r['fehler'] : '');
+    }
+    exit(0);
+}
+
+// ===========================================================================
+// Start
+// ===========================================================================
+
+foreach (['sodium' => 'php-sodium', 'mbstring' => 'php-mbstring'] as $ext => $pkg) {
+    if (!extension_loaded($ext)) {
+        bail("PHP-Erweiterung {$ext} fehlt (apt install {$pkg}).");
+    }
+}
+if (!is_dir(data_dir())) {
+    @mkdir(data_dir(), 0700, true);
+}
+@mkdir(data_dir() . '/users', 0700, true);
+if (!is_file(data_dir() . '/.htaccess')) {
+    @file_put_contents(data_dir() . '/.htaccess', "Require all denied\n");
+}
+
+if (PHP_SAPI === 'cli') {
+    ($argv[1] ?? '') === 'cron' ? sa_cron() : bail('Aufruf: php simple-apple-v2.php cron');
+}
+
+sa_web();
