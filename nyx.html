@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<!--
+  Nyx — Client fuer den Browser. Alles in einer Datei.
+
+  Oeffnen ueber einen Webserver (nicht per file://, das erlauben
+  ES-Module nicht). Zum Ausprobieren genuegt im selben Ordner:
+
+      python3 -m http.server 8080
+
+  Erzeugt aus impl/web.
+-->
+
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Nyx</title>
+<style>
+/* Zurueckhaltende Oberflaeche.
+ *
+ * Regeln, die hier gelten: keine Verlaeufe, keine Schatten ohne Funktion,
+ * keine Farbe ohne Bedeutung. Farbe markiert genau zwei Dinge — die eigene
+ * Nachricht und einen Fehler. Alles andere ist Grauwert und Abstand.
+ * Systemschrift, damit die Anwendung aussieht wie das Geraet, auf dem sie
+ * laeuft.
+ */
+
+:root {
+  --bg: #ffffff;
+  --bg-sunken: #f5f5f7;
+  --bg-raised: #ffffff;
+  --line: #e0e0e4;
+  --line-strong: #c8c8cf;
+  --ink: #1a1a1c;
+  --ink-muted: #6a6a72;
+  --ink-faint: #96969e;
+  --accent: #2b6cb0;
+  --accent-ink: #ffffff;
+  --danger: #b03030;
+  --radius: 8px;
+  --gap: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171a;
+    --bg-sunken: #1e1e22;
+    --bg-raised: #26262b;
+    --line: #303036;
+    --line-strong: #43434b;
+    --ink: #e8e8ec;
+    --ink-muted: #9a9aa4;
+    --ink-faint: #6e6e78;
+    --accent: #5a9fd4;
+    --accent-ink: #10141a;
+    --danger: #e08080;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+/* -- Grundraster --------------------------------------------------------- */
+
+.app {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: 100%;
+}
+
+@media (max-width: 720px) {
+  .app { grid-template-columns: 1fr; }
+  .app[data-view="gespraech"] .sidebar { display: none; }
+  .app[data-view="liste"] .main { display: none; }
+}
+
+/* -- Seitenleiste -------------------------------------------------------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: var(--bg-sunken);
+  min-height: 0;
+}
+
+.me {
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.me-label {
+  font-size: 12px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.me-address {
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-all;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.me-address:hover { color: var(--ink); }
+
+.contacts {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.contact {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.contact:hover { background: var(--bg-raised); }
+.contact[aria-current="true"] { background: var(--bg-raised); box-shadow: inset 3px 0 0 var(--accent); }
+
+.contact-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.contact-last {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-actions {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+/* -- Hauptbereich -------------------------------------------------------- */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.msg {
+  max-width: min(620px, 78%);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg.out {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.msg-meta {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.msg.out .msg-meta { color: color-mix(in srgb, var(--accent-ink) 70%, transparent); }
+
+.msg.system {
+  align-self: center;
+  max-width: 100%;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 13px;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  min-height: 40px;
+  max-height: 160px;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.composer textarea:focus,
+input:focus,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* -- Bedienelemente ------------------------------------------------------ */
+
+button {
+  padding: 8px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--ink-faint); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+button.quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-muted);
+  padding: 6px 8px;
+}
+
+button.quiet:hover { color: var(--ink); }
+
+input[type="text"], input[type="url"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+/* -- Blenden ------------------------------------------------------------- */
+
+dialog {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0;
+  background: var(--bg-raised);
+  color: var(--ink);
+  max-width: 480px;
+  width: calc(100% - 32px);
+}
+
+dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+
+.dialog-body { padding: 20px; }
+.dialog-body h2 { margin: 0 0 6px; font-size: 16px; }
+.dialog-body p { margin: 0 0 14px; color: var(--ink-muted); font-size: 14px; }
+.dialog-body label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--ink-muted); }
+.dialog-body .field { margin-bottom: 16px; }
+.dialog-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.safety {
+  padding: 10px 12px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+  letter-spacing: 0.06em;
+}
+
+/* -- Zustand ------------------------------------------------------------- */
+
+.status {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+
+.status.error { color: var(--danger); }
+
+.empty {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: var(--ink-faint);
+  padding: 32px;
+}
+
+.empty p { margin: 6px 0 0; font-size: 14px; }
+
+.call-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 10px 16px;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.call-bar .grow { flex: 1; }
+
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app" data-view="liste">
+
+  <aside class="sidebar">
+    <div class="me">
+      <div class="me-label">Eigene Adresse</div>
+      <div class="me-address" id="meine-adresse" title="Zum Kopieren anklicken">—</div>
+    </div>
+
+    <div class="contacts" id="kontakte"></div>
+
+    <div class="sidebar-actions">
+      <button id="btn-neuer-kontakt">Kontakt hinzufügen</button>
+      <button class="quiet" id="btn-einstellungen">Einstellungen</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <button class="quiet" id="btn-zurueck" hidden>Zurück</button>
+      <h1 id="titel">Nyx</h1>
+      <button class="quiet" id="btn-anrufen" hidden>Anrufen</button>
+      <button class="quiet" id="btn-pruefen" hidden>Prüfen</button>
+    </div>
+
+    <div class="status" id="status" hidden></div>
+
+    <div class="call-bar" id="anrufleiste" hidden>
+      <span id="anruf-text" class="grow"></span>
+      <button id="btn-annehmen" class="primary">Annehmen</button>
+      <button id="btn-auflegen">Auflegen</button>
+    </div>
+
+    <div class="empty" id="leer">
+      <strong>Keine Unterhaltung ausgewählt</strong>
+      <p>Adresse eines Kontakts eingeben, um zu beginnen.</p>
+    </div>
+
+    <div class="messages" id="verlauf" hidden></div>
+
+    <form class="composer" id="composer" hidden>
+      <textarea id="eingabe" rows="1" placeholder="Nachricht" autocomplete="off"></textarea>
+      <input type="file" id="datei" hidden>
+      <button type="button" class="quiet" id="btn-datei" title="Datei senden">Datei</button>
+      <button type="submit" class="primary">Senden</button>
+    </form>
+  </main>
+</div>
+
+<!-- Erste Einrichtung -->
+<dialog id="dlg-start">
+  <form method="dialog" class="dialog-body">
+    <h2>Nyx einrichten</h2>
+    <p>Die Identität entsteht auf diesem Gerät. Es gibt keine Registrierung,
+       keine Telefonnummer und keinen Anbieter, bei dem sie hinterlegt wird.</p>
+
+    <div class="field">
+      <label for="start-knoten">Knoten</label>
+      <input type="url" id="start-knoten" value="http://127.0.0.1:8478" required>
+    </div>
+
+    <div class="dialog-actions">
+      <button value="import">Identität einlesen</button>
+      <button value="neu" class="primary">Neue Identität</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Kontakt hinzufügen -->
+<dialog id="dlg-kontakt">
+  <form method="dialog" class="dialog-body">
+    <h2>Kontakt hinzufügen</h2>
+    <p>Die Adresse ist der öffentliche Schlüssel. Wer sie hat, kann schreiben —
+       mehr ist nicht nötig.</p>
+    <div class="field">
+      <label for="kontakt-adresse">Adresse</label>
+      <input type="text" id="kontakt-adresse" spellcheck="false" autocapitalize="off"
+             placeholder="36 Zeichen" required>
+    </div>
+    <div class="dialog-actions">
+      <button value="abbruch">Abbrechen</button>
+      <button value="ok" class="primary">Hinzufügen</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Einstellungen -->
+<dialog id="dlg-einstellungen">
+  <form method="dialog" class="dialog-body">
+    <h2>Einstellungen</h2>
+
+    <div class="field">
+      <label for="einst-knoten">Knoten</label>
+      <input type="url" id="einst-knoten">
+    </div>
+
+    <div class="field">
+      <label>Eigene Identität</label>
+      <div class="mono" id="einst-adresse"></div>
+    </div>
+
+    <div class="field">
+      <label>Sicherung</label>
+      <p style="margin:0">Ohne Sicherung ist die Identität verloren, wenn dieses
+         Gerät verloren geht. Es gibt keine Wiederherstellung durch Dritte.</p>
+    </div>
+
+    <div class="dialog-actions">
+      <button value="export">Identität sichern</button>
+      <button value="loeschen">Alles löschen</button>
+      <button value="ok" class="primary">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Schlüssel prüfen -->
+<dialog id="dlg-pruefen">
+  <form method="dialog" class="dialog-body">
+    <h2>Schlüssel prüfen</h2>
+    <p>Beide Seiten sehen dieselbe Zahlenfolge. Stimmt sie überein, spricht
+       niemand dazwischen. Der Abgleich ist der einzige Test, der ohne
+       Annahme über das Netz auskommt.</p>
+    <div class="field">
+      <div class="mono safety" id="pruef-zahl"></div>
+    </div>
+    <div class="field" id="pruef-verlauf-feld">
+      <label>Schlüsselwechsel im Verzeichnis</label>
+      <div class="mono" id="pruef-verlauf"></div>
+    </div>
+    <div class="dialog-actions">
+      <button value="ok" class="primary">Schließen</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="import-datei" accept="application/json" hidden>
+
+<script type="module">
+// ======================================================================
+// nyx-crypto.js
+// ======================================================================
+
+// Kryptographische Primitive im Browser.
+//
+// WebCrypto liefert SHA-256, HMAC, X25519 und Ed25519. Was fehlt, ist
+// ChaCha20-Poly1305 — das ist hier nachgebaut, byteweise identisch zur
+// Python- und PHP-Fassung. Ohne diese Uebereinstimmung koennte der
+// Web-Client keine Ablage lesen, die ein anderer Client geschrieben hat.
+//
+// Wie in den anderen Fassungen gilt: dieser Code ist nicht laufzeitkonstant.
+
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+const hex = (b) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+const unhex = (s) => new Uint8Array(s.match(/../g)?.map(h => parseInt(h, 16)) ?? []);
+
+function concat(...parts) {
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return out;
+}
+
+const equal = (a, b) =>
+  a.length === b.length && a.every((v, i) => v === b[i]);
+
+const random = (n) => crypto.getRandomValues(new Uint8Array(n));
+
+// -- Hash und Ableitung ----------------------------------------------------
+
+async function sha256(...parts) {
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', concat(...parts)));
+}
+
+async function hmac(key, ...parts) {
+  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' },
+                                          false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', k, concat(...parts)));
+}
+
+/** HKDF mit Protokoll-Label — dieselbe Ableitung wie nyx/primitives/kdf.py. */
+async function hkdf(ikm, label, length = 32, salt = new Uint8Array(32)) {
+  const prk = await hmac(salt.length ? salt : new Uint8Array(32), ikm);
+  const info = enc.encode(label);
+  let out = new Uint8Array(0), block = new Uint8Array(0), counter = 1;
+  while (out.length < length) {
+    block = await hmac(prk, block, info, new Uint8Array([counter++]));
+    out = concat(out, block);
+  }
+  return out.slice(0, length);
+}
+
+// -- ChaCha20-Poly1305 (RFC 8439) -----------------------------------------
+
+const SIGMA = enc.encode('expand 32-byte k');
+
+function rotl(v, n) { return ((v << n) | (v >>> (32 - n))) >>> 0; }
+
+function quarter(s, a, b, c, d) {
+  s[a] = (s[a] + s[b]) >>> 0; s[d] = rotl(s[d] ^ s[a], 16);
+  s[c] = (s[c] + s[d]) >>> 0; s[b] = rotl(s[b] ^ s[c], 12);
+  s[a] = (s[a] + s[b]) >>> 0; s[d] = rotl(s[d] ^ s[a], 8);
+  s[c] = (s[c] + s[d]) >>> 0; s[b] = rotl(s[b] ^ s[c], 7);
+}
+
+function chachaBlock(key, counter, nonce) {
+  const view = new DataView(concat(SIGMA, key, new Uint8Array(4), nonce).buffer);
+  const state = new Uint32Array(16);
+  for (let i = 0; i < 16; i++) state[i] = view.getUint32(i * 4, true);
+  state[12] = counter >>> 0;
+
+  const work = state.slice();
+  for (let i = 0; i < 10; i++) {
+    quarter(work, 0, 4, 8, 12); quarter(work, 1, 5, 9, 13);
+    quarter(work, 2, 6, 10, 14); quarter(work, 3, 7, 11, 15);
+    quarter(work, 0, 5, 10, 15); quarter(work, 1, 6, 11, 12);
+    quarter(work, 2, 7, 8, 13); quarter(work, 3, 4, 9, 14);
+  }
+
+  const out = new Uint8Array(64);
+  const dv = new DataView(out.buffer);
+  for (let i = 0; i < 16; i++) dv.setUint32(i * 4, (work[i] + state[i]) >>> 0, true);
+  return out;
+}
+
+function chacha20(key, counter, nonce, data) {
+  const out = new Uint8Array(data.length);
+  for (let off = 0; off < data.length; off += 64) {
+    const block = chachaBlock(key, counter + off / 64, nonce);
+    for (let i = 0; i < 64 && off + i < data.length; i++) {
+      out[off + i] = data[off + i] ^ block[i];
+    }
+  }
+  return out;
+}
+
+function poly1305(key, msg) {
+  // 130-Bit-Arithmetik ueber BigInt: kurz und nachpruefbar.
+  const P = (1n << 130n) - 5n;
+  const le = (bytes) => bytes.reduceRight((acc, b) => (acc << 8n) | BigInt(b), 0n);
+  const r = le(key.slice(0, 16)) & 0x0ffffffc0ffffffc0ffffffc0fffffffn;
+  const s = le(key.slice(16, 32));
+
+  let acc = 0n;
+  for (let off = 0; off < msg.length; off += 16) {
+    const chunk = msg.slice(off, off + 16);
+    acc = ((acc + le(concat(chunk, new Uint8Array([1])))) * r) % P;
+  }
+  acc = (acc + s) & ((1n << 128n) - 1n);
+
+  const out = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) out[i] = Number((acc >> BigInt(8 * i)) & 0xffn);
+  return out;
+}
+
+const pad16 = (d) => new Uint8Array(d.length % 16 ? 16 - (d.length % 16) : 0);
+
+function lengths(aad, ct) {
+  const out = new Uint8Array(16);
+  new DataView(out.buffer).setBigUint64(0, BigInt(aad.length), true);
+  new DataView(out.buffer).setBigUint64(8, BigInt(ct.length), true);
+  return out;
+}
+
+function tagFor(key, nonce, aad, ct) {
+  const polyKey = chachaBlock(key, 0, nonce).slice(0, 32);
+  return poly1305(polyKey, concat(aad, pad16(aad), ct, pad16(ct), lengths(aad, ct)));
+}
+
+function seal(key, nonce, plaintext, aad = new Uint8Array(0)) {
+  const ct = chacha20(key, 1, nonce, plaintext);
+  return concat(ct, tagFor(key, nonce, aad, ct));
+}
+
+class AuthError extends Error {}
+
+function open(key, nonce, boxed, aad = new Uint8Array(0)) {
+  if (boxed.length < 16) throw new AuthError('Chiffrat zu kurz');
+  const ct = boxed.slice(0, -16);
+  if (!equal(boxed.slice(-16), tagFor(key, nonce, aad, ct))) {
+    throw new AuthError('Authentifizierungs-Tag stimmt nicht');
+  }
+  return chacha20(key, 1, nonce, ct);
+}
+
+// -- Kurven ----------------------------------------------------------------
+
+async function x25519Keypair() {
+  const pair = await crypto.subtle.generateKey({ name: 'X25519' }, true, ['deriveBits']);
+  const priv = await crypto.subtle.exportKey('pkcs8', pair.privateKey);
+  const pub = await crypto.subtle.exportKey('raw', pair.publicKey);
+  return { priv: new Uint8Array(priv), pub: new Uint8Array(pub) };
+}
+
+async function x25519Shared(privPkcs8, peerPub) {
+  const priv = await crypto.subtle.importKey('pkcs8', privPkcs8, { name: 'X25519' },
+                                             false, ['deriveBits']);
+  const pub = await crypto.subtle.importKey('raw', peerPub, { name: 'X25519' }, false, []);
+  const bits = await crypto.subtle.deriveBits({ name: 'X25519', public: pub }, priv, 256);
+  const shared = new Uint8Array(bits);
+  if (shared.every(b => b === 0)) throw new Error('entartetes X25519-Ergebnis');
+  return shared;
+}
+
+async function ed25519Keypair() {
+  const pair = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+  return {
+    priv: new Uint8Array(await crypto.subtle.exportKey('pkcs8', pair.privateKey)),
+    pub: new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey)),
+  };
+}
+
+async function ed25519Sign(privPkcs8, msg) {
+  const key = await crypto.subtle.importKey('pkcs8', privPkcs8, { name: 'Ed25519' },
+                                            false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('Ed25519', key, msg));
+}
+
+async function ed25519Verify(pub, msg, sig) {
+  try {
+    const key = await crypto.subtle.importKey('raw', pub, { name: 'Ed25519' },
+                                              false, ['verify']);
+    return await crypto.subtle.verify('Ed25519', key, sig, msg);
+  } catch {
+    return false;
+  }
+}
+
+// -- Loeschung -------------------------------------------------------------
+
+/**
+ * Ueberschreibt einen Schluesselpuffer.
+ *
+ * In JavaScript ist das eine schwaechere Zusage als in C: die Laufzeit darf
+ * Kopien angelegt haben, an die wir nicht herankommen. Wir tun trotzdem,
+ * was moeglich ist, und sagen in docs/sicherheitshinweis.md deutlich, wo
+ * die Grenze liegt.
+ */
+function wipe(buf) {
+  if (buf instanceof Uint8Array) buf.fill(0);
+}
+
+// -- Base32 fuer Adressen --------------------------------------------------
+
+const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
+
+function base32(raw) {
+  let bits = '', out = '';
+  for (const byte of raw) bits += byte.toString(2).padStart(8, '0');
+  for (let i = 0; i < bits.length; i += 5) {
+    out += B32[parseInt(bits.slice(i, i + 5).padEnd(5, '0'), 2)];
+  }
+  return out;
+}
+
+function unbase32(text) {
+  let bits = '';
+  for (const ch of text.toLowerCase()) {
+    const index = B32.indexOf(ch);
+    if (index < 0) throw new Error('ungueltiges Zeichen in der Adresse');
+    bits += index.toString(2).padStart(5, '0');
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  return new Uint8Array(bytes);
+}
+
+// ======================================================================
+// nyx-protocol.js
+// ======================================================================
+
+// Das Protokoll im Browser.
+//
+// Portierung von impl/python/nyx auf WebCrypto. Die Byte-Ebene ist
+// identisch: derselbe Adressaufbau, dieselben kanonischen JSON-Bytes,
+// dieselbe Zerlegung, dieselben Tags. Ein Gespraech, das hier beginnt,
+// laesst sich in der Python-Fassung fortsetzen und umgekehrt.
+
+// PKCS8-Vorspann, damit ein 32-Byte-Saatgut aus der Python-Fassung hier
+// unveraendert benutzbar ist. Identitaetsdateien sind dadurch zwischen den
+// Implementierungen austauschbar.
+const PKCS8_ED = unhex('302e020100300506032b657004220420');
+const PKCS8_X = unhex('302e020100300506032b656e04220420');
+const pkcs8 = (kind, seed) => concat(kind === 'ed' ? PKCS8_ED : PKCS8_X, seed);
+
+// -- Kanonisches JSON ------------------------------------------------------
+
+/** Byteweise gleich zu json.dumps(sort_keys, separators, ensure_ascii). */
+function canonical(value) {
+  const text = JSON.stringify(sortDeep(value));
+  const ascii = text.replace(/[\u0080-\uffff]/g,
+    (ch) => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0'));
+  return enc.encode(ascii);
+}
+
+function sortDeep(value) {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map(k => [k, sortDeep(value[k])]));
+  }
+  return value;
+}
+
+// -- Identitaet ------------------------------------------------------------
+
+async function addressFromKey(ikPub) {
+  const body = (await sha256(enc.encode('nyx/v1/addr'), ikPub)).slice(0, 20);
+  const sum = (await sha256(enc.encode('nyx/v1/addrsum'), body)).slice(0, 2);
+  return base32(concat(body, sum));
+}
+
+async function addressValid(addr) {
+  try {
+    const raw = unbase32(addr);
+    if (raw.length !== 22) return false;
+    const sum = (await sha256(enc.encode('nyx/v1/addrsum'), raw.slice(0, 20))).slice(0, 2);
+    return equal(raw.slice(20), sum);
+  } catch { return false; }
+}
+
+class Identity {
+  constructor(ikSeed, idkSeed) {
+    this.ikSeed = ikSeed;
+    this.idkSeed = idkSeed;
+  }
+
+  static async create() {
+    const ident = new Identity(random(32), random(32));
+    await ident.derive();
+    return ident;
+  }
+
+  async derive() {
+    const ed = await crypto.subtle.importKey('pkcs8', pkcs8('ed', this.ikSeed),
+                                             { name: 'Ed25519' }, true, ['sign']);
+    // Der oeffentliche Teil ergibt sich aus dem Saatgut; WebCrypto gibt ihn
+    // ueber den JWK-Umweg heraus.
+    const jwk = await crypto.subtle.exportKey('jwk', ed);
+    this.ikPub = b64urlToBytes(jwk.x);
+
+    const x = await crypto.subtle.importKey('pkcs8', pkcs8('x', this.idkSeed),
+                                            { name: 'X25519' }, true, ['deriveBits']);
+    const xjwk = await crypto.subtle.exportKey('jwk', x);
+    this.idkPub = b64urlToBytes(xjwk.x);
+
+    this.address = await addressFromKey(this.ikPub);
+    return this;
+  }
+
+  get idkPriv() { return pkcs8('x', this.idkSeed); }
+
+  /** Signiert Verzeichniseintraege. Nichts anderes. */
+  sign(data) { return ed25519Sign(pkcs8('ed', this.ikSeed), data); }
+
+  export() {
+    return JSON.stringify({ v: 1, ik_seed: hex(this.ikSeed), idk_priv: hex(this.idkSeed) });
+  }
+
+  static async import(blob) {
+    const d = JSON.parse(blob);
+    return await new Identity(unhex(d.ik_seed), unhex(d.idk_priv)).derive();
+  }
+}
+
+const b64urlToBytes = (s) =>
+  Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')
+    .padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
+
+// -- Verzeichniseintraege --------------------------------------------------
+
+const RECORD_LABEL = enc.encode('nyx/v1/record');
+
+async function makeRecord(identity, type, body) {
+  const record = {
+    type, addr: identity.address, ik_pub: hex(identity.ikPub),
+    ts: Math.floor(Date.now() / 1000), body,
+  };
+  record.sig = hex(await identity.sign(concat(RECORD_LABEL, canonical(record))));
+  return record;
+}
+
+async function verifyRecord(record) {
+  try {
+    const { sig, recovery_sig, height, ...unsigned } = record;
+    const ikPub = unhex(record.ik_pub);
+    if (await addressFromKey(ikPub) !== record.addr) return false;
+    return await ed25519Verify(ikPub, concat(RECORD_LABEL, canonical(unsigned)), unhex(sig));
+  } catch { return false; }
+}
+
+// -- GF(256) und Zerlegung -------------------------------------------------
+
+const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+(() => {
+  let x = 1;
+  for (let i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; }
+  for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+})();
+
+const gmul = (a, b) => (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
+const gdiv = (a, b) => a === 0 ? 0 : EXP[(LOG[a] - LOG[b] + 255) % 255];
+
+function ginvert(matrix) {
+  const n = matrix.length;
+  const work = matrix.map((row, i) =>
+    [...row, ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))]);
+
+  for (let col = 0; col < n; col++) {
+    let pivot = -1;
+    for (let r = col; r < n; r++) if (work[r][col]) { pivot = r; break; }
+    if (pivot < 0) throw new Error('Matrix ist singulaer — Teile nicht unabhaengig');
+    [work[col], work[pivot]] = [work[pivot], work[col]];
+
+    const f = gdiv(1, work[col][col]);
+    work[col] = work[col].map(v => gmul(v, f));
+    for (let r = 0; r < n; r++) {
+      if (r !== col && work[r][col]) {
+        const g = work[r][col];
+        work[r] = work[r].map((v, i) => v ^ gmul(g, work[col][i]));
+      }
+    }
+  }
+  return work.map(row => row.slice(n));
+}
+
+function generator(k, n) {
+  const vand = Array.from({ length: n }, (_, i) => {
+    const row = []; let val = 1;
+    for (let j = 0; j < k; j++) { row.push(val); val = gmul(val, i); }
+    return row;
+  });
+  const topInv = ginvert(vand.slice(0, k).map(r => [...r]));
+  return vand.map(row => Array.from({ length: k }, (_, j) =>
+    row.reduce((acc, v, t) => acc ^ gmul(v, topInv[t][j]), 0)));
+}
+
+// -- Alles oder nichts -----------------------------------------------------
+
+const AONT_LABEL = enc.encode('nyx/v1/aont');
+const ZERO_NONCE = new Uint8Array(12);
+
+async function aontTransform(data) {
+  const key = random(32);
+  const body = chacha20(key, 1, ZERO_NONCE, data);
+  const digest = await sha256(AONT_LABEL, body);
+  return concat(body, key.map((b, i) => b ^ digest[i]));
+}
+
+async function aontInvert(pkg) {
+  if (pkg.length < 32) throw new Error('AONT-Paket zu kurz');
+  const body = pkg.slice(0, -32), tail = pkg.slice(-32);
+  const digest = await sha256(AONT_LABEL, body);
+  const key = tail.map((b, i) => b ^ digest[i]);
+  return chacha20(key, 1, ZERO_NONCE, body);
+}
+
+const DEFAULT_K = 10, DEFAULT_N = 20;
+
+async function disperse(data, k = DEFAULT_K, n = DEFAULT_N) {
+  const pkg = await aontTransform(data);
+  const matrix = generator(k, n);
+  const padded = concat(pkg, new Uint8Array((k - pkg.length % k) % k));
+  const chunk = padded.length / k;
+  const columns = Array.from({ length: k }, (_, i) => padded.slice(i * chunk, (i + 1) * chunk));
+
+  return Array.from({ length: n }, (_, i) => {
+    let payload;
+    if (i < k) {
+      payload = columns[i];
+    } else {
+      payload = new Uint8Array(chunk);
+      matrix[i].forEach((coeff, j) => {
+        if (coeff) for (let b = 0; b < chunk; b++) payload[b] ^= gmul(coeff, columns[j][b]);
+      });
+    }
+    return { index: i, k, n, length: pkg.length, data: payload };
+  });
+}
+
+async function reassemble(shares) {
+  if (!shares.length) throw new Error('keine Teile vorhanden');
+  const { k, n } = shares[0];
+  const picked = new Map();
+  for (const s of shares) if (!picked.has(s.index)) picked.set(s.index, s);
+  if (picked.size < k) throw new Error(`unterhalb der Schwelle: ${picked.size} von ${k}`);
+
+  const chosen = [...picked.keys()].sort((a, b) => a - b).slice(0, k).map(i => picked.get(i));
+  const matrix = generator(k, n);
+  const inverse = ginvert(chosen.map(s => [...matrix[s.index]]));
+
+  const chunk = chosen[0].data.length;
+  const out = new Uint8Array(k * chunk);
+  for (let i = 0; i < k; i++) {
+    const acc = new Uint8Array(chunk);
+    inverse[i].forEach((coeff, j) => {
+      if (coeff) for (let b = 0; b < chunk; b++) acc[b] ^= gmul(coeff, chosen[j].data[b]);
+    });
+    out.set(acc, i * chunk);
+  }
+  return await aontInvert(out.slice(0, chosen[0].length));
+}
+
+// -- Tags und Arbeitsnachweis ----------------------------------------------
+
+const tagSecret = (material) => hkdf(material, 'nyx/v1/drop-tag-secret');
+
+async function dropTag(skTag, counter, shareIndex) {
+  const c = new Uint8Array(8), j = new Uint8Array(4);
+  new DataView(c.buffer).setBigUint64(0, BigInt(counter));
+  new DataView(j.buffer).setUint32(0, shareIndex);
+  return hex(await hmac(skTag, c, j));
+}
+
+const coverTag = () => hex(random(32));
+
+async function solvePow(tag, blob, bits) {
+  if (bits <= 0) return 0;
+  const label = enc.encode('nyx/v1/put-pow'), tagBytes = enc.encode(tag);
+  for (let nonce = 0; ; nonce++) {
+    const n = new Uint8Array(8);
+    new DataView(n.buffer).setBigUint64(0, BigInt(nonce));
+    const digest = await sha256(label, tagBytes, blob, n);
+    let zeros = 0;
+    for (const byte of digest) {
+      if (byte) { zeros += 8 - (32 - Math.clz32(byte)); break; }
+      zeros += 8;
+    }
+    if (zeros >= bits) return nonce;
+  }
+}
+
+// -- Knoten ----------------------------------------------------------------
+
+class NodeClient {
+  constructor(url) { this.url = url.replace(/\/$/, ''); }
+
+  async call(path, body = {}, method = 'POST') {
+    const res = await fetch(this.url + path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: method === 'GET' ? undefined : JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  async info() {
+    const info = await this.call('/v1/info', {}, 'GET');
+    this.powBits = info.pow_bits ?? 0;
+    this.name = info.name;
+    return info;
+  }
+
+  async put(tag, blob, ttl = null) {
+    const nonce = await solvePow(tag, blob, this.powBits ?? 0);
+    return this.call('/v1/store', { tag, blob: hex(blob), ttl, nonce });
+  }
+
+  async fetchTags(tags) {
+    const { results } = await this.call('/v1/fetch', { tags });
+    return results;
+  }
+
+  void(tags) { return this.call('/v1/void', { tags }); }
+
+  submitRecord(record) { return this.call('/v1/dir/submit', { record }); }
+
+  resolve(addr) { return this.call('/v1/dir/resolve', { addr }); }
+}
+
+/** Mehrere Knoten als ein Speichernetz. */
+class DropNetwork {
+  constructor(nodes) { this.nodes = nodes; }
+
+  async ready() { await Promise.all(this.nodes.map(n => n.info())); return this; }
+
+  async store(skTag, counter, ciphertext, k = DEFAULT_K, n = DEFAULT_N, ttl = null) {
+    const shares = await disperse(ciphertext, k, n);
+    await Promise.all(shares.map(async (share, i) => {
+      const node = this.nodes[i % this.nodes.length];
+      await node.put(await dropTag(skTag, counter, share.index), encodeShare(share), ttl);
+    }));
+  }
+
+  async fetch(skTag, counter, k = DEFAULT_K, n = DEFAULT_N, release = true) {
+    const wanted = [];
+    for (let j = 0; j < n; j++) wanted.push(await dropTag(skTag, counter, j));
+    const queries = [...wanted, coverTag(), coverTag(), coverTag(), coverTag()]
+      .sort(() => Math.random() - 0.5);
+
+    const collected = [];
+    for (const node of this.nodes) {
+      if (collected.length >= k) break;
+      const results = await node.fetchTags(queries);
+      for (const value of Object.values(results)) {
+        if (value) collected.push(decodeShare(unhex(value)));
+      }
+    }
+    if (collected.length < k) return null;
+
+    const message = await reassemble(collected);
+    if (release) await Promise.all(this.nodes.map(node => node.void(wanted)));
+    return message;
+  }
+}
+
+function encodeShare(share) {
+  const head = new Uint8Array(10), dv = new DataView(head.buffer);
+  dv.setUint16(0, share.index); dv.setUint16(2, share.k);
+  dv.setUint16(4, share.n); dv.setUint32(6, share.length);
+  return concat(head, share.data);
+}
+
+function decodeShare(blob) {
+  const dv = new DataView(blob.buffer, blob.byteOffset);
+  return {
+    index: dv.getUint16(0), k: dv.getUint16(2), n: dv.getUint16(4),
+    length: dv.getUint32(6), data: blob.slice(10),
+  };
+}
+
+// -- Handshake und Ratsche -------------------------------------------------
+
+const BUNDLE_LABEL = enc.encode('nyx/v1/prekey-bundle');
+
+class PrekeyStore {
+  constructor(identity) { this.identity = identity; this.opks = new Map(); this.nextId = 0; }
+
+  async publish(count = 32) {
+    const spk = await x25519Keypair();
+    this.spk = spk;
+    this.validUntil = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
+
+    const opks = [];
+    for (let i = 0; i < count; i++) {
+      const pair = await x25519Keypair();
+      this.opks.set(this.nextId, pair);
+      opks.push({ id: this.nextId++, pub: hex(pair.pub) });
+    }
+    const sig = await this.identity.sign(
+      concat(BUNDLE_LABEL, spk.pub, enc.encode(String(this.validUntil))));
+    return { spk_pub: hex(spk.pub), spk_sig: hex(sig),
+             valid_until: this.validUntil, opks };
+  }
+
+  /** Holt einen Einmal-Prekey und vernichtet ihn dabei. */
+  take(id) {
+    if (id === null || id === undefined) return null;
+    const pair = this.opks.get(id);
+    if (!pair) return null;
+    this.opks.delete(id);
+    return pair;
+  }
+}
+
+async function initiate(sender, peerIdkPub, bundle, peerIkPub) {
+  const signedPart = concat(BUNDLE_LABEL, unhex(bundle.spk_pub),
+                            enc.encode(String(bundle.valid_until)));
+  if (!await ed25519Verify(peerIkPub, signedPart, unhex(bundle.spk_sig))) {
+    throw new Error('Prekey-Buendel traegt keine gueltige Signatur');
+  }
+  if (bundle.valid_until < Math.floor(Date.now() / 1000)) {
+    throw new Error('Prekey-Buendel ist abgelaufen');
+  }
+
+  const ek = await x25519Keypair();
+  const opk = (bundle.opks && bundle.opks.length)
+    ? bundle.opks[Math.floor(Math.random() * bundle.opks.length)] : null;
+
+  const dh1 = await x25519Shared(sender.idkPriv, unhex(bundle.spk_pub));
+  const dh2 = await x25519Shared(ek.priv, peerIdkPub);
+  const dh3 = await x25519Shared(ek.priv, unhex(bundle.spk_pub));
+  const dh4 = opk ? await x25519Shared(ek.priv, unhex(opk.pub)) : new Uint8Array(0);
+
+  const root = await hkdf(concat(dh1, dh2, dh3, dh4), 'nyx/v1/x3dh-root', 64);
+  [dh1, dh2, dh3, dh4].forEach(wipe);
+
+  return {
+    root,
+    header: {
+      ik_pub: hex(sender.ikPub), idk_pub: hex(sender.idkPub),
+      ek_pub: hex(ek.pub), spk_pub: bundle.spk_pub,
+      opk_id: opk ? opk.id : null,
+    },
+  };
+}
+
+async function respond(receiver, store, header) {
+  const opk = store.take(header.opk_id);
+  if (header.opk_id !== null && !opk) throw new Error('Einmal-Prekey bereits verbraucht');
+
+  const dh1 = await x25519Shared(store.spk.priv, unhex(header.idk_pub));
+  const dh2 = await x25519Shared(receiver.idkPriv, unhex(header.ek_pub));
+  const dh3 = await x25519Shared(store.spk.priv, unhex(header.ek_pub));
+  const dh4 = opk ? await x25519Shared(opk.priv, unhex(header.ek_pub)) : new Uint8Array(0);
+
+  const root = await hkdf(concat(dh1, dh2, dh3, dh4), 'nyx/v1/x3dh-root', 64);
+  [dh1, dh2, dh3, dh4].forEach(wipe);
+  return root;
+}
+
+const MAX_SKIPPED = 1000;
+const MAX_SKIP_PER_MESSAGE = 256;
+
+class Ratchet {
+  constructor() {
+    this.root = new Uint8Array(32);
+    this.sendChain = null; this.recvChain = null;
+    this.dh = null; this.peerDh = null;
+    this.nSend = 0; this.nRecv = 0; this.pn = 0;
+    this.skipped = new Map();
+  }
+
+  static async asSender(root, peerSpk) {
+    const r = new Ratchet();
+    r.root = root.slice(0, 32);
+    r.dh = await x25519Keypair();
+    r.peerDh = peerSpk;
+    const [newRoot, chain] = await kdfRoot(r.root, await x25519Shared(r.dh.priv, peerSpk));
+    wipe(r.root);
+    r.root = newRoot; r.sendChain = chain;
+    return r;
+  }
+
+  static asReceiver(root, spk) {
+    const r = new Ratchet();
+    r.root = root.slice(0, 32);
+    r.dh = spk;
+    return r;
+  }
+
+  async encrypt(plaintext) {
+    if (!this.sendChain) throw new Error('Sendekette nicht bereit');
+    const [chain, mk] = await kdfChain(this.sendChain);
+    wipe(this.sendChain); this.sendChain = chain;
+
+    const header = { dh: hex(this.dh.pub), pn: this.pn, n: this.nSend++ };
+    try {
+      return { header, ct: seal(mk, nonceFor(header.n), plaintext, headerBytes(header)) };
+    } finally {
+      wipe(mk);   // der Sender behaelt den Schluessel nicht
+    }
+  }
+
+  async decrypt(header, boxed) {
+    const cached = this.skipped.get(`${header.dh}:${header.n}`);
+    if (cached) {
+      this.skipped.delete(`${header.dh}:${header.n}`);
+      return this.openAndWipe(cached, header, boxed);
+    }
+
+    if (this.peerDh === null || hex(this.peerDh) !== header.dh) {
+      await this.skipTo(header.pn);
+      await this.dhRatchet(header);
+    }
+    await this.skipTo(header.n);
+
+    const [chain, mk] = await kdfChain(this.recvChain);
+    wipe(this.recvChain); this.recvChain = chain; this.nRecv++;
+    return this.openAndWipe(mk, header, boxed);
+  }
+
+  /** Entschluesseln, pruefen, Schluessel ueberschreiben. In dieser Reihenfolge. */
+  openAndWipe(mk, header, boxed) {
+    try {
+      return open(mk, nonceFor(header.n), boxed, headerBytes(header));
+    } finally {
+      wipe(mk);
+    }
+  }
+
+  async skipTo(until) {
+    if (!this.recvChain) return;
+    if (until - this.nRecv > MAX_SKIP_PER_MESSAGE) {
+      throw new Error('zu viele uebersprungene Nachrichten auf einmal');
+    }
+    while (this.nRecv < until) {
+      const [chain, mk] = await kdfChain(this.recvChain);
+      wipe(this.recvChain); this.recvChain = chain;
+      if (this.skipped.size >= MAX_SKIPPED) {
+        // Hartes Limit: aeltester Schluessel faellt weg, die zugehoerige
+        // Nachricht ist damit dauerhaft unlesbar. So ist es gemeint.
+        const oldest = this.skipped.keys().next().value;
+        wipe(this.skipped.get(oldest)); this.skipped.delete(oldest);
+      }
+      this.skipped.set(`${hex(this.peerDh)}:${this.nRecv++}`, mk);
+    }
+  }
+
+  async dhRatchet(header) {
+    this.pn = this.nSend; this.nSend = 0; this.nRecv = 0;
+    this.peerDh = unhex(header.dh);
+
+    let [newRoot, recvChain] = await kdfRoot(this.root,
+      await x25519Shared(this.dh.priv, this.peerDh));
+    wipe(this.root); if (this.recvChain) wipe(this.recvChain);
+    this.root = newRoot; this.recvChain = recvChain;
+
+    this.dh = await x25519Keypair();
+    let [nextRoot, sendChain] = await kdfRoot(this.root,
+      await x25519Shared(this.dh.priv, this.peerDh));
+    wipe(this.root); if (this.sendChain) wipe(this.sendChain);
+    this.root = nextRoot; this.sendChain = sendChain;
+  }
+
+  destroy() {
+    [this.root, this.sendChain, this.recvChain].forEach(wipe);
+    for (const mk of this.skipped.values()) wipe(mk);
+    this.skipped.clear();
+    this.sendChain = this.recvChain = null;
+  }
+}
+
+async function kdfRoot(root, dhOut) {
+  const material = await hkdf(dhOut, 'nyx/v1/ratchet-root', 64, root);
+  return [material.slice(0, 32), material.slice(32)];
+}
+
+async function kdfChain(chain) {
+  return [await hkdf(chain, 'nyx/v1/ratchet-chain'),
+          await hkdf(chain, 'nyx/v1/ratchet-message')];
+}
+
+/** Drahtform des Ratschenkopfs: 32 Byte Schluessel, zweimal 4 Byte Zaehler. */
+function headerToHex(header) {
+  return hex(headerBytes(header));
+}
+
+function headerFromHex(raw) {
+  const bytes = unhex(raw);
+  if (bytes.length !== 40) throw new Error('Nachrichtenkopf muss 40 Byte sein');
+  const dv = new DataView(bytes.buffer, bytes.byteOffset);
+  return { dh: hex(bytes.slice(0, 32)), pn: dv.getUint32(32), n: dv.getUint32(36) };
+}
+
+function headerBytes(header) {
+  const out = new Uint8Array(40);
+  out.set(unhex(header.dh), 0);
+  new DataView(out.buffer).setUint32(32, header.pn);
+  new DataView(out.buffer).setUint32(36, header.n);
+  return out;
+}
+
+function nonceFor(n) {
+  const out = new Uint8Array(12);
+  new DataView(out.buffer).setBigUint64(4, BigInt(n));
+  return out;
+}
+
+// -- Client ----------------------------------------------------------------
+
+const CELL = 1024, LENGTH_PREFIX = 4, INBOX_SLOTS = 8, INBOX_EPOCH = 3600;
+
+const inboxSecret = async (idkPub, epoch, slot) => {
+  const e = new Uint8Array(8), s = new Uint8Array(4);
+  new DataView(e.buffer).setBigUint64(0, BigInt(epoch));
+  new DataView(s.buffer).setUint32(0, slot);
+  return tagSecret(await hkdf(concat(idkPub, e, s), 'nyx/v1/inbox'));
+};
+
+class Client {
+  constructor(identity, drops, directoryNode) {
+    this.identity = identity;
+    this.drops = drops;
+    this.dir = directoryNode;
+    this.prekeys = new PrekeyStore(identity);
+    this.sessions = new Map();
+  }
+
+  async announce() {
+    await this.dir.submitRecord(await makeRecord(this.identity, 'BIND', {
+      idk_pub: hex(this.identity.idkPub), recovery_pub: null,
+    }));
+    await this.dir.submitRecord(
+      await makeRecord(this.identity, 'PREKEY', await this.prekeys.publish()));
+  }
+
+  async startSession(address) {
+    if (this.sessions.has(address)) return this.sessions.get(address);
+
+    const { identity, bundle } = await this.dir.resolve(address);
+    if (!identity || !bundle) throw new Error('Adresse steht nicht im Verzeichnis');
+
+    const peerIdk = unhex(identity.idk_pub), peerIk = unhex(identity.ik_pub);
+    const { root, header } = await initiate(this.identity, peerIdk, bundle, peerIk);
+    const session = {
+      address, peerIdk, peerIk,
+      ratchet: await Ratchet.asSender(root, unhex(bundle.spk_pub)),
+      sendSecret: await tagSecret(await hkdf(root, 'nyx/v1/tags/initiator')),
+      recvSecret: await tagSecret(await hkdf(root, 'nyx/v1/tags/responder')),
+      sendCounter: 0, recvCounter: 0, initialHeader: header, sentInitial: false,
+    };
+    this.sessions.set(address, session);
+    return session;
+  }
+
+  async acceptSession(header) {
+    const address = await addressFromKey(unhex(header.ik_pub));
+    const root = await respond(this.identity, this.prekeys, header);
+    const session = {
+      address, peerIdk: unhex(header.idk_pub), peerIk: unhex(header.ik_pub),
+      ratchet: Ratchet.asReceiver(root, this.prekeys.spk),
+      sendSecret: await tagSecret(await hkdf(root, 'nyx/v1/tags/responder')),
+      recvSecret: await tagSecret(await hkdf(root, 'nyx/v1/tags/initiator')),
+      sendCounter: 0, recvCounter: 0, initialHeader: null, sentInitial: true,
+    };
+    this.sessions.set(address, session);
+    return session;
+  }
+
+  async send(address, envelope, ttl = null) {
+    const session = this.sessions.get(address) || await this.startSession(address);
+    const { header, ct } = await session.ratchet.encrypt(
+      enc.encode(JSON.stringify(envelope)));
+
+    const packet = { hdr: headerToHex(header), ct: hex(ct) };
+    const first = !session.sentInitial && session.initialHeader;
+    if (first) packet.init = session.initialHeader;
+    const blob = enc.encode(JSON.stringify(packet));
+
+    let secret, start;
+    if (first) {
+      const epoch = Math.floor(Date.now() / 1000 / INBOX_EPOCH);
+      secret = await inboxSecret(session.peerIdk, epoch,
+                                 Math.floor(Math.random() * INBOX_SLOTS));
+      start = 0;
+      session.sentInitial = true;
+    } else {
+      secret = session.sendSecret;
+      start = session.sendCounter;
+    }
+
+    const cells = await this.storeFrames(secret, start, blob, ttl);
+    if (!first) session.sendCounter += cells;
+    return { cells, erstkontakt: !!first };
+  }
+
+  // Jede Ablage ist genau CELL Byte gross. Kurznachricht, Brief, Dateiblock
+  // und Anrufsignal sehen im Speichernetz deshalb gleich aus.
+  async storeFrames(secret, start, blob, ttl) {
+    const prefix = new Uint8Array(LENGTH_PREFIX);
+    new DataView(prefix.buffer).setUint32(0, blob.length);
+    const framed = concat(prefix, blob);
+    const padded = concat(framed, new Uint8Array((CELL - framed.length % CELL) % CELL));
+
+    const cells = padded.length / CELL;
+    for (let i = 0; i < cells; i++) {
+      await this.drops.store(secret, start + i, padded.slice(i * CELL, (i + 1) * CELL),
+                             DEFAULT_K, DEFAULT_N, ttl);
+    }
+    return cells;
+  }
+
+  async fetchFrames(secret, start) {
+    const first = await this.drops.fetch(secret, start);
+    if (!first) return null;
+    const total = new DataView(first.buffer, first.byteOffset).getUint32(0);
+
+    let buf = first, cells = 1;
+    while (buf.length - LENGTH_PREFIX < total) {
+      const next = await this.drops.fetch(secret, start + cells);
+      if (!next) return null;
+      buf = concat(buf, next); cells++;
+    }
+    return { blob: buf.slice(LENGTH_PREFIX, LENGTH_PREFIX + total), cells };
+  }
+
+  async poll() {
+    const out = [];
+    const epoch = Math.floor(Date.now() / 1000 / INBOX_EPOCH);
+    for (const e of [epoch, epoch - 1]) {
+      for (let slot = 0; slot < INBOX_SLOTS; slot++) {
+        const got = await this.fetchFrames(await inboxSecret(this.identity.idkPub, e, slot), 0);
+        if (!got) continue;
+        try {
+          const packet = JSON.parse(dec.decode(got.blob));
+          const session = await this.acceptSession(packet.init);
+          out.push([session.address, await openPacket(session, packet)]);
+        } catch { /* nicht fuer uns oder beschaedigt */ }
+      }
+    }
+
+    for (const session of this.sessions.values()) {
+      for (;;) {
+        const got = await this.fetchFrames(session.recvSecret, session.recvCounter);
+        if (!got) break;
+        session.recvCounter += got.cells;
+        try {
+          out.push([session.address,
+                    await openPacket(session, JSON.parse(dec.decode(got.blob)))]);
+        } catch { /* beschaedigt */ }
+      }
+    }
+    return out;
+  }
+
+  close(address) {
+    const session = this.sessions.get(address);
+    if (session) { session.ratchet.destroy(); this.sessions.delete(address); }
+  }
+}
+
+async function openPacket(session, packet) {
+  const plain = await session.ratchet.decrypt(headerFromHex(packet.hdr), unhex(packet.ct));
+  return JSON.parse(dec.decode(plain));
+}
+
+/** Vergleichswert fuer den Abgleich ausserhalb des Netzes. */
+async function safetyNumber(aIk, aIdk, bIk, bIdk) {
+  const first = concat(aIk, aIdk), second = concat(bIk, bIdk);
+  const [x, y] = hex(first) < hex(second) ? [first, second] : [second, first];
+  const digest = await sha256(enc.encode('nyx/v1/safety'), x, y);
+  let value = 0n;
+  for (const byte of digest.slice(0, 15)) value = (value << 8n) | BigInt(byte);
+  const digits = value.toString().padStart(36, '0').slice(0, 36);
+  return digits.match(/.{6}/g).join(' ');
+}
+
+// ======================================================================
+// app.js
+// ======================================================================
+
+// Oberflaeche.
+//
+// Die Anwendung haelt drei Dinge: die Identitaet, die Kontakte und den
+// Verlauf. Alles davon liegt lokal. Der Verlauf steht bewusst nur im
+// Arbeitsspeicher — er ist nach dem Schliessen des Fensters weg. Was
+// dauerhaft gespeichert wird, ist ausschliesslich die Identitaet und die
+// Liste der Adressen; beides in localStorage, beides ohne Nachrichteninhalt.
+
+const $ = (id) => document.getElementById(id);
+const app = $('app');
+
+const SPEICHER = { identitaet: 'nyx.identitaet', knoten: 'nyx.knoten', kontakte: 'nyx.kontakte' };
+
+let identitaet = null;
+let client = null;
+let knotenUrl = localStorage.getItem(SPEICHER.knoten) || 'http://127.0.0.1:8478';
+let kontakte = JSON.parse(localStorage.getItem(SPEICHER.kontakte) || '[]');
+let aktiv = null;
+let pollTimer = null;
+
+const verlauf = new Map();     // Adresse -> Nachrichten, nur im Speicher
+const anrufe = new Map();
+
+// -- Zustandsanzeige --------------------------------------------------------
+
+function zeige(text, fehler = false) {
+  const el = $('status');
+  el.textContent = text;
+  el.classList.toggle('error', fehler);
+  el.hidden = !text;
+  if (text && !fehler) setTimeout(() => { if (el.textContent === text) el.hidden = true; }, 4000);
+}
+
+// -- Start ------------------------------------------------------------------
+
+async function start() {
+  const gespeichert = localStorage.getItem(SPEICHER.identitaet);
+  if (gespeichert) {
+    identitaet = await Identity.import(gespeichert);
+    await verbinden();
+  } else {
+    $('start-knoten').value = knotenUrl;
+    $('dlg-start').showModal();
+  }
+}
+
+$('dlg-start').addEventListener('close', async (e) => {
+  const dlg = $('dlg-start');
+  knotenUrl = $('start-knoten').value.trim() || knotenUrl;
+  localStorage.setItem(SPEICHER.knoten, knotenUrl);
+
+  if (dlg.returnValue === 'import') {
+    $('import-datei').click();
+    return;
+  }
+  identitaet = await Identity.create();
+  localStorage.setItem(SPEICHER.identitaet, identitaet.export());
+  await verbinden(true);
+});
+
+$('import-datei').addEventListener('change', async (e) => {
+  const datei = e.target.files[0];
+  if (!datei) return;
+  try {
+    identitaet = await Identity.import(await datei.text());
+    localStorage.setItem(SPEICHER.identitaet, identitaet.export());
+    await verbinden();
+  } catch {
+    zeige('Die Datei enthält keine gültige Identität.', true);
+    $('dlg-start').showModal();
+  }
+});
+
+async function verbinden(neuAnkuendigen = false) {
+  $('meine-adresse').textContent = identitaet.address;
+  $('einst-adresse').textContent = identitaet.address;
+
+  try {
+    const knoten = new NodeClient(knotenUrl);
+    await knoten.info();
+    const drops = await new DropNetwork([knoten]).ready();
+    client = new Client(identitaet, drops, knoten);
+
+    if (neuAnkuendigen || !localStorage.getItem('nyx.angekuendigt')) {
+      await client.announce();
+      localStorage.setItem('nyx.angekuendigt', '1');
+    }
+    zeige('Verbunden.');
+    zeichneKontakte();
+    starteAbholung();
+  } catch (err) {
+    zeige(`Knoten nicht erreichbar: ${err.message}`, true);
+  }
+}
+
+// -- Abholung ---------------------------------------------------------------
+
+function starteAbholung() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(abholen, 4000);
+  abholen();
+}
+
+let laeuft = false;
+
+async function abholen() {
+  if (!client || laeuft) return;
+  laeuft = true;
+  try {
+    for (const [absender, umschlag] of await client.poll()) {
+      merkeKontakt(absender);
+      verarbeite(absender, umschlag);
+    }
+  } catch (err) {
+    zeige(`Abholen fehlgeschlagen: ${err.message}`, true);
+  } finally {
+    laeuft = false;
+  }
+}
+
+function verarbeite(absender, umschlag) {
+  switch (umschlag.t) {
+    case 'chat':
+      eintragen(absender, { text: umschlag.text, out: false, ts: umschlag.ts * 1000 });
+      break;
+    case 'file':
+      dateiEmpfangen(absender, umschlag);
+      break;
+    case 'call':
+      anrufSignal(absender, umschlag);
+      break;
+    case 'mail':
+      eintragen(absender, { text: `${umschlag.subject}\n\n${umschlag.body}`,
+                            out: false, ts: umschlag.ts * 1000 });
+      break;
+    default:
+      break;
+  }
+}
+
+// -- Verlauf ----------------------------------------------------------------
+
+function eintragen(adresse, eintrag) {
+  if (!verlauf.has(adresse)) verlauf.set(adresse, []);
+  verlauf.get(adresse).push({ ts: Date.now(), ...eintrag });
+  if (adresse === aktiv) zeichneVerlauf();
+  zeichneKontakte();
+}
+
+function zeichneVerlauf() {
+  const liste = $('verlauf');
+  liste.innerHTML = '';
+  for (const eintrag of verlauf.get(aktiv) || []) {
+    const el = document.createElement('div');
+    el.className = eintrag.system ? 'msg system' : `msg ${eintrag.out ? 'out' : 'in'}`;
+    el.textContent = eintrag.text;
+    if (!eintrag.system) {
+      const meta = document.createElement('div');
+      meta.className = 'msg-meta';
+      meta.textContent = new Date(eintrag.ts).toLocaleTimeString('de-DE',
+        { hour: '2-digit', minute: '2-digit' });
+      el.append(meta);
+    }
+    liste.append(el);
+  }
+  liste.scrollTop = liste.scrollHeight;
+}
+
+function zeichneKontakte() {
+  const box = $('kontakte');
+  box.innerHTML = '';
+  for (const adresse of kontakte) {
+    const eintraege = verlauf.get(adresse) || [];
+    const letzte = eintraege.filter(e => !e.system).at(-1);
+
+    const btn = document.createElement('button');
+    btn.className = 'contact';
+    btn.setAttribute('aria-current', String(adresse === aktiv));
+    btn.innerHTML = `<div class="contact-name">${adresse.slice(0, 16)}…</div>`;
+    const last = document.createElement('div');
+    last.className = 'contact-last';
+    last.textContent = letzte ? letzte.text : 'Noch keine Nachricht';
+    btn.append(last);
+    btn.onclick = () => oeffne(adresse);
+    box.append(btn);
+  }
+}
+
+function merkeKontakt(adresse) {
+  if (kontakte.includes(adresse)) return;
+  kontakte.push(adresse);
+  localStorage.setItem(SPEICHER.kontakte, JSON.stringify(kontakte));
+  zeichneKontakte();
+}
+
+function oeffne(adresse) {
+  aktiv = adresse;
+  $('titel').textContent = adresse;
+  $('leer').hidden = true;
+  $('verlauf').hidden = false;
+  $('composer').hidden = false;
+  $('btn-anrufen').hidden = false;
+  $('btn-pruefen').hidden = false;
+  $('btn-zurueck').hidden = false;
+  app.dataset.view = 'gespraech';
+  zeichneVerlauf();
+  zeichneKontakte();
+  $('eingabe').focus();
+}
+
+// -- Senden -----------------------------------------------------------------
+
+$('composer').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const feld = $('eingabe');
+  const text = feld.value.trim();
+  if (!text || !aktiv) return;
+
+  feld.value = '';
+  feld.style.height = 'auto';
+  eintragen(aktiv, { text, out: true, ts: Date.now() });
+  try {
+    await client.send(aktiv, { t: 'chat', text, ts: Math.floor(Date.now() / 1000) });
+  } catch (err) {
+    zeige(`Senden fehlgeschlagen: ${err.message}`, true);
+  }
+});
+
+$('eingabe').addEventListener('input', (e) => {
+  e.target.style.height = 'auto';
+  e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+});
+
+$('eingabe').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    $('composer').requestSubmit();
+  }
+});
+
+// -- Dateien ----------------------------------------------------------------
+
+const CHUNK = 1024;
+const empfangen = new Map();
+
+$('btn-datei').onclick = () => $('datei').click();
+
+$('datei').addEventListener('change', async (e) => {
+  const datei = e.target.files[0];
+  if (!datei || !aktiv) return;
+  e.target.value = '';
+
+  const daten = new Uint8Array(await datei.arrayBuffer());
+  const id = hex(crypto.getRandomValues(new Uint8Array(8)));
+  const teile = Math.max(1, Math.ceil(daten.length / CHUNK));
+  const digest = hex(new Uint8Array(await crypto.subtle.digest('SHA-256', daten)));
+
+  eintragen(aktiv, { text: `Datei gesendet: ${datei.name} (${daten.length} Byte)`,
+                     out: true, ts: Date.now() });
+
+  await client.send(aktiv, { t: 'file', k: 'manifest', id, name: datei.name,
+                             size: daten.length, chunks: teile, digest });
+  for (let i = 0; i < teile; i++) {
+    await client.send(aktiv, { t: 'file', k: 'chunk', id, i,
+                               d: hex(daten.slice(i * CHUNK, (i + 1) * CHUNK)) });
+  }
+});
+
+function dateiEmpfangen(absender, umschlag) {
+  if (umschlag.k === 'manifest') {
+    empfangen.set(umschlag.id, { ...umschlag, teile: new Map() });
+    return;
+  }
+  const stand = empfangen.get(umschlag.id);
+  if (!stand) return;
+
+  stand.teile.set(umschlag.i, unhex(umschlag.d));
+  if (stand.teile.size < stand.chunks) return;
+
+  const gesamt = new Uint8Array(stand.size);
+  let at = 0;
+  for (let i = 0; i < stand.chunks; i++) { gesamt.set(stand.teile.get(i), at); at += stand.teile.get(i).length; }
+  empfangen.delete(umschlag.id);
+
+  const url = URL.createObjectURL(new Blob([gesamt]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = stand.name;
+  a.textContent = `Datei empfangen: ${stand.name}`;
+  eintragen(absender, { text: `Datei empfangen: ${stand.name} (${stand.size} Byte)`,
+                        out: false, ts: Date.now() });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+// -- Anrufe -----------------------------------------------------------------
+//
+// Die Signalisierung laeuft ueber denselben Kanal wie alles andere. Der
+// Medienstrom laeuft direkt zwischen den Geraeten — das ist schnell, gibt
+// den Gespraechspartnern aber gegenseitig ihre IP-Adresse preis. Der Hinweis
+// dazu steht im Verlauf, nicht im Kleingedruckten.
+
+let peer = null;
+let laufenderAnruf = null;
+
+async function anrufStarten() {
+  if (!aktiv) return;
+  const id = hex(crypto.getRandomValues(new Uint8Array(8)));
+  laufenderAnruf = { id, peer: aktiv, outgoing: true };
+
+  eintragen(aktiv, { text: 'Anruf: die Medienverbindung ist direkt und zeigt beiden '
+                         + 'Seiten die IP-Adresse der anderen.', system: true });
+  zeigeAnrufleiste('Wählt …', false);
+
+  peer = neuerPeer(aktiv, id);
+  const strom = await medien();
+  strom?.getTracks().forEach(t => peer.addTrack(t, strom));
+  const angebot = await peer.createOffer();
+  await peer.setLocalDescription(angebot);
+
+  await client.send(aktiv, { t: 'call', k: 'offer', id, relayed: false,
+                             sdp: { type: angebot.type, sdp: angebot.sdp } });
+}
+
+function neuerPeer(adresse, id) {
+  // Ohne STUN-Server: nur Kandidaten aus dem lokalen Netz. Ein oeffentlicher
+  // STUN-Server waere ein Dritter, der die Verbindung sieht — das waere
+  // genau der Punkt, den dieses Protokoll vermeidet.
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  pc.onicecandidate = (e) => {
+    if (e.candidate) {
+      client.send(adresse, { t: 'call', k: 'candidate', id, c: e.candidate.toJSON() })
+        .catch(() => {});
+    }
+  };
+  pc.ontrack = (e) => {
+    let audio = document.getElementById('fern-ton');
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = 'fern-ton';
+      audio.autoplay = true;
+      document.body.append(audio);
+    }
+    audio.srcObject = e.streams[0];
+  };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'connected') zeigeAnrufleiste('Verbunden', false);
+    if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) beenden(false);
+  };
+  return pc;
+}
+
+async function medien() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    zeige('Kein Zugriff auf das Mikrofon — Anruf ohne Ton.', true);
+    return null;
+  }
+}
+
+async function anrufSignal(absender, umschlag) {
+  if (umschlag.k === 'offer') {
+    laufenderAnruf = { id: umschlag.id, peer: absender, outgoing: false, sdp: umschlag.sdp };
+    zeigeAnrufleiste(`Anruf von ${absender.slice(0, 12)}…`, true);
+    return;
+  }
+  if (!laufenderAnruf || umschlag.id !== laufenderAnruf.id) return;
+
+  if (umschlag.k === 'answer' && peer) {
+    await peer.setRemoteDescription(umschlag.sdp);
+  } else if (umschlag.k === 'candidate' && peer) {
+    try { await peer.addIceCandidate(umschlag.c); } catch { /* verspaetet */ }
+  } else if (umschlag.k === 'bye') {
+    beenden(false);
+  }
+}
+
+$('btn-annehmen').onclick = async () => {
+  if (!laufenderAnruf || laufenderAnruf.outgoing) return;
+  peer = neuerPeer(laufenderAnruf.peer, laufenderAnruf.id);
+  const strom = await medien();
+  strom?.getTracks().forEach(t => peer.addTrack(t, strom));
+
+  await peer.setRemoteDescription(laufenderAnruf.sdp);
+  const antwort = await peer.createAnswer();
+  await peer.setLocalDescription(antwort);
+  await client.send(laufenderAnruf.peer, { t: 'call', k: 'answer', id: laufenderAnruf.id,
+                                           sdp: { type: antwort.type, sdp: antwort.sdp } });
+  zeigeAnrufleiste('Verbunden', false);
+};
+
+$('btn-auflegen').onclick = () => beenden(true);
+
+function beenden(melden) {
+  if (melden && laufenderAnruf) {
+    client.send(laufenderAnruf.peer, { t: 'call', k: 'bye', id: laufenderAnruf.id })
+      .catch(() => {});
+  }
+  peer?.close();
+  peer = null;
+  laufenderAnruf = null;
+  $('anrufleiste').hidden = true;
+}
+
+function zeigeAnrufleiste(text, annehmbar) {
+  $('anruf-text').textContent = text;
+  $('btn-annehmen').hidden = !annehmbar;
+  $('anrufleiste').hidden = false;
+}
+
+$('btn-anrufen').onclick = anrufStarten;
+
+// -- Blenden ----------------------------------------------------------------
+
+$('btn-neuer-kontakt').onclick = () => {
+  $('kontakt-adresse').value = '';
+  $('dlg-kontakt').showModal();
+};
+
+$('dlg-kontakt').addEventListener('close', async (e) => {
+  if ($('dlg-kontakt').returnValue !== 'ok') return;
+  const adresse = $('kontakt-adresse').value.trim().toLowerCase();
+
+  if (!await addressValid(adresse)) {
+    zeige('Das ist keine gültige Adresse — die Prüfsumme stimmt nicht.', true);
+    return;
+  }
+  merkeKontakt(adresse);
+  oeffne(adresse);
+});
+
+$('btn-einstellungen').onclick = () => {
+  $('einst-knoten').value = knotenUrl;
+  $('dlg-einstellungen').showModal();
+};
+
+$('dlg-einstellungen').addEventListener('close', async () => {
+  const wahl = $('dlg-einstellungen').returnValue;
+
+  if (wahl === 'export') {
+    const url = URL.createObjectURL(new Blob([identitaet.export()],
+                                             { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nyx-identitaet-${identitaet.address.slice(0, 8)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return;
+  }
+
+  if (wahl === 'loeschen') {
+    if (!confirm('Identität, Kontakte und Verlauf werden gelöscht. '
+               + 'Ohne Sicherung ist die Identität danach verloren.')) return;
+    localStorage.clear();
+    location.reload();
+    return;
+  }
+
+  const neu = $('einst-knoten').value.trim();
+  if (neu && neu !== knotenUrl) {
+    knotenUrl = neu;
+    localStorage.setItem(SPEICHER.knoten, knotenUrl);
+    await verbinden();
+  }
+});
+
+$('btn-pruefen').onclick = async () => {
+  if (!aktiv) return;
+  try {
+    const { identity, history } = await client.dir.resolve(aktiv);
+    if (!identity) {
+      zeige('Diese Adresse steht nicht im Verzeichnis.', true);
+      return;
+    }
+    $('pruef-zahl').textContent = await safetyNumber(
+      identitaet.ikPub, identitaet.idkPub, unhex(identity.ik_pub), unhex(identity.idk_pub));
+
+    const wechsel = (history || []).filter(h => h.type === 'BIND');
+    $('pruef-verlauf').textContent = wechsel.length > 1
+      ? wechsel.map(h => `Block ${h.height}: ${h.key.slice(0, 16)}…`).join('\n')
+        + '\n\nMehr als eine Bindung. Ein Schlüsselwechsel kann harmlos sein '
+        + '(neues Gerät) oder nicht. Das Verzeichnis zeigt ihn, es bewertet ihn nicht.'
+      : 'Eine Bindung, unverändert seit der Ankündigung.';
+    $('dlg-pruefen').showModal();
+  } catch (err) {
+    zeige(`Prüfung fehlgeschlagen: ${err.message}`, true);
+  }
+};
+
+$('btn-zurueck').onclick = () => { app.dataset.view = 'liste'; };
+
+$('meine-adresse').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(identitaet.address);
+    zeige('Adresse kopiert.');
+  } catch {
+    zeige('Kopieren nicht möglich — Adresse bitte von Hand übernehmen.', true);
+  }
+};
+
+start();
+</script>
+</body>
+</html>
