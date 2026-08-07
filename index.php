@@ -52,7 +52,9 @@ const SYSTEM_FOLDERS = ['inbox', 'sent', 'sent messages', 'drafts', 'deleted mes
 function data_dir(): string
 {
     $env = getenv('ICM_DATA_DIR');
-    return is_string($env) && $env !== '' ? rtrim($env, '/') : __DIR__ . '/icm-data';
+    $base = is_string($env) && $env !== '' ? rtrim($env, '/') : __DIR__ . '/icm-data';
+    // simple-apple.php legt seinen Stand daneben ab, im selben Ordner.
+    return defined('ICM_DATA_SUB') ? $base . '/' . ICM_DATA_SUB : $base;
 }
 
 function bail(string $msg): never
@@ -115,7 +117,7 @@ function folders_catalogue(): array
 {
     $custom = config()['folders'] ?? null;
     if (!is_array($custom) || $custom === []) {
-        return DEFAULT_FOLDERS;
+        $custom = DEFAULT_FOLDERS;
     }
     $out = [];
     foreach ($custom as $name => $what) {
@@ -123,7 +125,11 @@ function folders_catalogue(): array
             $out[$name] = (string) $what;
         }
     }
-    $out['Alias'] ??= DEFAULT_FOLDERS['Alias'];
+    if (defined('ICM_NO_ALIAS')) {
+        unset($out['Alias']);
+    } else {
+        $out['Alias'] ??= DEFAULT_FOLDERS['Alias'];
+    }
     return $out;
 }
 
@@ -683,10 +689,80 @@ function resolve_answer(string $answer, ?string $aliasPath): ?string
 const DEFAULT_MODEL = 'claude-sonnet-5';
 const DEFAULT_API_URL = 'https://api.anthropic.com/v1/messages';
 
+/** Zwei Wege zur KI: die Messages-API oder eine Routine auf claude.ai. */
+const API_KINDS = [
+    'messages' => 'Claude-API (api.anthropic.com)',
+    'routine'  => 'Claude-Routine (claude.ai/code/routines)',
+];
+
 function api_url(): string
 {
     $url = (string) (config()['api_url'] ?? '');
     return str_starts_with($url, 'https://') ? $url : DEFAULT_API_URL;
+}
+
+function api_kind(): string
+{
+    $kind = (string) (config()['api_kind'] ?? 'messages');
+    return isset(API_KINDS[$kind]) ? $kind : 'messages';
+}
+
+/**
+ * Baut Anfrage und Kopfzeilen fuer den gewaehlten Weg.
+ * @return array{0:string,1:list<string>}
+ */
+function api_request(string $kind, string $prompt, int $maxTokens, string $secret): array
+{
+    if ($kind === 'routine') {
+        return [json_encode(['prompt' => $prompt], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            ['content-type: application/json', 'accept: application/json',
+             'authorization: Bearer ' . $secret]];
+    }
+    return [json_encode([
+        'model' => (string) (config()['model'] ?? DEFAULT_MODEL),
+        'max_tokens' => $maxTokens,
+        'messages' => [['role' => 'user', 'content' => $prompt]],
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        ['content-type: application/json', 'x-api-key: ' . $secret,
+         'anthropic-version: 2023-06-01']];
+}
+
+function api_secret(): string
+{
+    return dec((string) (config()['api_key'] ?? ''));
+}
+
+/** Zieht den Antworttext heraus, egal in welcher Huelle er steckt. */
+function api_answer_text(string $raw): string
+{
+    $body = json_decode($raw, true);
+    if (!is_array($body)) {
+        return $raw;
+    }
+    $text = '';
+    foreach ((array) ($body['content'] ?? []) as $part) {
+        $text .= is_array($part) ? (string) ($part['text'] ?? '') : (string) $part;
+    }
+    if ($text !== '') {
+        return $text;
+    }
+    foreach (['antwort', 'answer', 'result', 'output', 'text', 'message'] as $field) {
+        if (isset($body[$field]) && is_scalar($body[$field])) {
+            return (string) $body[$field];
+        }
+    }
+    return $raw;
+}
+
+/** Die Aliasregeln entfallen, wenn es den Ordner Alias gar nicht gibt. */
+function alias_rules(): string
+{
+    if (!array_key_exists('Alias', folders_catalogue())) {
+        return '';
+    }
+    return "- Steht (Nebenadresse), antworte \"Alias\" - ausser es ist Sicherheit oder Finanzen.\n"
+        . "  Diese beiden gehen immer vor.\n"
+        . "- \"Alias\" ist nur bei (Nebenadresse) gueltig.\n";
 }
 
 /**
@@ -715,43 +791,28 @@ function ask_claude(array $questions): array
     }
     $prompt = "Ordne jede Zeile genau einem Ordner zu.\n\n"
         . "Ordner (nur diese Werte sind gueltig):\n{$catalogue}\n"
-        . "Regeln:\n"
-        . "- Steht (Nebenadresse), antworte \"Alias\" - ausser es ist Sicherheit oder Finanzen.\n"
-        . "  Diese beiden gehen immer vor.\n"
-        . "- \"Alias\" ist nur bei (Nebenadresse) gueltig.\n"
+        . "Regeln:\n" . alias_rules()
         . "- Finanzen nur, wo tatsaechlich Geld dahintersteht. Newsletter und Werbung eines\n"
         . "  Zahlungsanbieters gehoeren nach Werbung.\n"
         . "- Unsicher? Persoenlich.\n\n"
         . "Zeilen:\n{$lines}\n"
         . "Antworte ausschliesslich mit JSON, Zeilennummer auf Ordner: {\"0\": \"Ordner\"}\n";
 
-    $payload = json_encode([
-        'model' => (string) ($config['model'] ?? DEFAULT_MODEL),
-        'max_tokens' => 4096,
-        'messages' => [['role' => 'user', 'content' => $prompt]],
-    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-    [$code, $raw, $error] = https_post(api_url(), $payload, [
-        'content-type: application/json',
-        'x-api-key: ' . $key,
-        'anthropic-version: 2023-06-01',
-    ]);
+    [$payload, $headers] = api_request(api_kind(), $prompt, 4096, $key);
+    [$code, $raw, $error] = https_post(api_url(), $payload, $headers);
     if ($error !== null) {
         return [[], 'Claude nicht erreichbar: ' . $error];
     }
-    $body = json_decode((string) $raw, true);
-    if ($code !== 200) {
-        $message = (string) ($body['error']['message'] ?? '');
-        if ($code === 401) {
-            $message .= ' Der Schluessel wurde abgelehnt - meist ein Tippfehler oder '
+    if ($code < 200 || $code >= 300) {
+        $body = json_decode((string) $raw, true);
+        $message = (string) ($body['error']['message'] ?? ($body['message'] ?? ''));
+        if ($code === 401 || $code === 403) {
+            $message .= ' Das Token wurde abgelehnt - meist ein Tippfehler oder '
                 . 'ein Leerzeichen. Das ist kein Netzwerkproblem.';
         }
         return [[], 'Claude antwortet mit HTTP ' . $code . '. ' . trim($message)];
     }
-    $text = '';
-    foreach ((array) ($body['content'] ?? []) as $part) {
-        $text .= (string) ($part['text'] ?? '');
-    }
+    $text = api_answer_text((string) $raw);
     $start = strpos($text, '{');
     $end = strrpos($text, '}');
     if ($start === false || $end === false) {
@@ -1015,27 +1076,54 @@ function run_cycle(string $id, bool $initial = false): array
 // ===========================================================================
 
 /** @return list<array{name:string,ok:bool,detail:string,required:bool}> */
-function checklist(?string $apiUrl = null, ?string $apiKey = null): array
+function checks_system(): array
 {
     $out = [];
-    foreach (['sodium', 'mbstring', 'curl'] as $ext) {
-        $out[] = ['name' => 'PHP-Erweiterung ' . $ext, 'ok' => extension_loaded($ext),
-            'detail' => extension_loaded($ext) ? 'geladen' : 'apt install php-' . $ext,
-            'required' => true];
+
+    $php = PHP_VERSION;
+    $out[] = ['name' => 'PHP-Version', 'ok' => PHP_VERSION_ID >= 80100,
+        'detail' => PHP_VERSION_ID >= 80100 ? $php : $php . ' - noetig ist 8.1 oder neuer',
+        'required' => true];
+
+    foreach (['sodium' => 'php-sodium', 'mbstring' => 'php-mbstring',
+              'curl' => 'php-curl'] as $ext => $pkg) {
+        $have = extension_loaded($ext);
+        $out[] = ['name' => 'Erweiterung ' . $ext, 'ok' => $have,
+            'detail' => $have ? 'geladen' : 'apt install ' . $pkg, 'required' => true];
     }
+
+    $limit = trim((string) ini_get('memory_limit'));
+    $bytes = ini_bytes($limit);
+    $out[] = ['name' => 'Speicherlimit', 'ok' => $bytes < 0 || $bytes >= 128 * 1024 * 1024,
+        'detail' => $limit === '' ? 'unbekannt' : ($bytes < 0 ? 'ohne Begrenzung' : $limit),
+        'required' => false];
+
     $dir = data_dir();
     $writable = (is_dir($dir) || @mkdir($dir, 0700, true)) && is_writable($dir);
     $out[] = ['name' => 'Datenverzeichnis', 'ok' => $writable,
-        'detail' => $writable ? $dir : $dir . ' nicht beschreibbar', 'required' => true];
+        'detail' => $writable ? $dir . ' beschreibbar' : $dir . ' nicht beschreibbar',
+        'required' => true];
 
-    $url = $apiUrl !== null && str_starts_with($apiUrl, 'https://') ? $apiUrl : api_url();
+    $free = @disk_free_space($dir) ?: 0;
+    $out[] = ['name' => 'Freier Speicher', 'ok' => $free >= 100 * 1024 * 1024,
+        'detail' => $free > 0 ? round($free / 1048576) . ' MB frei' : 'unbekannt',
+        'required' => false];
+
+    foreach (net_checks(DEFAULT_API_URL) as $row) {
+        $out[] = $row;
+    }
+    return $out;
+}
+
+/** Netzwerk: DNS und die drei Ports, die der Server nach aussen braucht. */
+function net_checks(string $url): array
+{
+    $out = [];
     $apiHost = (string) (parse_url($url, PHP_URL_HOST) ?: 'api.anthropic.com');
 
-    // Die Claude-API muss erreichbar sein. Von den IMAP-Servern reicht einer -
-    // wer nur iCloud einsetzt, braucht Google nicht.
     $reach = static function (string $host, int $port): array {
         if (gethostbyname($host) === $host && !filter_var($host, FILTER_VALIDATE_IP)) {
-            return [false, $host . ' laesst sich nicht aufloesen (DNS)'];
+            return [false, $host . ' laesst sich nicht aufloesen - DNS pruefen (Port 53)'];
         }
         $errno = 0;
         $errstr = '';
@@ -1048,49 +1136,77 @@ function checklist(?string $apiUrl = null, ?string $apiKey = null): array
     };
 
     [$ok, $detail] = $reach($apiHost, 443);
-    $out[] = ['name' => 'Claude-API - Port 443', 'ok' => $ok, 'detail' => $detail,
+    $out[] = ['name' => 'Ausgehend 443 - Claude', 'ok' => $ok, 'detail' => $detail,
         'required' => true];
 
+    // Von den IMAP-Servern reicht einer. Wer nur iCloud einsetzt, braucht
+    // Google nicht - die einzelnen Zeilen sind deshalb nur Hinweise.
     $anyImap = false;
     foreach ([['imap.mail.me.com', 'iCloud'], ['imap.gmail.com', 'Google']] as [$host, $label]) {
         [$ok, $detail] = $reach($host, 993);
         $anyImap = $anyImap || $ok;
-        $out[] = ['name' => $label . ' IMAP - Port 993', 'ok' => $ok, 'detail' => $detail,
+        $out[] = ['name' => $label . ' - imap:993', 'ok' => $ok, 'detail' => $detail,
             'required' => false];
     }
-    $out[] = ['name' => 'IMAP ausgehend', 'ok' => $anyImap,
-        'detail' => $anyImap ? 'Port 993 ist offen' : 'Kein IMAP-Server auf Port 993 erreichbar',
+    $out[] = ['name' => 'Ausgehend 993 - IMAP', 'ok' => $anyImap,
+        'detail' => $anyImap ? 'offen' : 'Kein IMAP-Server erreichbar. Port 993 freigeben.',
         'required' => true];
-
-    $key = $apiKey !== null && $apiKey !== '' ? $apiKey : dec((string) (config()['api_key'] ?? ''));
-    if ($key === '') {
-        $out[] = ['name' => 'Claude-Schluessel', 'ok' => false,
-            'detail' => 'noch nicht eingetragen', 'required' => true];
-    } elseif (($cached = key_probe_cached($url, $key)) !== null) {
-        $out[] = $cached;
-    } else {
-        [$code, $raw, $error] = https_post($url, json_encode([
-            'model' => (string) (config()['model'] ?? DEFAULT_MODEL),
-            'max_tokens' => 16,
-            'messages' => [['role' => 'user', 'content' => 'Antworte nur mit: ok']],
-        ]), ['content-type: application/json', 'x-api-key: ' . $key,
-             'anthropic-version: 2023-06-01']);
-        if ($error !== null) {
-            $detail = $error;
-        } elseif ($code === 200) {
-            $detail = 'Schluessel gueltig';
-        } elseif ($code === 401) {
-            $detail = 'Schluessel abgelehnt (401). Tippfehler oder Leerzeichen?';
-        } else {
-            $body = json_decode((string) $raw, true);
-            $detail = 'HTTP ' . $code . ' ' . (string) ($body['error']['message'] ?? '');
-        }
-        $row = ['name' => 'Claude-Schluessel', 'ok' => $error === null && $code === 200,
-            'detail' => $detail, 'required' => true];
-        key_probe_store($url, $key, $row);
-        $out[] = $row;
-    }
     return $out;
+}
+
+function ini_bytes(string $value): int
+{
+    if ($value === '' || $value === '-1') {
+        return -1;
+    }
+    $n = (int) $value;
+    return match (strtolower(substr($value, -1))) {
+        'g' => $n * 1073741824,
+        'm' => $n * 1048576,
+        'k' => $n * 1024,
+        default => $n,
+    };
+}
+
+/** Eine einzelne Zeile: antwortet die Gegenstelle mit diesem Token? */
+function check_key(string $url, string $key, ?string $kind = null): array
+{
+    $kind = $kind !== null && isset(API_KINDS[$kind]) ? $kind : api_kind();
+    if (!str_starts_with($url, 'https://')) {
+        return ['name' => 'Verbindung zur KI', 'ok' => false,
+            'detail' => 'Die API-URL muss mit https:// beginnen.', 'required' => true];
+    }
+    if ($key === '') {
+        return ['name' => 'Verbindung zur KI', 'ok' => false,
+            'detail' => 'Noch kein Token eingetragen.', 'required' => true];
+    }
+    if (($cached = key_probe_cached($url . '|' . $kind, $key)) !== null) {
+        return $cached;
+    }
+    foreach (net_checks($url) as $row) {
+        if ($row['required'] && !$row['ok'] && str_contains($row['name'], '443')) {
+            return ['name' => 'Verbindung zur KI', 'ok' => false,
+                'detail' => $row['detail'], 'required' => true];
+        }
+    }
+    // Der Test laeuft mit dem eingetippten Token, nicht mit dem gespeicherten.
+    [$payload, $headers] = api_request($kind, 'Antworte nur mit: ok', 16, $key);
+    [$code, $raw, $error] = https_post($url, $payload, $headers);
+    $ok = $error === null && $code >= 200 && $code < 300;
+    if ($error !== null) {
+        $detail = $error;
+    } elseif ($ok) {
+        $detail = 'Die KI antwortet.';
+    } elseif ($code === 401 || $code === 403) {
+        $detail = 'Token abgelehnt (' . $code . '). Tippfehler oder Leerzeichen?';
+    } else {
+        $body = json_decode((string) $raw, true);
+        $detail = 'HTTP ' . $code . ' ' . (string) ($body['error']['message'] ?? '');
+    }
+    $row = ['name' => 'Verbindung zur KI', 'ok' => $ok, 'detail' => trim($detail),
+        'required' => true];
+    key_probe_store($url . '|' . $kind, $key, $row);
+    return $row;
 }
 
 /** Die Liste wird im Sekundentakt geholt - der Schluessel aber nicht jedes Mal geprueft. */
@@ -1141,24 +1257,31 @@ function cron(): never
 // Start
 // ===========================================================================
 
-foreach (['sodium' => 'php-sodium', 'mbstring' => 'php-mbstring'] as $ext => $pkg) {
-    if (!extension_loaded($ext)) {
-        bail("PHP-Erweiterung {$ext} fehlt (apt install {$pkg}).");
+function boot(): void
+{
+    foreach (['sodium' => 'php-sodium', 'mbstring' => 'php-mbstring'] as $ext => $pkg) {
+        if (!extension_loaded($ext)) {
+            bail("PHP-Erweiterung {$ext} fehlt (apt install {$pkg}).");
+        }
+    }
+    if (!is_dir(data_dir())) {
+        @mkdir(data_dir(), 0700, true);
+    }
+    @mkdir(data_dir() . '/users', 0700, true);
+    if (!is_file(data_dir() . '/.htaccess')) {
+        @file_put_contents(data_dir() . '/.htaccess', "Require all denied\n");
     }
 }
-if (!is_dir(data_dir())) {
-    @mkdir(data_dir(), 0700, true);
-}
-@mkdir(data_dir() . '/users', 0700, true);
-if (!is_file(data_dir() . '/.htaccess')) {
-    @file_put_contents(data_dir() . '/.htaccess', "Require all denied\n");
-}
 
-if (PHP_SAPI === 'cli') {
-    ($argv[1] ?? '') === 'cron' ? cron() : bail('Aufruf: php index.php cron');
+// simple-apple.php bindet diese Datei als Baukasten ein und bringt seine
+// eigene Oberflaeche mit. Dann laeuft hier unten nichts.
+if (!defined('ICM_LIBRARY')) {
+    boot();
+    if (PHP_SAPI === 'cli') {
+        ($argv[1] ?? '') === 'cron' ? cron() : bail('Aufruf: php index.php cron');
+    }
+    web();
 }
-
-web();
 
 // ===========================================================================
 // Web
@@ -1269,22 +1392,31 @@ function web(): never
     $config = config();
     $setup = ($config['setup_done'] ?? false) === true;
 
-    // Live-Pruefung fuer das Setup. Vor dem Setup offen, danach nur fuer den Admin.
+    // Live-Pruefungen. Vor dem Setup nur fuer den, der gerade im passenden
+    // Schritt steht, danach nur fuer den angemeldeten Admin.
     if (isset($_GET['check'])) {
-        if ($setup && empty($_SESSION['admin'])) {
-            json_out(403, ['error' => 'Nicht angemeldet']);
+        $admin = !empty($_SESSION['admin']);
+        $inSetup = !$setup && is_array($_SESSION['setup'] ?? null);
+        if (!$admin && !$inSetup) {
+            json_out(403, ['error' => 'Nicht erlaubt']);
         }
         if (!rate_ok('check|' . (string) ($_SERVER['REMOTE_ADDR'] ?? ''), 90, 60)) {
             json_out(429, ['error' => 'Zu viele Anfragen']);
         }
-        $url = (string) ($_GET['url'] ?? '');
-        $key = (string) ($_GET['key'] ?? '');
-        json_out(200, ['pruefungen' => checklist($url !== '' ? $url : null,
-            $key !== '' ? $key : null)]);
+        if ($_GET['check'] === 'key') {
+            // Der Tokentest geht nach draussen - nur im dritten Schritt oder als Admin.
+            if (!$admin && (int) ($_SESSION['setup']['step'] ?? 0) !== 3) {
+                json_out(403, ['error' => 'Nicht erlaubt']);
+            }
+            json_out(200, ['pruefungen' => [check_key(
+                trim((string) ($_GET['url'] ?? '')) ?: DEFAULT_API_URL,
+                trim((string) ($_GET['key'] ?? '')))]]);
+        }
+        json_out(200, ['pruefungen' => checks_system()]);
     }
 
     if (!$setup) {
-        page_setup();
+        setup_flow();
     }
 
     if (isset($_GET['usr'])) {
@@ -1490,23 +1622,31 @@ function admin_action(): array
         $url = trim((string) ($_POST['api_url'] ?? ''));
         $key = trim((string) ($_POST['api_key'] ?? ''));
         $model = trim((string) ($_POST['model'] ?? '')) ?: DEFAULT_MODEL;
+        $kind = isset(API_KINDS[(string) ($_POST['api_kind'] ?? '')])
+            ? (string) $_POST['api_kind'] : api_kind();
         if ($url !== '' && !str_starts_with($url, 'https://')) {
             return [null, 'Die API-URL muss mit https:// beginnen.'];
         }
         if (!preg_match('/^[A-Za-z0-9._-]{1,60}$/', $model)) {
             return [null, 'Modellname ungueltig.'];
         }
-        config_set(static function (array $c) use ($url, $key, $model): array {
+        // Nichts speichern, was nicht antwortet - sonst steht der Betrieb.
+        $row = check_key($url !== '' ? $url : api_url(), $key !== '' ? $key : api_secret(), $kind);
+        if (!$row['ok']) {
+            return [null, $row['detail']];
+        }
+        config_set(static function (array $c) use ($url, $key, $model, $kind): array {
             if ($url !== '') {
                 $c['api_url'] = $url;
             }
             if ($key !== '') {
                 $c['api_key'] = enc($key);
             }
+            $c['api_kind'] = $kind;
             $c['model'] = $model;
             return $c;
         });
-        return ['Gespeichert.', null];
+        return ['Gespeichert. Die KI antwortet.', null];
     }
 
     return [null, null];
@@ -1664,6 +1804,14 @@ function head(string $title, ?string $nonce = null): void
  ul.chk .dt{color:var(--muted);font-size:12.5px}
  li.good .st,li.good .nm{color:var(--ok)}
  li.bad .st,li.bad .nm{color:var(--err)}
+ ol.steps{display:flex;gap:8px;list-style:none;margin:0 0 22px;padding:0;font-size:12.5px}
+ ol.steps li{display:flex;align-items:center;gap:7px;color:var(--muted);flex:1}
+ ol.steps .n{display:inline-flex;width:21px;height:21px;border-radius:50%;flex:none;
+  align-items:center;justify-content:center;font-weight:700;font-size:11.5px;
+  background:var(--mono);color:var(--muted)}
+ ol.steps li.on{color:var(--fg);font-weight:600}
+ ol.steps li.on .n{background:var(--accent);color:var(--accent-fg)}
+ ol.steps li.done .n{background:var(--okbg);color:var(--ok)}
 </style></head><body>
     <?php
 }
@@ -1690,113 +1838,314 @@ function msgs(?string $notice, ?string $error): void
     }
 }
 
-function page_setup(): never
+/**
+ * Einrichtung in drei Schritten. Der Stand liegt in der Sitzung, nicht in
+ * versteckten Feldern - so laesst sich kein Schritt ueberspringen.
+ */
+function setup_flow(): never
 {
+    $state = $_SESSION['setup'] ?? null;
+    if (!is_array($state)) {
+        $state = ['step' => 1, 'secret' => b32enc(random_bytes(20)), 'hash' => null];
+        $_SESSION['setup'] = $state;
+    }
+    $step = (int) $state['step'];
     $error = null;
-    $secret = (string) ($_POST['secret'] ?? b32enc(random_bytes(20)));
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         csrf_ok();
-        $pass = (string) ($_POST['password'] ?? '');
-        $url = trim((string) ($_POST['api_url'] ?? DEFAULT_API_URL));
-        $key = trim((string) ($_POST['api_key'] ?? ''));
-        $failing = array_filter(checklist($url, $key),
-            static fn(array $c) => $c['required'] && !$c['ok']);
-        if ($failing !== []) {
-            $error = 'Noch nicht alles bereit: ' . implode(', ',
-                array_column($failing, 'name'));
-        } elseif (strlen($pass) < 12) {
-            $error = 'Passwort: mindestens 12 Zeichen.';
-        } elseif ($pass !== (string) ($_POST['password2'] ?? '')) {
-            $error = 'Die Passwoerter stimmen nicht ueberein.';
-        } elseif (totp_check($secret, (string) ($_POST['code'] ?? '')) === null) {
-            $error = 'Der Code stimmt nicht.';
-        } else {
-            config_set(static fn(array $c): array => [
-                'setup_done' => true,
-                'password_hash' => password_hash($pass, PASSWORD_DEFAULT),
-                'totp_secret' => $secret, 'totp_last' => 0,
-                'api_url' => $url !== '' ? $url : DEFAULT_API_URL,
-                'api_key' => enc($key), 'model' => DEFAULT_MODEL,
-                'created' => gmdate('c'),
-            ]);
+        $want = (int) ($_POST['step'] ?? 0);
+        if (($_POST['zurueck'] ?? '') !== '') {
+            $_SESSION['setup']['step'] = max(1, $want - 1);
             go();
         }
+        if ($want !== $step) {
+            $error = 'Bitte die Seite neu laden.';
+        } elseif ($step === 1) {
+            $offen = array_filter(checks_system(),
+                static fn(array $c) => $c['required'] && !$c['ok']);
+            if ($offen !== []) {
+                $error = 'Noch offen: ' . implode(', ', array_column($offen, 'name'));
+            } else {
+                $_SESSION['setup']['step'] = 2;
+                go();
+            }
+        } elseif ($step === 2) {
+            $pass = (string) ($_POST['password'] ?? '');
+            if (strlen($pass) < 12) {
+                $error = 'Das Passwort braucht mindestens 12 Zeichen.';
+            } elseif ($pass !== (string) ($_POST['password2'] ?? '')) {
+                $error = 'Die beiden Passwoerter sind nicht gleich.';
+            } elseif (totp_check((string) $state['secret'], (string) ($_POST['code'] ?? '')) === null) {
+                $error = 'Der Code stimmt nicht. Uhrzeit des Servers pruefen.';
+            } else {
+                $_SESSION['setup']['hash'] = password_hash($pass, PASSWORD_DEFAULT);
+                $_SESSION['setup']['step'] = 3;
+                sodium_memzero($pass);
+                go();
+            }
+        } elseif ($step === 3) {
+            $kind = isset(API_KINDS[(string) ($_POST['api_kind'] ?? '')])
+                ? (string) $_POST['api_kind'] : 'messages';
+            $_SESSION['setup']['kind'] = $kind;
+            if (($_POST['wechsel'] ?? '') !== '') {
+                go();                       // nur die Zustellart gewechselt
+            }
+            $url = trim((string) ($_POST['api_url'] ?? '')) ?: DEFAULT_API_URL;
+            $key = trim((string) ($_POST['api_key'] ?? ''));
+            $row = check_key($url, $key, $kind);
+            if (!$row['ok']) {
+                $error = $row['detail'];
+            } elseif (!is_string($state['hash'])) {
+                $error = 'Das Adminkonto fehlt. Bitte von vorn beginnen.';
+                $_SESSION['setup']['step'] = 2;
+            } else {
+                config_set(static fn(array $c): array => [
+                    'setup_done' => true,
+                    'password_hash' => (string) $_SESSION['setup']['hash'],
+                    'totp_secret' => (string) $_SESSION['setup']['secret'],
+                    'totp_last' => 0,
+                    'api_url' => $url,
+                    'api_key' => enc($key),
+                    'api_kind' => $kind,
+                    'model' => DEFAULT_MODEL,
+                    'created' => gmdate('c'),
+                ]);
+                unset($_SESSION['setup']);
+                session_regenerate_id(true);
+                go();
+            }
+        }
+        $step = (int) $_SESSION['setup']['step'];
     }
+
+    match ($step) {
+        2 => page_setup_admin((string) $state['secret'], $error),
+        3 => page_setup_ki((string) ($_SESSION['setup']['kind'] ?? 'messages'), $error),
+        default => page_setup_checks($error),
+    };
+}
+
+function setup_head(int $step, ?string $error): void
+{
+    $titel = [1 => 'Voraussetzungen', 2 => 'Adminkonto', 3 => 'KI verbinden'];
+    ?>
+<main class="narrow" style="max-width:600px">
+  <ol class="steps">
+    <?php foreach ($titel as $n => $t): ?>
+      <li class="<?= $n === $step ? 'on' : ($n < $step ? 'done' : '') ?>">
+        <span class="n"><?= $n < $step ? '&check;' : $n ?></span><?= e($t) ?></li>
+    <?php endforeach; ?>
+  </ol>
+  <h1><?= e($titel[$step]) ?></h1>
+  <?php msgs(null, $error);
+}
+
+function page_setup_checks(?string $error): never
+{
     $nonce = base64_encode(random_bytes(16));
     head('icm einrichten', $nonce);
+    setup_head(1, $error);
     ?>
-<main class="narrow" style="max-width:560px">
-  <h1>Einrichten</h1>
-  <?php msgs(null, $error); ?>
   <section class="card">
-    <h2>Voraussetzungen</h2>
-    <ul class="chk" id="chk"><li><span class="st">…</span><span class="nm">wird geprueft</span></li></ul>
-    <div class="hint">Ausgehend noetig: 443 zur Claude-API, 993 zu den IMAP-Servern, DNS.
-      Eingehend 80 und 443.</div>
+    <ul class="chk" id="chk"><li><span class="st">&hellip;</span><span class="nm">wird geprueft</span></li></ul>
+  </section>
+  <section class="card">
+    <h2>Was der Server nach aussen braucht</h2>
+    <table>
+      <tr><td>443/TCP</td><td class="muted">zur Claude-API</td></tr>
+      <tr><td>993/TCP</td><td class="muted">zum Postfach, IMAP ueber TLS</td></tr>
+      <tr><td>53</td><td class="muted">DNS</td></tr>
+      <tr><td>80 und 443</td><td class="muted">eingehend, fuer diese Seite</td></tr>
+    </table>
   </section>
   <form method="post">
     <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
-    <input type="hidden" name="secret" value="<?= e($secret) ?>">
-    <section class="card">
-      <h2>Claude</h2>
-      <div class="f"><label for="au">API-URL</label>
-        <input id="au" name="api_url" value="<?= e($_POST['api_url'] ?? DEFAULT_API_URL) ?>"></div>
-      <div class="f"><label for="ak">API-Token</label>
-        <input id="ak" name="api_key" type="password" required></div>
-    </section>
-    <section class="card">
-      <h2>Administrator</h2>
-      <div class="f"><label for="p">Passwort</label>
-        <input id="p" name="password" type="password" required minlength="12"></div>
-      <div class="f"><label for="p2">Wiederholen</label>
-        <input id="p2" name="password2" type="password" required></div>
-      <div class="f"><label>TOTP-Geheimnis</label><pre><?= e($secret) ?></pre>
-        <div class="hint">In die Authenticator-App eintragen und sichern.</div></div>
-      <div class="f"><label for="c">Code</label>
-        <input id="c" name="code" inputmode="numeric" pattern="[0-9]{6}" required></div>
-      <button id="go" type="submit" disabled>Einrichten</button>
-      <div class="hint" id="gohint">Erst moeglich, wenn alle Pruefungen gruen sind.</div>
-    </section>
+    <input type="hidden" name="step" value="1">
+    <button id="go" type="submit" disabled>Weiter</button>
+    <span class="hint" id="gohint">Wartet auf die Pruefung.</span>
   </form>
-</main>
+<?php checklist_script($nonce, '?check=system', 'chk', 'go', 'gohint'); ?>
+</main></body></html>
+    <?php
+    exit;
+}
+
+function page_setup_admin(string $secret, ?string $error): never
+{
+    head('icm einrichten');
+    setup_head(2, $error);
+    ?>
+  <form method="post" autocomplete="off">
+    <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+    <input type="hidden" name="step" value="2">
+    <section class="card">
+      <div class="f"><label for="p">Passwort</label>
+        <input id="p" name="password" type="password" required minlength="12" autofocus>
+        <div class="hint">Mindestens 12 Zeichen. Es gibt keinen Benutzernamen.</div></div>
+      <div class="f"><label for="p2">Passwort wiederholen</label>
+        <input id="p2" name="password2" type="password" required></div>
+    </section>
+    <section class="card">
+      <h2>Zweiter Faktor</h2>
+      <div class="f"><label>Geheimnis fuer die Authenticator-App</label>
+        <pre><?= e(chunk_split($secret, 4, ' ')) ?></pre>
+        <div class="hint">Jetzt eintragen und sichern. Danach wird es nicht mehr angezeigt.</div></div>
+      <div class="f"><label for="c">Code aus der App</label>
+        <input id="c" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required
+               autocomplete="one-time-code"></div>
+    </section>
+    <div style="display:flex;gap:8px">
+      <button class="q" type="submit" name="zurueck" value="1" formnovalidate>Zurueck</button>
+      <button type="submit">Weiter</button>
+    </div>
+  </form>
+</main></body></html>
+    <?php
+    exit;
+}
+
+function page_setup_ki(string $kind, ?string $error): never
+{
+    $nonce = base64_encode(random_bytes(16));
+    head('icm einrichten', $nonce);
+    setup_head(3, $error);
+    $routine = $kind === 'routine';
+    ?>
+  <form method="post" autocomplete="off" id="kiform">
+    <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
+    <input type="hidden" name="step" value="3">
+  <section class="card">
+    <h2>1. Woher die Antwort kommt</h2>
+    <div class="f"><select id="kd" name="api_kind">
+      <?php foreach (API_KINDS as $k => $label): ?>
+        <option value="<?= e($k) ?>" <?= $k === $kind ? 'selected' : '' ?>><?= e($label) ?></option>
+      <?php endforeach; ?>
+    </select></div>
+  </section>
+  <section class="card">
+    <h2>2. Diesen Text in die KI geben</h2>
+    <p class="muted" style="margin:0 0 10px"><?= $routine
+        ? 'Auf claude.ai/code/routines eine Routine anlegen und den Text als Auftrag einsetzen. '
+          . 'Danach gibt die Routine dir eine API-URL und ein Token.'
+        : 'Der Text beschreibt, was die KI tun soll. Das Token kommt aus der Anthropic-Konsole.' ?></p>
+    <pre id="auftrag"><?= e(routine_text($kind)) ?></pre>
+    <div style="margin-top:10px"><button class="q" type="button" id="copy">Text kopieren</button></div>
+  </section>
+  <section class="card">
+    <h2>3. Zugang eintragen</h2>
+    <div>
+      <div class="f"><label for="au">API-URL</label>
+        <input id="au" name="api_url"
+               value="<?= e($routine ? '' : DEFAULT_API_URL) ?>"
+               placeholder="<?= e($routine ? 'https://claude.ai/api/... aus der Routine' : DEFAULT_API_URL) ?>"></div>
+      <div class="f"><label for="ak">API-Token</label>
+        <input id="ak" name="api_key" type="password" required autofocus>
+        <div class="hint">Wird verschluesselt abgelegt und nie wieder angezeigt.</div></div>
+      <ul class="chk" id="chk"><li><span class="st">&hellip;</span><span class="nm">Token eintragen</span></li></ul>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="q" type="submit" name="zurueck" value="1" formnovalidate>Zurueck</button>
+        <button id="go" type="submit" disabled>Fertig</button>
+      </div>
+      <div class="hint" id="gohint">Erst moeglich, wenn die KI antwortet.</div>
+    </div>
+  </section>
+  </form>
+<?php checklist_script($nonce, '?check=key', 'chk', 'go', 'gohint', true); ?>
+</main></body></html>
+    <?php
+    exit;
+}
+
+/** Der Auftrag, den der Betreiber der KI vorlegt. Kurz und ohne Beiwerk. */
+function routine_text(string $kind = 'messages', string $name = 'icm'): string
+{
+    $folders = '';
+    foreach (folders_catalogue() as $folder => $what) {
+        $folders .= "- {$folder}: {$what}\n";
+    }
+    $weg = $kind === 'routine' ? 'per HTTP an diese Routine' : 'ueber die Messages-API';
+    return "Auftrag fuer {$name} (Postfach sortieren)\n\n"
+        . "Ein Webserver schickt dir {$weg} Zeilen der Form\n"
+        . "  0) absender@example.com -> empfaenger@example.com (Hauptadresse)\n"
+        . "Du antwortest ausschliesslich mit JSON: {\"0\": \"Ordner\"}\n\n"
+        . "Erlaubte Ordner:\n" . $folders . "\n"
+        . "Regeln:\n"
+        . (array_key_exists('Alias', folders_catalogue())
+            ? "- (Nebenadresse) bedeutet Alias - ausser Sicherheit oder Finanzen, die gehen vor.\n"
+            : '')
+        . "- Finanzen nur, wo echtes Geld dahintersteht. Newsletter eines Zahlungsdienstes\n"
+        . "  gehoeren nach Werbung.\n"
+        . "- Unsicher? Persoenlich.\n\n"
+        . "Der Server liest nur Absender und Empfaenger, nie den Inhalt einer Nachricht.\n"
+        . "Gebraucht werden dafuer die API-URL und ein API-Token.\n";
+}
+
+/**
+ * Holt eine Pruefliste im Sekundentakt nach und schaltet den Knopf frei.
+ * Immer nur eine Anfrage zugleich, sonst stauen sich die Zeitablaeufe.
+ */
+function checklist_script(string $nonce, string $endpoint, string $listId,
+                          string $buttonId, string $hintId, bool $withKey = false): void
+{
+    ?>
 <script nonce="<?= e($nonce) ?>">
 (function () {
-  var list = document.getElementById('chk');
-  var go = document.getElementById('go');
-  var hint = document.getElementById('gohint');
-  // Immer nur eine Anfrage zugleich, danach eine Sekunde Pause. Sonst stauen
-  // sich die Anfragen, solange ein Port noch in den Zeitablauf laeuft.
-  function again() { setTimeout(tick, 1000); }
-  function tick() {
-    var url = encodeURIComponent(document.getElementById('au').value);
-    var key = encodeURIComponent(document.getElementById('ak').value);
-    fetch('?check=1&url=' + url + '&key=' + key, {cache: 'no-store'})
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var all = true, html = '';
-        d.pruefungen.forEach(function (c) {
-          if (c.required && !c.ok) { all = false; }
-          html += '<li class="' + (c.ok ? 'good' : 'bad') + '"><span class="st">'
-               + (c.ok ? '✓' : '✗') + '</span><span class="nm">'
-               + esc(c.name) + '</span><span class="dt">' + esc(c.detail) + '</span></li>';
-        });
-        list.innerHTML = html;
-        go.disabled = !all;
-        hint.textContent = all ? 'Alles bereit.' : 'Erst moeglich, wenn alle Pruefungen gruen sind.';
-      })
-      .catch(function () {})
-      .then(again);
-  }
+  var list = document.getElementById(<?= json_encode($listId) ?>);
+  var go = document.getElementById(<?= json_encode($buttonId) ?>);
+  var hint = document.getElementById(<?= json_encode($hintId) ?>);
+  var withKey = <?= $withKey ? 'true' : 'false' ?>;
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
       return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
     });
   }
+  function again() { setTimeout(tick, 1000); }
+  function tick() {
+    var q = <?= json_encode($endpoint) ?>;
+    if (withKey) {
+      q += '&url=' + encodeURIComponent(document.getElementById('au').value)
+         + '&key=' + encodeURIComponent(document.getElementById('ak').value);
+    }
+    fetch(q, {cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var all = true, html = '';
+        (d.pruefungen || []).forEach(function (c) {
+          if (c.required && !c.ok) { all = false; }
+          html += '<li class="' + (c.ok ? 'good' : 'bad') + '"><span class="st">'
+               + (c.ok ? '✓' : '✗') + '</span><span class="nm">' + esc(c.name)
+               + '</span><span class="dt">' + esc(c.detail) + '</span></li>';
+        });
+        list.innerHTML = html;
+        go.disabled = !all;
+        hint.textContent = all ? 'Alles bereit.' : 'Wird jede Sekunde erneut geprueft.';
+      })
+      .catch(function () {})
+      .then(again);
+  }
   tick();
+  var kd = document.getElementById('kd');
+  if (kd) {
+    kd.addEventListener('change', function () {
+      var m = document.createElement('input');
+      m.type = 'hidden'; m.name = 'wechsel'; m.value = '1';
+      kd.form.appendChild(m);
+      kd.form.submit();
+    });
+  }
+  var copy = document.getElementById('copy');
+  if (copy) {
+    copy.addEventListener('click', function () {
+      var t = document.getElementById('auftrag').textContent;
+      if (navigator.clipboard) { navigator.clipboard.writeText(t); }
+      copy.textContent = 'Kopiert';
+      setTimeout(function () { copy.textContent = 'Text kopieren'; }, 1500);
+    });
+  }
 })();
-</script></body></html>
+</script>
     <?php
-    exit;
 }
 
 function page_login(?string $error): never
@@ -2052,6 +2401,12 @@ function page_system(?string $notice, ?string $error): never
         <form method="post">
           <input type="hidden" name="csrf" value="<?= e(csrf()) ?>">
           <input type="hidden" name="action" value="save_api">
+          <div class="f"><label for="kd">Zustellart</label>
+            <select id="kd" name="api_kind">
+              <?php foreach (API_KINDS as $k => $label): ?>
+                <option value="<?= e($k) ?>" <?= $k === api_kind() ? 'selected' : '' ?>><?= e($label) ?></option>
+              <?php endforeach; ?>
+            </select></div>
           <div class="f"><label for="au">API-URL</label>
             <input id="au" name="api_url" value="<?= e($config['api_url'] ?? DEFAULT_API_URL) ?>"></div>
           <div class="f"><label for="ak">API-Token</label>
