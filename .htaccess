@@ -1,4 +1,4 @@
-# ::: smtstrange :::  nothing here is authoritative
+# ::: smtstrange :::  the apparatus decides. this file only holds the doors.
 # 88 4f 20 6e 6f 74 20 74 68 65 20 77 68 6f 6c 65 20 6f 66 20 69 74
 
 Options -Indexes +FollowSymLinks -MultiViews
@@ -14,7 +14,6 @@ AddDefaultCharset utf-8
     Header always unset Server
 </IfModule>
 
-# the engine's own configuration is not for reading
 <Files ".htaccess">
     Require all denied
 </Files>
@@ -26,16 +25,32 @@ AddDefaultCharset utf-8
     RewriteEngine On
     RewriteBase /
 
-    # the mouth is index.php; the older index does not surface here
+    # the older index does not surface here
     RewriteRule ^index\.html?$ / [R=302,L]
 
     # version-control leftovers do not exist here
     RewriteRule (^|/)\.git(/|$) - [F,L]
 
-    # sealed zones. there is no listing. and yet the mass is measurable.
-    RewriteRule ^(vault|attic|cellar|oubliette|reliquary|strongroom|ossuary|coldroom)(/.*)?$ - [F,L]
+    # ---- the seven doors -------------------------------------------------
+    # a ward-set that has been answered leaves a mark. the mark is the hinge.
+    # without the mark the door is not a door.
+    RewriteCond %{HTTP_COOKIE} !smt_w_vault=1      [NC]
+    RewriteRule ^vault(/.*)?$      - [F,L]
+    RewriteCond %{HTTP_COOKIE} !smt_w_attic=1      [NC]
+    RewriteRule ^attic(/.*)?$      - [F,L]
+    RewriteCond %{HTTP_COOKIE} !smt_w_cellar=1     [NC]
+    RewriteRule ^cellar(/.*)?$     - [F,L]
+    RewriteCond %{HTTP_COOKIE} !smt_w_oubliette=1  [NC]
+    RewriteRule ^oubliette(/.*)?$  - [F,L]
+    RewriteCond %{HTTP_COOKIE} !smt_w_reliquary=1  [NC]
+    RewriteRule ^reliquary(/.*)?$  - [F,L]
+    RewriteCond %{HTTP_COOKIE} !smt_w_strongroom=1 [NC]
+    RewriteRule ^strongroom(/.*)?$ - [F,L]
 
-    # everything that is not a real file on disk is decided by the engine
+    # these two answer to nothing. there is no ward-set for them.
+    RewriteRule ^(ossuary|coldroom)(/.*)?$ - [F,L]
+
+    # everything that is not a real file on disk is decided by the apparatus
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [L]
