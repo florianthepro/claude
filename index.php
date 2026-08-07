@@ -152,10 +152,15 @@ function smt_post_incident($kind, $title) {
     if (in_array($kind, array('register','benchmark','docket','official','private','transcript','withdrawn'), true))
         return true;
     return in_array($title, array(
-        'Instrument of Transfer', 'Retention Notice',
-        'Order as to Hours', 'Order, Rescinded',
-        'Survey of the North Stair',
-        'Plate, Withdrawn',
+        'Instrument of Transfer', 'Retention Notice', 'Deed of Deposit',
+        'Note as to Arrangement', 'Certificate of Closure', 'Warrant, Amended',
+        'Memorandum of Custody', 'Schedule of Papers Received',
+        'Order as to Hours', 'Order, Rescinded', 'Order as to the Second Copy',
+        'Order as to Absence', 'Order, Never Issued', 'Order as to the Stair',
+        'Standing Order, Consolidated',
+        'Survey of the North Stair', 'Works, Completed Twice', 'Works, Estimate Only',
+        'Demolition, Not Carried Out', 'Fencing of the Stair Head',
+        'Plate, Withdrawn', 'Plate, Not Taken', 'Plate, Catalogue: Summary',
     ), true);
 }
 
@@ -261,6 +266,7 @@ function smt_damage($text, $level, $seed) {
 
 /* ===========================================================================
  *  THE PAPERS. authored in pairs: a heading and the text that belongs to it.
+ *  shape: (title, body) or (title, voice-key, body) where the hand is fixed.
  *  slots: {A} author  {d} long date  {bm} height this year  {bmOld} 1970
  * ========================================================================= */
 function smt_paper_table() {
@@ -277,6 +283,18 @@ array('Retention Notice',
 "The papers of the station are retained in perpetuity, the station being closed and the datum having been transferred elsewhere.\n\nThe mark itself was not transferred. It remains at Holloway Point and is not maintained."),
 array('Certificate of Datum',
 "I certify that the datum of the station is the datum described in the warrant, that it has not been altered, and that it cannot be altered except by warrant.\n\nI am asked to certify further that the heights observed against it are consistent with it. I am not able to certify that, and the certificate is issued without it."),
+array('Schedule of Papers Received',
+"Received: twelve series, in forty-one boxes.\n\nThe schedule as sent lists forty boxes. A forty-first was present at delivery and is described in no schedule. It has been given a number and retained. Its contents are consistent with the rest and add nothing that was missing."),
+array('Deed of Deposit',
+"The depositor conveys the papers absolutely and reserves no right of recall.\n\nThe depositor is described in the deed as the Board. The Board's minute authorising the deposit has not been produced, the Board having by then been dissolved, and the deed is therefore executed by a body which did not exist on the day it signed."),
+array('Note as to Arrangement',
+"The papers are kept in the order in which they were received, which is not the order in which they were made.\n\nNo attempt has been made to interleave the duplicate series with the first. To interleave them would require a decision as to which sheet precedes the other where both bear the same date and hour, and that decision is not the archivist's to take."),
+array('Certificate of Closure',
+"The station was closed on 31 December 1997. The keys were surrendered. The instruments were removed under separate schedule.\n\nThe gauge house was left standing at the request of the surveyor's department, which has since been unable to say who made the request or on what ground."),
+array('Warrant, Amended',
+"The warrant is amended by the substitution, in the fourth article, of the words 'one figure' for the words 'the figure observed'.\n\nThe amendment was moved in 1974 and is expressed to take effect from 1961. Papers made under the unamended article are not thereby made irregular, the Board having resolved that they were always irregular."),
+array('Memorandum of Custody',
+"Custody of the second register was assumed by this repository on {d}.\n\nThe register was received sealed. The seal was found to be intact and was broken here, in the presence of two officers, in the ordinary way. The volume within is a fair copy in the keeper's hand and is four leaves longer than the volume it copies."),
 ),
 
 'order' => array(
@@ -288,6 +306,20 @@ array('Order as to Hours',
 "The night observation is to be taken at 03:00 and not at 03:11. The clock in the gauge house is to be compared weekly with the light. Discrepancy of more than eleven seconds is to be reported.\n\nThe clock has been compared. The discrepancy is eleven seconds, and has been eleven seconds since the comparison began."),
 array('Order, Rescinded',
 "The order of {d} requiring the north stair to be used for access to the gauge house is rescinded. Access is by the strand at low water.\n\nThe stair is not to be used pending survey. No survey has been appointed."),
+array('Order as to Ink',
+"Entries are to be made in the ink supplied and in no other. Pencil entries are to be inked over by the observer who made them, and by no other hand.\n\nWhere a pencil entry is found which no observer will ink over, it is to be left in pencil and the sheet endorsed accordingly. Four sheets are so endorsed."),
+array('Order as to the Second Copy',
+"The second copy is to be written at the same sitting as the first and from the same reading. It is not to be written from the first copy.\n\nThe keeper is reminded that a copy made from a copy is not a check upon it. He has replied that he is aware of this, and that it is the reason the two copies differ."),
+array('Order as to Absence',
+"The station is not to be left unmanned between the hours of 22:00 and 06:00.\n\nWhere the keeper is alone he is not to leave the gauge house during the night observation. He is not to leave it and return to it within the same minute. The wording of this article was settled by the Board and is not the keeper's."),
+array('Order as to Reporting',
+"Occurrences are to be reported on the day they occur and not afterwards.\n\nWhere an occurrence is reported twice, both reports are to be forwarded. The station is not to determine which report is the report."),
+array('Order, Never Issued',
+"Draft. Not issued.\n\n'The keeper shall, where two figures are obtained, strike the figure he believes to be in error and initial the striking.'\n\nMinuted across the foot in another hand: this would require him to believe one of them to be in error. He does not. Withdrawn before issue."),
+array('Order as to the Stair',
+"The north stair is closed. It is to be closed at the head by the gate provided and the gate is to be kept locked.\n\nThe key is kept on the board in the corridor. It is reported to be warm when taken down. The report has been made by three keepers in succession and is not the subject of an order."),
+array('Standing Order, Consolidated',
+"The standing orders are consolidated as at {d}. Articles rescinded are printed in their place and struck through, so that the volume may be read as it stood at any date.\n\nArticle 9, as to hours, is printed twice, in two forms, neither struck. The consolidation does not say which form was in force. It was compiled in 1975 from the station's own copies, of which there were two."),
 ),
 
 'register' => array(
@@ -299,6 +331,20 @@ array('Register of Predictions',
 "Predictions for the month, computed ashore and sent down for comparison.\n\nThe comparison has been made. Agreement is close throughout except at the entries marked, where the observed exceeds the predicted by a constant amount. A constant difference is not a prediction error and has been referred upward."),
 array('Register, Second Copy',
 "Second copy. Fuller than the first by four entries.\n\nThe four entries are in the same hand and the same ink as the rest of the sheet. No corresponding entries appear in the first copy, which was written at the same table on the same night."),
+array('Register of High Waters',
+"High waters only, extracted for the year and totalled.\n\nThe total of the extracted sheet does not agree with the total of the register from which it was extracted. The extraction has been checked three times by three hands and the arithmetic is right each time. The two totals differ by the same amount as everything else."),
+array('Register, Endorsed',
+"Endorsed by the inspecting officer: 'Kept in good order. Entries legible. Observations regular. I am unable to certify the figures.'\n\nThe endorsement is in the printed form except for the last sentence, which is written in above the signature and is not part of the form."),
+array('Night Register',
+"Night observations only, 22:00 to 06:00, kept separately at the Board's direction from 1973.\n\nThe direction was given so that the night figures might be examined apart from the day figures. When examined apart they are regular. They are irregular only in company with the day figures, which are themselves regular."),
+array('Register, Recopied',
+"Recopied from a sheet damaged by water. The damaged sheet is retained with this one.\n\nThe recopying was done by {A} from the original where legible and from the duplicate where not. He has marked in the margin which source he took each entry from. The marks show that he took nine entries from the duplicate which are legible in the original, and he does not say why."),
+array('Register, Unsigned',
+"Sheet complete in every particular except the signature.\n\nThe foot of the sheet carries the ruled line for the observer's name and the line is blank. The sheet was kept in the bound volume between two signed sheets and cannot have been inserted, the volume being sewn."),
+array('Comparison Sheet',
+"The station's register set against the Board's copy of the same month, entry by entry.\n\nSixty-one entries. Sixty-one agreements as to hour. Sixty-one disagreements as to height, each of 0.0339 m, each in the same direction.\n\nA difference which is identical in every case is not an error of observation. It has been minuted as an error of observation."),
+array('Register, Abandoned',
+"Begun in the ordinary way and abandoned at the eleventh entry.\n\nThe eleventh entry is complete. The twelfth is begun and stops after the hour. Below it, in the same hand: 'I will not enter this one twice.' The volume was not used again and a fresh one was opened the same night."),
 ),
 
 'benchmark' => array(
@@ -310,6 +356,22 @@ array('Comparison of Levels',
 "Comparison of the levels held at the station with those held by the Board.\n\nThe two sets agree for all years to 1970 and for no year after. The divergence does not increase or decrease. It appears whole in 1971 and is thereafter carried forward without change by both parties.\n\nEach party carries it forward as an error of the other."),
 array('Levelling Sheet',
 "Levelling sheet, closing error 0.0002 m, within tolerance. Observed by {A}.\n\nThe sheet is submitted without remark. The remark that would ordinarily be made here has been made eleven times in this series and has not been answered."),
+array('Examination of the Mark',
+"The mark was uncovered, cleaned, photographed and measured in section.\n\nIt is a gunmetal bolt set in sound rock, of the pattern used throughout, and it is sound. There is no sign of settlement, of frost, of working, or of disturbance of any kind. The rock about it is undisturbed for two metres in every direction.\n\nThe mark is where it was put. This is stated positively because it has been asked five times."),
+array('Auxiliary Marks',
+"The three auxiliary marks were levelled among themselves, without reference to BM-41.\n\nThey agree with one another to within three ten-thousandths, as they have always done. They agree with BM-41 as it now stands. They do not agree with BM-41 as it stood in 1970, from which they were originally set out.\n\nThey have not moved and it has not moved and they no longer agree with what they were made from."),
+array('Height Above Datum',
+"Height above datum, {bm} m, entered for the year.\n\nEntered also, on the same sheet and in the same hand, the height {bmOld} m, with the word 'or' between them. The Board has asked for the word to be struck. It has not been struck. It is the only honest word on the sheet."),
+array('Instrument Comparison',
+"The level was compared against the standard at the depot before the observation and after it. It was found in adjustment on both occasions, the collimation error being 2 seconds and 2 seconds.\n\nAn instrument which is in adjustment before and after cannot have gone out of adjustment between. This has been demonstrated, at length, four times, to a Board which has never asserted that it did."),
+array('Levelling, Repeated by a Second Hand',
+"Levelled independently by {A}, the first observer standing off and taking no part.\n\nThe second hand obtained {bm} m. The first hand had obtained {bm} m. The observers did not confer and the sheets were sealed separately.\n\nThis is submitted as a check. It is not a check. Two observers obtaining the same figure prove only that the figure is what is there."),
+array('Abstract of Heights',
+"Abstract of all observations of BM-41, 1961 to date, in one column.\n\nThe column is regular to 1970, steps once in 1971, and is regular after. It resembles nothing so much as a record kept faithfully across a change which was never recorded.\n\nThe abstract has been laid before the Board twice. On neither occasion was the step discussed."),
+array('Observation, Refused',
+"The observation appointed for this date was not taken.\n\n{A} reports that he went out to the mark with the staff, that the mark was where it has always been, and that he did not read it. He gives no reason and has declined to give one when asked in writing.\n\nHe has taken every observation since."),
+array('Certificate of the Mark',
+"I certify that BM-41 is the mark described in the warrant; that it is in the position described; that it is undisturbed; and that its height above the datum of the station is {bm} m.\n\nI am asked to certify that this is the height it has always had. I decline, and I have set out my reasons in the letter accompanying, which is not part of this certificate."),
 ),
 
 'docket' => array(
@@ -321,6 +383,20 @@ array('Gauge Docket',
 "The gauge was found to have recorded a rise and a fall of equal magnitude within two minutes, the sea being calm and no wave observed from the light. The trace is attached.\n\nThe trace is not disputed. What is disputed is the figure entered against it, of which there are two, in two hands, neither struck."),
 array('Clock Docket',
 "The clock was stopped, cleaned, and restarted against the light. It was found to be eleven seconds slow before the work and eleven seconds slow after it.\n\nThe maker's man attended and reports that a clock which is cleaned and remains slow by the same amount is not slow. He has not been asked to explain the entry at 03:11 and did not offer to."),
+array('Float Docket',
+"The float was withdrawn, weighed dry, immersed, and weighed again.\n\nDry: 2.41 kg. Wet: 2.41 kg. The second weighing was made in the presence of a witness because the first was not believed by the man who made it.\n\nThe float is of copper and is sound. A sound copper float which does not gain weight when wet has been reported before, in this station, and nowhere else."),
+array('Well Docket',
+"The well was sounded from the gauge house floor to the bed and found to be 4.12 m.\n\nThe drawings give 4.09 m. The drawings are the drawings from which the well was dug. The difference is 0.03 m, which is the thickness of the floor the sounding was taken through."),
+array('Barograph Docket',
+"The barograph was found to have drawn a flat trace through a night in which the mercury fell 11 hPa.\n\nThe pen was full, the drum turned, the linkage was free, and the instrument recorded normally before that night and after it. The trace for the night is flat and unbroken, which is not the trace of an instrument that has stopped. A stopped instrument leaves a dot."),
+array('Docket, Closed in Error',
+"Closed on {d} as 'no fault found'.\n\nReopened on the same day by the officer who closed it, with the note: 'no fault found is a finding as to the instrument. It has been taken as a finding as to the occurrence. It is not one.'\n\nClosed again, in the same terms, by a later hand."),
+array('Docket of Spares',
+"Spares held at the station: two floats, one clock movement, four staffs, one level.\n\nThe schedule as sent lists one float. Two are held and both are marked as the station's, in the station's paint, in the station's number. The number is the same on both.\n\nThe second float has not been requisitioned and cannot be accounted for. It is in every respect a proper float."),
+array('Docket, Annual Return',
+"Return of instrument defects for the year: nil.\n\nReturn of instrument examinations for the year: forty-one.\n\nThe Board has asked why an instrument with no defects was examined forty-one times. The station has replied that it was examined forty-one times because it had no defects."),
+array('Docket, Referred',
+"Referred to the maker with the question: can an instrument record an event which did not occur, without fault, and without leaving any sign of the fault?\n\nThe maker replies that it cannot. The maker further replies, in a hand written below the typed answer, that he has read the trace enclosed and would be glad not to be consulted again on this matter."),
 ),
 
 'works' => array(
@@ -330,6 +406,22 @@ array('Repairs to the Gauge House',
 "The roof was made good and the door rehung.\n\nThe keeper reports that the door, being rehung, now closes against a frame which is not square; that the frame was square when measured before the work; and that it is square when measured after. Both measurements are attached and neither is in error."),
 array('Works, Deferred',
 "The measurement of the gauge house interior, requested by the Board, is deferred.\n\nThe keeper reports that the interior measures 4.12 m where the exterior allows 4.09 m, and that he has measured both three times. He asks for a second hand to be sent. No second hand has been sent."),
+array('Pointing of the Sea Wall',
+"The sea wall was pointed between the fourth and eleventh courses. Materials as scheduled.\n\nThe mason reports that he pointed forty-one metres and was paid for thirty-nine, the wall being thirty-nine metres long. He has been paid for forty-one on the certificate of the keeper, who measured it with him."),
+array('Steps, North Stair',
+"The stair has twelve steps. The drawings show nine.\n\nThe stair was built to the drawings by a contractor who is dead, under a clerk of works who is dead, and paid for on a certificate which describes nine. The three additional steps are of the same stone, laid in the same lime, and weather identically.\n\nNo works order exists for them."),
+array('Painting Schedule',
+"The gauge house was painted inside and out. Two coats.\n\nThe quantity taken is that proper to an interior of 4.12 m. The estimate was framed on 4.09 m and was exceeded. The overspend is 3 per cent and has been allowed without comment, the surveyor's department having declined to remeasure."),
+array('Works, Completed Twice',
+"The works were certified complete on 14 May and certified complete again on 14 May, by the same officer, on two certificates.\n\nThe certificates are identical except in the ink. Neither has been withdrawn. The contractor has been paid once and has not raised the matter."),
+array('Fencing of the Stair Head',
+"A gate was hung at the head of the stair and a lock fitted. The key was hung on the board in the corridor.\n\nThe joiner reports that the gate frame was found already fixed, in sound condition, of the same pattern as the gate he brought, and that he hung his gate in it. He has been paid for the gate only."),
+array('Drainage',
+"The channel behind the gauge house was cleared and relaid to fall seaward.\n\nWater standing behind the gauge house after the work was found to be standing at the same level as before it. The fall was checked with a level and is true. The water is not running against the fall; it is not running at all."),
+array('Works, Estimate Only',
+"Estimate for the survey of the north stair: £41 including the erection of a light staging.\n\nThe estimate has been renewed annually since 1972 in the same sum, the surveyor's department having decided that to revise it would be to imply an intention to carry it out."),
+array('Demolition, Not Carried Out',
+"Instruction to take down the gauge house on closure of the station.\n\nCountermanded by telephone on the day appointed. The countermand is minuted as received from the surveyor's department. The surveyor's department has since been asked, twice, who made it, and has replied that no such call is recorded and that the building should nevertheless be left standing."),
 ),
 
 'official' => array(
@@ -341,6 +433,20 @@ array('Minute, Reconciliation',
 "The station's returns for the year are received. They are in duplicate and the duplicates differ. The Board has taken the older figure throughout, that being the practice, and has closed the year.\n\nIt is to be noted for the record that the practice of taking the older figure was adopted for convenience and has never been the subject of a decision.\n\nE. Beazley"),
 array('Board Minute',
 "Minuted: that the keeper's conduct is not in question; that his figures are not in question; that the Board's figures are not in question; and that the difference between them is therefore not attributable.\n\nMinuted further: that an unattributable difference is to be carried at the foot of the account and not discussed at the table.\n\nE. Beazley"),
+array('Letter as to the Second Register',
+"Sir,\n\nThe Board is informed that the station holds a second register containing entries not appearing in the first.\n\nThe Board does not require its production. The warrant provides that the second copy shall be retained at the station, and the Board does not propose to disturb an arrangement of its own making merely because it has become inconvenient.\n\nYou will continue to retain it. You will not refer to it in correspondence.\n\nE. Beazley"),
+array('Minute as to Attendance',
+"The keeper's request for a second hand at the night observation is refused.\n\nThe establishment of the station is one keeper. The Board observes that the difficulty complained of has arisen when the keeper was alone and would not be resolved by a witness, since a witness could only confirm what the keeper says, and the Board does not doubt what the keeper says.\n\nE. Beazley"),
+array('Letter, Final',
+"Sir,\n\nThis correspondence is closed.\n\nThe Board has before it eleven letters from you upon a difference of 0.0339 m. The Board is satisfied that you have acted throughout in good faith and with unusual care. It is precisely because of your care that the Board is unable to proceed further: a difference which survives your attention is not one the Board can resolve at this distance.\n\nYou will enter the older figure. You will make no note of this letter in the register.\n\nE. Beazley"),
+array('Minute, Establishment',
+"On the retirement of the keeper the Board considered whether the station should be continued.\n\nResolved: that it be continued; that the incoming keeper be given the standing orders and the register; and that he be given no account of the correspondence of 1971 to 1979, which is not necessary to the performance of his duties.\n\nE. Beazley"),
+array('Requisition, Returned',
+"Returned herewith, unactioned.\n\nThe requisition asks for a ruling as to which of two entries is the station's entry. The Board rules upon differences between the station and the Board. It does not rule upon differences within the station.\n\nThe station will settle the matter internally and inform the Board of the result. The station has been asked to do this on four previous occasions.\n\nE. Beazley"),
+array('Minute on Closure',
+"The station is to close on 31 December next. The datum is transferred to the standard at the depot.\n\nThe Board records its appreciation of the service of the keepers. The Board records nothing further.\n\nE. Beazley"),
+array('Letter, Personal',
+"Rell,\n\nOff the file, and burn it.\n\nI have read every letter you sent me and I have answered none of them in the terms they deserved. You are not mistaken and I have never thought you were. But there is no minute I can write which does not either call you unreliable or call the datum uncertain, and I am not permitted to write the second.\n\nSo I have written the first, eleven times, and I am sorry for it.\n\nEnter the older figure. It is the only instruction I have that costs you nothing.\n\nBeazley"),
 ),
 
 'private' => array(
@@ -352,6 +458,22 @@ array('Notebook Page','rell',
 "Not for the register.\n\nThe mark is at forty-one. It has always been at forty-one. I have levelled to it eleven times this year and it has been at forty-one every time, and the figure I write down is not the figure it was in 1970, and both of these things are true and I have written them both down.\n\nI am not frightened of the mark. I am frightened of how calmly I have written this."),
 array('Letter, Returned','rell',
 "Returned undelivered. The addressee has left the station.\n\nI only wanted to say that the second register — the copy that was not to be sent — is fuller than the first. Not different. Fuller. There are entries in it against hours at which no observation was appointed, in a hand I take to be my own, and I have no memory of the hours.\n\nBurn this or file it, I don't mind which. Filing it is worse.\n\n{A}"),
+array('Notebook, Later','rell',
+"Twenty-two years of this.\n\nI have worked out what it is that tires me, and it is not the figures. It is that nothing has ever happened twice. One night, one occurrence, one step in the column, and then twenty-two years of a station running perfectly well with a fault in it that will not repeat and will not go away.\n\nIf it came again I would know what to do. It does not come again. It simply stays."),
+array('Letter to Hoyle','rell',
+"Hoyle,\n\nYou were right to enter your figure and I was right to enter mine and the Board is right that it cannot have both. Three correct positions and no way through.\n\nI am not asking you to withdraw. I am asking you to write down, somewhere that is not the register, what you saw between the two entries. Not what you read. What you saw.\n\nYou have never once told me, in nine years, and I have never once asked you in writing until now.\n\nRell"),
+array('Reply','hoyle',
+"Rell,\n\nI saw you write. Then I saw the sheet, and there was nothing on it. Then I saw you write again.\n\nI entered my figure because I had read the staff and because I could not enter yours, which was not on the sheet when I looked and was on it afterwards in ink that was dry.\n\nI have not written this down anywhere until now and I would take it as a kindness if you did not put it in the register. You will put it in the register.\n\nHoyle"),
+array('Note, Torn','rell',
+"— found among the loose papers, upper half only —\n\n...and if the interior is larger than the exterior by the thickness of the door, then the door is inside the room and outside it, and there is no arithmetic that fixes this, and I have stopped doing arithmetic about the door.\n\nThe stair is the same. Twelve steps up, twelve steps down, and the drawings say nine, and I have counted them going up and going down and got twelve both times, and the drawings are not wrong either..."),
+array('Letter to his Sister','rell',
+"You ask what it is like here, and I have started this letter four times.\n\nIt is like keeping a shop that is honest, in a street where the money is honest, and finding at the end of every day that the till is over by the same coin. Not more each day. The same coin. You would not report it after the first month. You would simply come to know that your shop has a coin in it.\n\nI am well. The weather has been fair. Do not worry about the figures; nobody else does."),
+array('Notebook, Last Page','rell',
+"I hand over on Friday.\n\nI have shown Tarn the instruments, the register, the orders, and the mark. I have not shown him the second register and I have not told him about the night, and I have thought about this for a month and I am still not certain I am right.\n\nHe will find it. He will find it in about a year, the way I found it, by adding a column twice. And then he will be where I am, and he will at least not have been told what to think about it, which is the only thing I was never given."),
+array('Note, Found in the Register','tarn',
+"Found laid in the volume at the entry for 3 November 1971, in Rell's hand, undated:\n\n'Whoever reads this will want to know which figure is right. Both are. That is not a paradox, it is an inconvenience, and the difference between those two words is the whole of what I have learned here.'\n\nI have left it where it was."),
+array('Letter, Unfinished','tarn',
+"To the Board.\n\nOn taking over I was told the station keeps one register. It keeps two. I was told the difference in the 1971 levels is under investigation. It is not; the file was closed in 1979.\n\nI do not write to reopen anything. I write because in nine years nobody has told me a single thing about this station that turned out to be\n\n— breaks off —"),
 ),
 
 'incident' => array(
@@ -363,6 +485,18 @@ array('Occurrence Book','rell',
 "Entries for the night.\n\n02:59 — glass falling. no cloud. wind none.\n03:00 — observation taken and entered. one hand.\n03:11 — see report.\n03:11 — see report.\n03:20 — stair wet. no tide.\n04:00 — glass falling. no weather came.\n\nThe two entries at 03:11 are as written. The book was not ruled for two, and the second has been fitted into the margin."),
 array('Statement, Second','hoyle',
 "I was present. I entered a figure. The keeper entered another.\n\nI wish it recorded that I do not say the keeper is mistaken. I say that I read the staff and wrote what I read, and that he did the same, and that we were standing at the same instrument.\n\nI have read this statement over. It is not the statement I intended to make when I came in.\n\nM. Hoyle"),
+array('Report, Supplementary','rell',
+"Supplementary to my report of the 3rd.\n\nI am asked for the state of the sea. It was calm. I am asked for the wind. There was none. I am asked whether any vessel passed. None passed; the light would have logged it.\n\nI am asked, last, whether anything unusual occurred. I have thought about this question for four days. Nothing unusual occurred. A rise and a fall were recorded which had no cause, two figures were entered which cannot both be the reading, and the stair was wet without a tide. None of it was unusual. It was all perfectly quiet.\n\nA. Rell, keeper"),
+array('Note of the Light Keeper','rell',
+"Taken down from the light keeper by telephone, 4 November, and read back to him.\n\n'Calm all night. I'd have seen a wave; I was looking that way from two until four, it being clear. I saw the gauge house lamp go out about eleven minutes past three and come on again directly. I took it he'd knocked it. I didn't log it because a lamp going out is not a matter for the log.'\n\nThe lamp is oil and was found next morning full and lit."),
+array('Examination of the Trace','rell',
+"The trace for the night of 3 November, examined under glass by two officers.\n\nThe rise is smooth and the fall is smooth and both are of the pen's ordinary character. There is no jog, no scratch, no double line, and no sign of the drum having been touched.\n\nAt the top of the rise, where the pen turned, the ink is heavier than elsewhere, as it is wherever the pen has stood still. It stood still for eleven seconds."),
+array('Occurrence Book, Second Volume','rell',
+"The second volume for the same night, kept under the warrant and not sent.\n\nIt is written in the same hand at the same table and it is fuller. Between the two entries at 03:11 it carries a third line which does not appear in the first volume:\n\n'03:11 — the gauge house door stood open. I did not open it. I closed it and entered the reading again.'\n\nThis line has never been transcribed into any return."),
+array('Minute of Enquiry','rell',
+"The enquiry sat on 19 January 1972 and heard the keeper and the surveyor.\n\nBoth witnesses were found truthful. Neither account was preferred. The enquiry found that an occurrence took place, that its cause could not be determined, and that no fault attached to any person.\n\nThe enquiry was not asked, and did not consider, what the occurrence was."),
+array('Report, Not Forwarded','rell',
+"Written 3 November, not sent.\n\n'At 03:11 I was on the north stair, which was dry, and I saw the gauge house door open and myself come out of it. I did not call out. He went down the stair past me and did not look at me and I have never in my life been so certain that I would not have wanted him to.\n\nI went in and the reading was on the sheet in my hand and the ink was dry.'\n\nThe report was replaced by the report of the same date now in this file."),
 ),
 
 'transcript' => array(
@@ -376,6 +510,20 @@ array('Transcript, Water-damaged',
 "...the second register is fuller. I have said this and it has been minuted as an allegation. It is not an allegation. It is a thing anybody may go and look at, and nobody has gone and looked at it..."),
 array('Sheet, Recovered from the Well',
 "...forty-one. forty-one. it is at forty-one and the number I write is not the number I wrote and the mark has not moved, and I am to reconcile these, and I have been asked politely, and I have been asked twice..."),
+array('Transcript of a Telephone Call',
+"...no, I am not asking you to send anyone. I am asking you to write down that I telephoned. That is all. Write down that at ten past three in the morning on the third of November the keeper at Holloway telephoned the depot and asked for the time, and that you gave it, and that it agreed with his clock to the second...\n\n...I know what it sounds like. Write it down anyway..."),
+array('Transcript, Reverse of a Chart',
+"...if I am the man who came back then the man who went out is not accounted for, and if I am the man who went out then I have been keeping this station for twenty-two years without ever having come back, and I do not find that either of these is the frightening one. The frightening one is that the register balances..."),
+array('Transcript, Two Hands',
+"...— that the door was open —\n— that the door was shut and I opened it —\n\n...both of these are written across each other on the same line and the second is in the surveyor's hand, and I have not been able to say which was written first, and neither has he..."),
+array('Sheet, Foxed',
+"...and the coin, I keep coming back to the coin, a till over by the same coin every night for twenty-two years is not a till that is wrong, it is a till with a coin in it, and you do not report a coin, you learn to count around it..."),
+array('Transcript, Undated',
+"...they will say it was the instrument. It was not the instrument; I took the instrument apart. They will say it was me. It was not me; there were two of us. They will say it was the sea. The sea was flat and the light was watching it.\n\nWhat is left is the thing that actually happened, and there is no form for it, and so there is no way to report it, and so it did not happen..."),
+array('Transcript, Last Sheet',
+"...I am not leaving a warning because there is nothing to warn anybody about. Nobody was hurt. Nothing was lost. The station kept a good register for thirty-six years and the datum was held.\n\nI am leaving a note because it happened and because I was the only one who wrote it down twice..."),
+array('Sheet, Illegible but for the Foot',
+"...\n\n— and at the foot, in a firm hand, complete and undamaged —\n\n'Both figures are the station's. The station is not one man.'"),
 ),
 
 'plate' => array(
@@ -385,6 +533,20 @@ array('Plate, Catalogue Entry',
 "Plate numbered 12 of 9. The numbering is as found on the plate itself and has not been corrected, there being no ninth plate, and no series in which this plate is the twelfth.\n\nCondition: complete."),
 array('Plate, Withdrawn',
 "The gauge house interior. Withdrawn from the sequence on {d}.\n\nThe catalogue card is retained in the sequence in its place, and reads as it read before the withdrawal."),
+array('Plate: the Mark',
+"BM-41 in section, with a scale laid alongside.\n\nThe scale reads 41 mm across the head of the bolt. The bolt is of the standard pattern, which is 38 mm. The plate has been examined for distortion and the scale for shrinkage and neither accounts for it.\n\nCatalogued as complete. The measurement is not catalogued."),
+array('Plate: the Gauge House, Exterior',
+"South elevation, taken from the strand at midday.\n\nThe building is of one storey with one door and one window. The shadow of the building falls to the north-east, which at midday at this latitude it cannot do.\n\nThe plate is not retouched. The negative is held."),
+array('Plate: the Keeper',
+"A. Rell at the door of the gauge house, 1968. Taken by the surveyor.\n\nThe keeper is standing with his hand on the door frame. The exposure is long and his face is sharp throughout, which requires that he did not move for 41 seconds, which he is not recorded as having been asked to do."),
+array('Plate, Double Exposure',
+"The gauge house interior, exposed twice by accident on the same plate.\n\nBoth exposures are of the same room from the same position. In the first the room is empty. In the second the room is empty. The furniture stands in a different place in each and there is no record of it having been moved between."),
+array('Plate: the Stair, from Above',
+"Taken from the head of the stair looking down. Twelve steps are visible and countable.\n\nThe catalogue card, written by the photographer on the day, reads: 'north stair, nine steps'.\n\nBoth the plate and the card are retained. Neither has been amended."),
+array('Plate, Not Taken',
+"Card retained for a plate which does not exist.\n\n'Plate 41. The north stair at 03:11, 3 November 1971. Exposure 41 s.'\n\nThere was no camera at the station on that date; it was at the depot for repair, and the repair docket confirms it. The card is in the photographer's hand and in the ink he used that year."),
+array('Plate, Catalogue: Summary',
+"The photographic series comprises forty-one plates.\n\nForty are numbered 1 to 40 in sequence. The remaining plate is numbered 12 of 9.\n\nThe series is complete. It has been checked against the catalogue three times and the catalogue against the series, and on each occasion the count has been forty-one and the sequence has been unbroken."),
 ),
 
 'withdrawn' => array(
@@ -393,7 +555,84 @@ array('Withdrawal Notice',
 array('Certificate of Retention',
 "I certify that the item was received, that it was examined, that it was found to be as described, and that it has been retained.\n\nI certify further that a second copy of the item was received at the same time, and that the two do not agree. Both are retained under this reference.\n\nThe certificate does not say which is produced on retrieval."),
 array('Retained Item',
-"Produced under reference. The item is a single sheet, undated, in the keeper's hand, and reads in full:\n\n\"I have been asked to say which figure is the station's. The station has two. I am the station.\"\n\nThe sheet is retained. A further withdrawal notice is filed with it and is cited below."),
+"Produced under reference. The item is a single sheet, undated, in the keeper's hand, and reads in full:\n\n'I have been asked to say which figure is the station's. The station has two. I am the station.'\n\nThe sheet is retained. A further withdrawal notice is filed with it and is cited below."),
+array('Schedule of Retained Items',
+"The retained series comprises the items scheduled. The schedule is itself retained.\n\nA reader who has this schedule has therefore been produced an item of the retained series, and the schedule provides that production of any item requires a reference to that item.\n\nThe reference to the schedule is not scheduled."),
+array('Instruction to Retain',
+"The instruction, produced under reference.\n\n'Retain: the second register, 1971-1979; the plate numbered 12 of 9; the report of occurrence not forwarded; the correspondence marked personal.\n\nGround: none stated. This instruction is itself to be retained.'\n\nInitialled. The initials are not those of any member of the Board then sitting."),
+array('Withdrawal, Reversed',
+"The item was withdrawn on 4 March and restored to production on 4 March.\n\nBoth minutes are on the file, in the same hand, timed 11:20 and 11:20. The item has been in continuous public production since and is also recorded as retained.\n\nIt is produced. It is also here."),
+array('Retained: the Second Register',
+"Produced under reference. Four leaves longer than the volume it copies.\n\nThe four additional leaves carry observations against hours at which no observation was appointed. The readings on them are consistent with the tide as predicted for those hours, to within the accuracy of the station's instrument.\n\nWhoever wrote them was reading a gauge."),
+array('Certificate as to Two Copies',
+"Where two copies of an item are retained and they do not agree, this repository produces the older.\n\nThe practice was adopted from the Board, which adopted it for convenience, and which never made it the subject of a decision.\n\nIt is recorded here because a reader has now asked, and because the answer to why the older is produced is that nobody ever chose."),
+array('Retained: Correspondence, Personal',
+"Produced under reference. One letter, from the Board's officer to the keeper, marked personal and off the file.\n\nIt was on the file. It has been on the file since 1979, in the envelope, with the instruction to burn it written on the envelope in the keeper's hand and not carried out.\n\nBoth men are dead. The letter is produced."),
+array('Withdrawal Notice, Final',
+"The item described is withdrawn and retained.\n\nThe item described is this notice.\n\nProduction may be had on a retrieval reference. The reference is cited below and is the reference of this notice."),
+),
+
+);
+}
+
+/* ---------------------------------------------------------------------------
+ *  WHAT IS ENCLOSED. an appendix is not another whole report; it is a slip,
+ *  a minute, a torn half-sheet. these are their own papers.
+ * ------------------------------------------------------------------------- */
+function smt_enclosure_table() {
+return array(
+
+'near' => array(   /* enclosure, appendix, schedule, minute, duplicate */
+array('Slip, laid in',
+"A slip of paper, laid in loose at this place. Not part of the sewn volume.\n\n'Ask him what the lamp was doing. Nobody has asked him what the lamp was doing.'"),
+array('Minute attached',
+"Minuted on the face of the item by a later hand:\n\n'Seen. No action. The file is not to be enlarged by comment upon comment.'\n\nBeneath, in a third hand: 'Seen. Agreed. This is comment upon comment.'"),
+array('Schedule appended',
+"Appended schedule, in tabular form, of the papers said to accompany this item.\n\nSeven papers are scheduled. Six are present. The seventh is scheduled as 'the enclosure hereto', which describes the schedule itself, and the schedule is present."),
+array('Duplicate sheet',
+"The station's copy of the sheet above, retained under the warrant.\n\nIt agrees with the sheet above in every particular except the total, which is greater by the amount by which everything at this station is greater, and except that it is signed twice."),
+array('Docket, cross-referenced',
+"Cross-reference slip. 'For the instrument, see the docket. For the occurrence, see the incident papers. For the figure, see the register.'\n\nAnd below, in pencil, unsigned: 'For what happened, see nothing.'"),
+array('Extract',
+"Extract taken for the Board and certified a true extract.\n\nIt is a true extract. It omits the two lines on either side of the passage extracted, and with them omitted the passage means the opposite of what it means in place. The certificate is nevertheless correct."),
+array('Receipt',
+"Receipt for the item, signed on delivery at the depot.\n\nThe signature is illegible. The time is 03:11. The date is a Sunday, on which the depot was closed, and the depot's own book shows nothing received that week."),
+array('Envelope',
+"The envelope in which the item was received. Retained because it is endorsed.\n\nEndorsed, in the keeper's hand: 'Do not open this until you have read the register for the same month. It will otherwise seem to be about nothing.'"),
+),
+
+'mid' => array(    /* verso, draft, second copy, marginalia */
+array('Verso, in another hand',
+"On the reverse of the sheet, written across the grain of the paper in pencil:\n\n'He has read this over four times. I have watched him do it. He is not checking the figures — he knows the figures. He is checking whether it still says the same thing.'\n\nUnsigned. The hand is the surveyor's."),
+array('Draft, not sent',
+"The draft of the letter above, with the passages struck out.\n\nStruck: 'I am not able to sleep in the building.'\nStruck: 'I have asked for a transfer twice and withdrawn it twice.'\nStruck: 'If you send anyone, send someone who will not be kind to me about it.'\n\nWhat was sent contains none of this and is three lines long."),
+array('The second copy',
+"The station's copy of the item above.\n\nIt is longer. It says everything the first says, in the same words, and then continues for a further paragraph which the first does not have and for which there is no room on the first, the first being full to the foot of the sheet.\n\nThe paragraph reads: 'I have written this twice so that if one of us is wrong there will be a record of the other.'"),
+array('Marginalia, loose',
+"Marginal notes, cut from a volume and kept loose.\n\n'again, and slower'\n'this is the third time he has written the word calm'\n'the arithmetic is right'\n'the arithmetic is right'\n'the arithmetic is right and I have checked it in a different order and it is still right'"),
+array('Fair copy',
+"A fair copy, made for the file, of a rough which is not on the file.\n\nThe fair copy is complete and clean and initialled. The rough from which it was made is described in the minute as 'not fit to be bound', which is not a description of its condition; the same minute records that it was in good condition."),
+array('Note pinned to the item',
+"Pinned, and the pin has rusted through the sheet.\n\n'Rell came in with this at four in the morning and waited while I read it. I have never known him wait. I told him it was properly made out. He said that was not what he had asked.'"),
+),
+
+'deep' => array(   /* fragment, recovered, foxed, waterline, illegible */
+array('Fragment',
+"— lower portion of a sheet, the upper part lost —\n\n...and so the honest thing, the only honest thing, is to write down both and let whoever comes after decide, and I know what they will decide, they will decide that one of the two of us miscounted, and it will be a reasonable decision, and it will be wrong, and there will be nothing in the file to stop them..."),
+array('Recovered sheet',
+"— recovered from the well during the works of 1984; dried and pressed —\n\n...twelve steps. I have counted them in the dark, going up, with my hand on the wall, and I have counted them in daylight with a rule, and it is twelve, and the drawing is not a mistake either, because I have found the mason's account and he was paid for nine and he was an honest man and he built what he was paid for..."),
+array('Sheet, foxed',
+"— heavily spotted; legible in the lower third —\n\n...he asked me, in the end, the only question that was ever worth asking, which was not which figure is right but which of us wrote first. And I could not tell him. I was there and I could not tell him..."),
+array('Below the waterline',
+"— the sheet has been submerged; the ink has run downward, so that the lower lines are heavier —\n\n...not a haunting. I want that understood by whoever is reading this in whatever year it is. Nothing here wants anything from anybody. It is a fault in the arithmetic of the place, and it is a small fault, and it has been carried faithfully in the books for twenty-two years by men who were paid to carry things faithfully..."),
+array('Sheet, largely illegible',
+"— four lines only remain, at the head —\n\n...the datum is held. whatever else is true, the datum is held. I have held it for twenty-two years and I am handing it on at the figure I found and not at the figure I was given...\n\n— remainder lost —"),
+array('Wrapper',
+"— the wrapper only; the contents are not in the file —\n\nEndorsed: 'The above.'\n\nNothing else is written on it. It is docketed, numbered, and cross-referenced to three items, all of which cross-reference back to it."),
+array('Sheet, blank',
+"— a sheet, blank, retained —\n\nIt is retained because it is numbered, sewn into the volume, and endorsed on the reverse in the keeper's hand: 'left blank deliberately. see the second copy.'\n\nThe corresponding sheet in the second copy is also blank and carries the same endorsement."),
+array('The last legible line',
+"— the sheet is destroyed but for one line near the foot —\n\n'...and it is still, after everything, a very ordinary place.'"),
 ),
 
 );
@@ -589,32 +828,24 @@ function smt_render_doc($s, $sub, $item, $tail, $mobile) {
         smt_h($m['ref']) . '  received as found', $mobile);
 }
 
-/* names for what is enclosed — they get worse as you go down */
-function smt_enc_name($seed, $i, $level) {
-    $r = smt_rng($seed ^ ($i * 0x9d) ^ ($level * 0x31));
-    $shallow = array(
-        array('enclosure-' . $i, 'Enclosure ' . $i),
-        array('appendix-' . $i,  'Appendix ' . $i),
-        array('schedule-' . $i,  'Schedule appended'),
-        array('minute-' . $i,    'Minute attached'),
-        array('duplicate',       'The duplicate sheet'),
-    );
-    $mid = array(
-        array('verso',            'Verso, in another hand'),
-        array('draft',            'Draft, not sent'),
-        array('second-copy',      'The second copy'),
-        array('marginalia',       'Marginalia, loose'),
-        array('slip-' . $i,       'Slip, laid in'),
-    );
-    $deep = array(
-        array('fragment-' . $i,   'Fragment'),
-        array('recovered',        'Recovered sheet'),
-        array('foxed',            'Sheet, foxed'),
-        array('waterline',        'Below the waterline'),
-        array('illegible-' . $i,  'Sheet, largely illegible'),
-    );
-    $set = $level <= 1 ? $shallow : ($level <= 3 ? $mid : $deep);
-    return $set[smt_int($r, 0, count($set) - 1)];
+/* what is enclosed is drawn from its own papers, never from the parent's */
+function smt_enc_set($level) { return $level <= 1 ? 'near' : ($level <= 3 ? 'mid' : 'deep'); }
+
+function smt_enc_slug($title) {
+    $t = strtolower($title);
+    $t = preg_replace('/[^a-z0-9]+/', '-', $t);
+    return trim($t, '-');
+}
+
+/* the i-th thing enclosed at this level: (slug, title, index) */
+function smt_enc_name($seed, $i, $level, $avoid = null) {
+    $set   = smt_enc_set($level);
+    $table = smt_enclosure_table();
+    $papers = $table[$set];
+    $idx = (smt_fnv($seed . '::' . $i . '::' . $level) + $i * 7) % count($papers);
+    if ($avoid !== null && $idx === $avoid) $idx = ($idx + 1) % count($papers);
+    $title = $papers[$idx][0];
+    return array(smt_enc_slug($title) . '-' . ($i + 1), $title, $idx);
 }
 
 /* enclosures: the register turns private, then damaged, without end */
@@ -623,10 +854,19 @@ function smt_render_enclosure($m, $tail, $mobile) {
     $seed  = smt_fnv($m['ref'] . '::' . implode('/', $tail));
     $r     = smt_rng($seed);
 
-    /* the voice descends: official -> private -> transcript -> wreck */
-    $kind = $level <= 1 ? $m['kind'] : ($level <= 3 ? 'private' : 'transcript');
-    $mm = $m; $mm['kind'] = $kind; $mm['seed'] = $seed;
-    $text = smt_body($mm, $level);
+    /* an enclosure is its own paper. it is never the parent served again. */
+    $set    = smt_enc_set($level);
+    $table  = smt_enclosure_table();
+    $papers = $table[$set];
+    $slug   = (string) end($tail);
+    $idx    = null;
+    foreach ($papers as $k => $p) {
+        if (smt_enc_slug($p[0]) . '-' . '' === '') continue;
+        if (strpos($slug, smt_enc_slug($p[0])) === 0) { $idx = $k; break; }
+    }
+    if ($idx === null) $idx = $seed % count($papers);
+    $encTitle = $papers[$idx][0];
+    $text     = $papers[$idx][1];
 
     $damage = max(0, $level - 2);
     $paras = '';
@@ -636,16 +876,14 @@ function smt_render_enclosure($m, $tail, $mobile) {
         $paras .= '<p>' . ($damage > 0 ? smt_damage($p, $damage, $seed ^ crc32($p)) : nl2br(smt_h($p))) . '</p>';
     }
 
-    $label = 'Enclosure';
-    foreach (array(1, 2, 3) as $ii) { $n = smt_enc_name(smt_fnv($m['ref']), $ii, $level); }
-    $last = end($tail);
+    $last = $encTitle;
     $form = $level <= 1 ? $m['form'] : ($level <= 3 ? 'letter' : 'damaged');
 
     /* it descends further. always. */
     $kidN = smt_int($r, 1, 3);
     $kids = '';
     for ($i = 1; $i <= $kidN; $i++) {
-        $nm = smt_enc_name($seed, $i, $level + 1);
+        $nm = smt_enc_name($seed, $i, $level + 1, smt_enc_set($level + 1) === $set ? $idx : null);
         $kids .= '<a href="/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . '/'
               . implode('/', array_map('rawurlencode', $tail)) . '/' . rawurlencode($nm[0]) . '">' . smt_h($nm[1]) . '</a>';
     }
@@ -657,7 +895,7 @@ function smt_render_enclosure($m, $tail, $mobile) {
 
     $inner = '<div class="doc">'
         . '<div class="ref">' . smt_h($m['ref']) . ' &middot; ' . smt_h(implode(' / ', $tail)) . '</div>'
-        . '<h1>' . smt_h(ucfirst(str_replace('-', ' ', (string) $last))) . '</h1>'
+        . '<h1>' . smt_h($last) . '</h1>'
         . '<div class="sub">enclosed at depth ' . $level . ' &middot; condition: ' . $cond . '</div>'
         . $paras
         . '<div class="cites"><div class="ref" style="opacity:.55;margin-bottom:.4em">enclosed with this</div>' . $kids . '</div>'
