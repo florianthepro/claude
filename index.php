@@ -15,19 +15,43 @@ if (function_exists('mb_internal_encoding')) mb_internal_encoding('UTF-8');
 
 define('SMT_ROOT', __DIR__);
 
+/* ---------------------------------------------------------------------------
+ *  The papers do not assume they are at the root of a domain. They work from
+ *  whatever directory they are put in.
+ * ------------------------------------------------------------------------- */
+function smt_base() {
+    static $b = null;
+    if ($b !== null) return $b;
+    $sn = $_SERVER['SCRIPT_NAME'] ?? '/index.php';
+    $d  = str_replace('\\', '/', dirname($sn));
+    $b  = ($d === '/' || $d === '.' || $d === '') ? '' : rtrim($d, '/');
+    return $b;
+}
+/* every link on every page is built through this */
+function u($p = '') {
+    $p = ltrim((string) $p, '/');
+    return smt_base() . '/' . $p;
+}
+
 /* --- the engine restores its own doors if they are taken away ------------ */
 (function () {
     $ht = SMT_ROOT . '/.htaccess';
-    if (@is_file($ht) || !@is_writable(SMT_ROOT)) return;
-    $r = "Options -Indexes +FollowSymLinks -MultiViews\nServerSignature Off\nDirectoryIndex index.php\nAddDefaultCharset utf-8\n"
+    $marker = '# smt-portable-v3';
+    $have = @is_file($ht) ? (string) @file_get_contents($ht) : null;
+    if ($have !== null && strpos($have, $marker) !== false) return;   // current
+    if ($have !== null && strpos($have, 'smt') === false) return;      // not ours; leave it
+    if (!@is_writable(SMT_ROOT)) return;
+    /* no RewriteBase: the rules resolve against whatever directory this is in,
+       so the papers may be put at the root or in a folder, and work either way */
+    $r = $marker . "\n"
+       . "Options -Indexes +FollowSymLinks -MultiViews\n"
+       . "DirectoryIndex index.php\nAddDefaultCharset utf-8\n"
        . "<Files \".htaccess\">\n    Require all denied\n</Files>\n"
-       . "<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteBase /\n"
-       . "    RewriteRule ^index\\.html?$ / [R=302,L]\n"
+       . "<IfModule mod_rewrite.c>\n    RewriteEngine On\n"
+       . "    RewriteRule ^index\\.html?$ ./ [R=302,L]\n"
        . "    RewriteRule (^|/)\\.git(/|$) - [F,L]\n"
-       . "    RewriteCond %{HTTP_COOKIE} !smt_r=1 [NC]\n    RewriteRule ^f/12(/.*)?$ - [F,L]\n"
        . "    RewriteCond %{REQUEST_FILENAME} !-f\n    RewriteCond %{REQUEST_FILENAME} !-d\n"
-       . "    RewriteRule ^ index.php [L]\n</IfModule>\n"
-       . "ErrorDocument 403 /index.php?__err=403\nErrorDocument 404 /index.php?__err=404\nErrorDocument 410 /index.php?__err=410\n";
+       . "    RewriteRule ^ index.php [L]\n</IfModule>\n";
     @file_put_contents($ht, $r);
 })();
 
@@ -233,7 +257,7 @@ function smt_citations($m) {
         $s2 = smt_int($r, 1, 11);
         $subs = smt_subs($s2); $sub2 = $subs[smt_int($r, 0, count($subs) - 1)];
         $items = smt_items($s2, $sub2); $it2 = $items[smt_int($r, 0, count($items) - 1)];
-        $out[] = array('ref' => smt_ref($s2, $sub2, $it2), 'path' => "/f/$s2/$sub2/" . strtolower($it2));
+        $out[] = array('ref' => smt_ref($s2, $sub2, $it2), 'path' => u("f/$s2/$sub2/" . strtolower($it2)));
     }
     /* some papers cite a withdrawal into the sealed series. those are the way in. */
     if (smt_int($r, 0, 99) < 34) {
@@ -750,9 +774,9 @@ function smt_stock($form) {
 function smt_bar($mobile) {
     if (!$mobile) return '';
     return '<div style="position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(14,13,11,.97);border-top:1px solid #2b2620;padding-bottom:env(safe-area-inset-bottom);z-index:20">'
-        . '<a href="/" style="flex:1;text-align:center;padding:1em .2em;color:#8a8272;font:11px/1.4 \'DejaVu Sans Mono\',monospace;text-decoration:none;letter-spacing:.08em">the papers</a>'
-        . '<a href="/f" style="flex:1;text-align:center;padding:1em .2em;color:#8a8272;font:11px/1.4 \'DejaVu Sans Mono\',monospace;text-decoration:none;letter-spacing:.08em;border-left:1px solid #241f19">series</a>'
-        . '<a href="/finding-aid" style="flex:1;text-align:center;padding:1em .2em;color:#c8a44a;font:11px/1.4 \'DejaVu Sans Mono\',monospace;text-decoration:none;letter-spacing:.08em;border-left:1px solid #241f19">finding aid</a>'
+        . '<a href="' . smt_base() . '/" style="flex:1;text-align:center;padding:1em .2em;color:#8a8272;font:11px/1.4 \'DejaVu Sans Mono\',monospace;text-decoration:none;letter-spacing:.08em">the papers</a>'
+        . '<a href="' . smt_base() . '/f" style="flex:1;text-align:center;padding:1em .2em;color:#8a8272;font:11px/1.4 \'DejaVu Sans Mono\',monospace;text-decoration:none;letter-spacing:.08em;border-left:1px solid #241f19">series</a>'
+        . '<a href="' . smt_base() . '/finding-aid" style="flex:1;text-align:center;padding:1em .2em;color:#c8a44a;font:11px/1.4 \'DejaVu Sans Mono\',monospace;text-decoration:none;letter-spacing:.08em;border-left:1px solid #241f19">finding aid</a>'
         . '</div>';
 }
 
@@ -807,7 +831,7 @@ function smt_render_doc($s, $sub, $item, $tail, $mobile) {
     $enc = '';
     for ($i = 1; $i <= $encN; $i++) {
         $nm = smt_enc_name($seed, $i, 1);
-        $enc .= '<a href="/f/' . $s . '/' . $sub . '/' . strtolower($item) . '/' . rawurlencode($nm[0]) . '">'
+        $enc .= '<a href="' . smt_base() . '/f/' . $s . '/' . $sub . '/' . strtolower($item) . '/' . rawurlencode($nm[0]) . '">'
              . smt_h($nm[1]) . '</a>';
     }
 
@@ -819,8 +843,8 @@ function smt_render_doc($s, $sub, $item, $tail, $mobile) {
         . smt_table($m)
         . ($enc !== '' ? '<div class="cites"><div class="ref" style="opacity:.55;margin-bottom:.4em">enclosed with this item</div>' . $enc . '</div>' : '')
         . '<div class="cites"><div class="ref" style="opacity:.55;margin-bottom:.4em">cited in this item</div>' . $ch . '</div>'
-        . '<div class="foot"><a href="/f/' . $s . '/' . $sub . '">' . smt_h(smt_ref($s, $sub, '')) . '</a> &middot; '
-        . '<a href="/f/' . $s . '">series ' . $s . '</a> &middot; <a href="/finding-aid">finding aid</a></div>'
+        . '<div class="foot"><a href="' . smt_base() . '/f/' . $s . '/' . $sub . '">' . smt_h(smt_ref($s, $sub, '')) . '</a> &middot; '
+        . '<a href="' . smt_base() . '/f/' . $s . '">series ' . $s . '</a> &middot; <a href="' . smt_base() . '/finding-aid">finding aid</a></div>'
         . '</div>';
 
     smt_headers(200, 'text/html; charset=utf-8', array('X-Reference' => $m['ref']));
@@ -884,12 +908,12 @@ function smt_render_enclosure($m, $tail, $mobile) {
     $kids = '';
     for ($i = 1; $i <= $kidN; $i++) {
         $nm = smt_enc_name($seed, $i, $level + 1, smt_enc_set($level + 1) === $set ? $idx : null);
-        $kids .= '<a href="/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . '/'
+        $kids .= '<a href="' . smt_base() . '/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . '/'
               . implode('/', array_map('rawurlencode', $tail)) . '/' . rawurlencode($nm[0]) . '">' . smt_h($nm[1]) . '</a>';
     }
 
     $up = $tail; array_pop($up);
-    $uphref = '/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . ($up ? '/' . implode('/', $up) : '');
+    $uphref = u('f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . ($up ? '/' . implode('/', $up) : ''));
 
     $cond = $level <= 1 ? 'complete' : ($level <= 3 ? 'complete, unsigned' : ($level <= 5 ? 'foxed; partially legible' : 'water-damaged; legible in parts'));
 
@@ -900,8 +924,8 @@ function smt_render_enclosure($m, $tail, $mobile) {
         . $paras
         . '<div class="cites"><div class="ref" style="opacity:.55;margin-bottom:.4em">enclosed with this</div>' . $kids . '</div>'
         . '<div class="foot"><a href="' . smt_h($uphref) . '">back one</a> &middot; '
-        . '<a href="/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . '">' . smt_h($m['ref']) . '</a> &middot; '
-        . '<a href="/finding-aid">finding aid</a></div></div>';
+        . '<a href="' . smt_base() . '/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . '">' . smt_h($m['ref']) . '</a> &middot; '
+        . '<a href="' . smt_base() . '/finding-aid">finding aid</a></div></div>';
 
     smt_headers(200, 'text/html; charset=utf-8', array('X-Depth' => (string) $level));
     smt_page($m['ref'] . ' — ' . $last, smt_paper_css($form, $mobile), $inner, 'condition: ' . $cond, $mobile);
@@ -931,7 +955,7 @@ function smt_render_series_list($mobile) {
     foreach ($SERIES as $n => $S) {
         $sealed = ($n === 12 && !smt_retrieved());
         $subs = count(smt_subs($n));
-        $rows .= '<a class="row" href="/f/' . $n . '">' . str_pad((string) $n, 2, '0', STR_PAD_LEFT)
+        $rows .= '<a class="row" href="' . smt_base() . '/f/' . $n . '">' . str_pad((string) $n, 2, '0', STR_PAD_LEFT)
               . ' &nbsp;<span class="t">' . smt_h($S[0]) . '</span>'
               . '<span class="s">' . $subs . ' subseries' . ($sealed ? ' &middot; retained; production on a retrieval reference' : '') . '</span></a>';
     }
@@ -940,7 +964,7 @@ function smt_render_series_list($mobile) {
         . '<p class="note">The papers were received in twelve series and have been kept in the order in which they were received. '
         . 'Where two copies of a paper were received both are retained.</p>'
         . $rows
-        . '<div class="foot"><a href="/">the papers as displayed</a> &middot; <a href="/finding-aid">finding aid</a></div></div>';
+        . '<div class="foot"><a href="' . smt_base() . '/">the papers as displayed</a> &middot; <a href="' . smt_base() . '/finding-aid">finding aid</a></div></div>';
     smt_headers();
     smt_page('Arrangement of the papers', smt_listing_css($mobile), $inner, '', $mobile);
 }
@@ -952,11 +976,11 @@ function smt_render_series($s, $mobile) {
     $rows = '';
     foreach (smt_subs($s) as $sub) {
         $n = count(smt_items($s, $sub));
-        $rows .= '<a class="row" href="/f/' . $s . '/' . $sub . '">' . $s . '/' . $sub
+        $rows .= '<a class="row" href="' . smt_base() . '/f/' . $s . '/' . $sub . '">' . $s . '/' . $sub
               . '<span class="s">' . $n . ' items</span></a>';
     }
     $inner = '<div class="doc"><div class="ref">series ' . $s . '</div><h1>' . smt_h($SERIES[$s][0]) . '</h1>'
-        . $rows . '<div class="foot"><a href="/f">all series</a> &middot; <a href="/finding-aid">finding aid</a></div></div>';
+        . $rows . '<div class="foot"><a href="' . smt_base() . '/f">all series</a> &middot; <a href="' . smt_base() . '/finding-aid">finding aid</a></div></div>';
     smt_headers();
     smt_page('Series ' . $s, smt_listing_css($mobile), $inner, '', $mobile);
 }
@@ -968,12 +992,12 @@ function smt_render_sub($s, $sub, $mobile) {
     $rows = '';
     foreach (smt_items($s, $sub) as $it) {
         $m = smt_meta($s, $sub, $it);
-        $rows .= '<a class="row" href="/f/' . $s . '/' . $sub . '/' . strtolower($it) . '">' . smt_h($m['ref'])
+        $rows .= '<a class="row" href="' . smt_base() . '/f/' . $s . '/' . $sub . '/' . strtolower($it) . '">' . smt_h($m['ref'])
               . ' &nbsp;<span class="t">' . smt_h($m['title']) . '</span>'
               . '<span class="s">' . smt_h(smt_longdate($m['date'])) . ' &middot; ' . smt_h($m['author_name']) . '</span></a>';
     }
     $inner = '<div class="doc"><div class="ref">' . $s . '/' . $sub . '</div><h1>' . smt_h($SERIES[$s][0]) . '</h1>'
-        . $rows . '<div class="foot"><a href="/f/' . $s . '">series ' . $s . '</a> &middot; <a href="/finding-aid">finding aid</a></div></div>';
+        . $rows . '<div class="foot"><a href="' . smt_base() . '/f/' . $s . '">series ' . $s . '</a> &middot; <a href="' . smt_base() . '/finding-aid">finding aid</a></div></div>';
     smt_headers();
     smt_page($s . '/' . $sub, smt_listing_css($mobile), $inner, '', $mobile);
 }
@@ -1029,7 +1053,7 @@ function smt_render_finding_aid($mobile) {
                           . ' &nbsp;<span class="t">' . smt_h($m['title']) . '</span>'
                           . '<span class="s">retained &middot; production on a retrieval reference</span></span>';
                 } else {
-                    $rows .= '<a class="row" href="/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . '">'
+                    $rows .= '<a class="row" href="' . smt_base() . '/f/' . $m['series'] . '/' . $m['sub'] . '/' . strtolower($m['item']) . '">'
                           . smt_h($m['ref']) . ' &nbsp;<span class="t">' . smt_h($m['title']) . '</span>'
                           . '<span class="s">' . smt_h(smt_longdate($m['date'])) . ' &middot; ' . smt_h($m['author_name'])
                           . ' &middot; series ' . $m['series'] . '</span></a>';
@@ -1042,13 +1066,13 @@ function smt_render_finding_aid($mobile) {
 
     $names = '';
     foreach ($W['people'] as $k => $p)
-        $names .= '<a href="/finding-aid?q=' . rawurlencode($p[0]) . '" style="margin-right:1.2em;white-space:nowrap">' . smt_h($p[0]) . '</a> ';
+        $names .= '<a href="' . smt_base() . '/finding-aid?q=' . rawurlencode($p[0]) . '" style="margin-right:1.2em;white-space:nowrap">' . smt_h($p[0]) . '</a> ';
     $objs = '';
     foreach (array('BM-41', '1971', 'north stair', 'plate 12 of 9', 'the second register') as $o)
-        $objs .= '<a href="/finding-aid?q=' . rawurlencode($o) . '" style="margin-right:1.2em;white-space:nowrap">' . smt_h($o) . '</a> ';
+        $objs .= '<a href="' . smt_base() . '/finding-aid?q=' . rawurlencode($o) . '" style="margin-right:1.2em;white-space:nowrap">' . smt_h($o) . '</a> ';
 
     $inner = '<div class="doc"><div class="ref">finding aid</div><h1>Search the papers</h1>'
-        . '<form method="get" action="/finding-aid" style="margin:0 0 1.6em">'
+        . '<form method="get" action="' . smt_base() . '/finding-aid" style="margin:0 0 1.6em">'
         . '<input name="q" value="' . smt_h($q) . '" autocomplete="off" autocapitalize="off" spellcheck="false" '
         . 'placeholder="a name, a year, a reference" style="width:100%;padding:' . ($mobile ? '.95em' : '.7em') . ';'
         . 'font:' . ($mobile ? '17px' : '15px') . "/1.4 'DejaVu Sans Mono',monospace;background:#0d0b09;color:#d8c9a4;border:1px solid #332c22\">"
@@ -1057,7 +1081,7 @@ function smt_render_finding_aid($mobile) {
         . '<p class="note" style="font:13px/1.9 \'DejaVu Sans Mono\',monospace">hands: ' . $names . '<br style="line-height:2.4">'
         . 'in the papers: ' . $objs . '</p>'
         . $rows
-        . '<div class="foot"><a href="/f">arrangement of the papers</a> &middot; <a href="/">the papers as displayed</a></div></div>';
+        . '<div class="foot"><a href="' . smt_base() . '/f">arrangement of the papers</a> &middot; <a href="' . smt_base() . '/">the papers as displayed</a></div></div>';
 
     smt_headers();
     smt_page('Finding aid', smt_listing_css($mobile), $inner, '', $mobile);
@@ -1105,7 +1129,7 @@ function smt_render_sealed($path, $mobile, $msg = '') {
         . '<table>' . $rows . '</table>'
         . '<p>An item is produced on a retrieval reference. References into this series are cited in the papers of the other eleven, '
         . 'in the ordinary way, under the note <i>withdrawn</i>.</p>'
-        . '<form method="post" action="/retrieve" style="margin:1.4em 0">'
+        . '<form method="post" action="' . smt_base() . '/retrieve" style="margin:1.4em 0">'
         . '<input name="r" placeholder="12/0/A-000" autocomplete="off" autocapitalize="characters" spellcheck="false" '
         . 'style="width:' . ($mobile ? '100%' : '14em') . ';padding:' . ($mobile ? '.95em' : '.6em')
         . ";font:" . ($mobile ? '18px' : '15px') . "/1.3 'DejaVu Sans Mono',monospace;background:#0a0806;color:#e0c88a;border:1px solid #3a3020;text-align:center\">"
@@ -1113,7 +1137,7 @@ function smt_render_sealed($path, $mobile, $msg = '') {
         . ";font:" . ($mobile ? '16px' : '14px') . "/1 'DejaVu Sans Mono',monospace;background:#1c1811;color:#c8b48a;border:1px solid #3a3020;cursor:pointer\">apply for production</button>"
         . ($msg !== '' ? '<div style="margin-top:1em;font:' . ($mobile ? '15px' : '13px') . '/1.7 \'DejaVu Sans Mono\',monospace;color:#b07a5a">' . smt_h($msg) . '</div>' : '')
         . '</form>'
-        . '<div class="foot"><a href="/f">arrangement of the papers</a> &middot; <a href="/finding-aid">finding aid</a></div></div>';
+        . '<div class="foot"><a href="' . smt_base() . '/f">arrangement of the papers</a> &middot; <a href="' . smt_base() . '/finding-aid">finding aid</a></div></div>';
 
     smt_headers(403, 'text/html; charset=utf-8', array(
         'X-Retained' => (string) $n,
@@ -1133,7 +1157,7 @@ function smt_handle_retrieve($mobile) {
     }
     @setcookie('smt_r', '1', time() + 31536000, '/');
     $_COOKIE['smt_r'] = '1';
-    header('Location: /f/12/' . $v[0] . '/' . strtolower($v[1]), true, 303);
+    header('Location: ' . smt_base() . '/f/12/' . $v[0] . '/' . strtolower($v[1]), true, 303);
     exit;
 }
 
@@ -1182,7 +1206,7 @@ function smt_render_front($mobile) {
     $h .= '<div class="big">The papers of a station that was asked for one figure.</div>';
     $h .= '<p class="dim">Twelve series were received. Series 12 is retained. Where two copies of a paper were received, '
         . 'both are kept, including where they do not agree.</p>';
-    $h .= '<p><a href="/f">Arrangement of the papers</a> &nbsp;&middot;&nbsp; <a href="/finding-aid">Finding aid</a></p>';
+    $h .= '<p><a href="' . smt_base() . '/f">Arrangement of the papers</a> &nbsp;&middot;&nbsp; <a href="' . smt_base() . '/finding-aid">Finding aid</a></p>';
 
     foreach ($picks as $m) {
         if (!$m) continue;
@@ -1206,14 +1230,14 @@ function smt_render_front($mobile) {
            . '<div class="m" style="text-transform:none;letter-spacing:0;color:' . $faint . '">'
            . smt_h(smt_longdate($m['date'])) . ' &middot; ' . smt_h($m['author_name']) . '</div>'
            . '<p style="color:' . $ink . ';white-space:pre-line">' . smt_h($ex) . '</p>'
-           . '<p><a style="color:' . $faint . ';border-bottom-color:' . $rule . '" href="/f/' . $m['series'] . '/' . $m['sub']
+           . '<p><a style="color:' . $faint . ';border-bottom-color:' . $rule . '" href="' . smt_base() . '/f/' . $m['series'] . '/' . $m['sub']
            . '/' . strtolower($m['item']) . '">' . smt_h($m['ref']) . '</a></p></div>';
     }
 
     $h .= '<div class="ref" style="margin-top:3rem">the station\'s own note, found loose in series 1</div>';
     $h .= '<p class="dim" style="font-style:italic">The register shall be kept in duplicate. The second copy shall be retained at the station and shall not be sent.</p>';
-    $h .= '<div class="ref" style="margin-top:3rem"><a href="/f">series</a> &middot; <a href="/finding-aid">finding aid</a> &middot; '
-        . '<a href="/humans.txt">the hands</a></div>';
+    $h .= '<div class="ref" style="margin-top:3rem"><a href="' . smt_base() . '/f">series</a> &middot; <a href="' . smt_base() . '/finding-aid">finding aid</a> &middot; '
+        . '<a href="' . smt_base() . '/humans.txt">the hands</a></div>';
     $h .= '</div>';
 
     smt_headers();
@@ -1228,7 +1252,7 @@ function smt_render_front($mobile) {
 function smt_render_404($mobile) {
     $inner = '<div class="doc"><div class="ref">404</div><h1>Not in the papers</h1>'
         . '<p class="note">No item answers to that reference. The arrangement is at '
-        . '<a href="/f">series level</a>; the <a href="/finding-aid">finding aid</a> searches what is here.</p></div>';
+        . '<a href="' . smt_base() . '/f">series level</a>; the <a href="' . smt_base() . '/finding-aid">finding aid</a> searches what is here.</p></div>';
     smt_headers(404);
     smt_page('Not in the papers', smt_listing_css($mobile), $inner, '', $mobile);
 }
@@ -1250,7 +1274,7 @@ function smt_render_humans() {
 
 function smt_render_robots() {
     smt_headers(200, 'text/plain; charset=utf-8');
-    echo "User-agent: *\nDisallow: /f/12/\nCrawl-delay: 20\n";
+    echo "User-agent: *\nDisallow: " . smt_base() . "/f/12/\nCrawl-delay: 20\n";
     echo "# series 12 is retained. it is not hidden; it is not produced.\n";
 }
 
@@ -1259,14 +1283,18 @@ function smt_render_robots() {
  * ========================================================================= */
 
 function smt_path() {
+    if (isset($_GET['p'])) return trim(preg_replace('#//+#', '/', (string) $_GET['p']), '/');
     $uri = $_SERVER['REDIRECT_URL'] ?? ($_SERVER['REQUEST_URI'] ?? '/');
     $p = parse_url($uri, PHP_URL_PATH);
     if ($p === false || $p === null) $p = '/';
     $p = rawurldecode($p);
+    $b = smt_base();
+    if ($b !== '' && strncmp($p, $b, strlen($b)) === 0) $p = substr($p, strlen($b));
     $p = preg_replace('#^/index\.php#', '', $p);
     $p = preg_replace('#//+#', '/', $p);
     return trim($p, '/');
 }
+
 function smt_is_mobile() {
     if (isset($_GET['m'])) {
         $v = $_GET['m'] === '1' ? '1' : '0';
@@ -1284,12 +1312,12 @@ $err    = isset($_GET['__err']) ? (int) $_GET['__err'] : 0;
 $seg    = $path === '' ? array() : explode('/', $path);
 
 if ($path === 'retrieve' && $_SERVER['REQUEST_METHOD'] === 'POST') { smt_handle_retrieve($mobile); exit; }
-if ($path === 'retrieve') { header('Location: /f/12', true, 303); exit; }
+if ($path === 'retrieve') { header('Location: ' . smt_base() . '/f/12', true, 303); exit; }
 
 if ($err === 403) { smt_render_sealed('f/12', $mobile); exit; }
 
 if ($path === 'favicon.ico') { http_response_code(204); exit; }
-if ($path === 'index.html' || $path === 'index.htm') { header('Location: /', true, 302); exit; }
+if ($path === 'index.html' || $path === 'index.htm') { header('Location: ' . smt_base() . '/', true, 302); exit; }
 if ($path === 'robots.txt')  { smt_render_robots(); exit; }
 if ($path === 'humans.txt')  { smt_render_humans(); exit; }
 if ($path === 'finding-aid') { smt_render_finding_aid($mobile); exit; }
