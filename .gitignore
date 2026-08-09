@@ -1,0 +1,11 @@
+# Laufzeitdaten des SSO-Dienstes - enthaelt Schluessel und Nutzerdaten.
+/totp/
+
+# Vom Dienst erzeugte Connector-Dateien auf Testservern
+api.php
+sso_state_*.php
+
+# System
+.DS_Store
+*.log
+*.swp
