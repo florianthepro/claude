@@ -82,6 +82,12 @@ def test_nachgetragene_regeln_aus_einem_echten_lauf(label, rule):
 
 
 def test_englische_dge_schreibung_faellt():
-    """gabledge klingt englisch nach /d3/ -- ein Deutscher schreibt nie 'dg'."""
+    """gabledge klingt englisch nach /d3/ -- ein Deutscher schreibt nie 'dge'."""
     assert check("gabledge").rule == "folge"
     assert check("ridgest").rule == "folge"
+
+
+def test_dg_stoert_nur_vor_e_und_i():
+    """gabledge ist englisch, badglue ist eine harte Morphemfuge."""
+    assert check("gabledge").rule == "folge"
+    assert passes("badglue"), check("badglue")

@@ -130,6 +130,24 @@ das ist ein Baukastenteil, kein eigenstaendiges Wort.
 domainfinder score bitrot purlink ahefid     # Score aufgeschluesselt
 ```
 
+Der Score sortiert 349 000 Kandidaten zu einer Auswahlliste. Er ersetzt das
+Urteil nicht: ob ein Name auf einer Rechnung tragt, entscheidet ein Mensch am
+Ende der Liste, nicht die Gewichtung.
+
+## Filter nachziehen
+
+Die harten Kriterien wachsen mit jedem Lauf -- eine Marke, eine deutsche
+Peinlichkeit, eine englische Schreibung, die vorher niemand bedacht hat:
+
+```bash
+domainfinder refresh --tld com     # aktuelle Filter auf den Bestand anwenden
+```
+
+Kandidaten, die durchfallen, verschwinden aus der Auswahl. Ihre
+Pruefergebnisse bleiben in der Datenbank: ein Ergebnis ist eine Tatsache ueber
+die Welt, ein Filter ist unsere Meinung. Wird die Meinung spaeter wieder
+korrigiert, kostet das keine einzige Netzanfrage.
+
 ## Ausgabe
 
 `out/ergebnis-<tld>.csv`, absteigend nach Score, Modus 0600:

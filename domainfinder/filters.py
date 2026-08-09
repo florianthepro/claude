@@ -44,7 +44,13 @@ FORBIDDEN_SEQS: tuple[tuple[str, str], ...] = (
     ("sh", "sh/sch-Konflikt"),
     ("ck", "c/k-Konflikt in der Verdopplung"),
     ("dt", "d/t-Konflikt am Wortende"),
-    ("dg", "dge ist eine englische Schreibung fuer /d3/, im Deutschen nicht ableitbar"),
+)
+
+# Folgen, die nur vor bestimmten Buchstaben stoeren. `dge` in gabledge ist die
+# englische Schreibung fuer /d3/; das `dg` in badglue ist ein hartes g an einer
+# Morphemfuge und voellig unproblematisch.
+FORBIDDEN_BEFORE: tuple[tuple[str, str, str], ...] = (
+    ("dg", "ei", "dge/dgi ist die englische Schreibung fuer /d3/"),
 )
 
 DOUBLE_LETTER = re.compile(r"(.)\1")
@@ -149,6 +155,11 @@ def check(label: str) -> Rejection | None:
     for seq, why in FORBIDDEN_SEQS:
         if seq in label:
             return Rejection("folge", f"{seq!r} -- {why}")
+
+    for seq, followers, why in FORBIDDEN_BEFORE:
+        for pos in range(len(label) - len(seq)):
+            if label[pos:pos + len(seq)] == seq and label[pos + len(seq)] in followers:
+                return Rejection("folge", f"{seq + label[pos + len(seq)]!r} -- {why}")
 
     if not (set(label) & VOWELS):
         return Rejection("vokal", "kein Vokal")

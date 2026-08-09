@@ -199,3 +199,18 @@ def test_backoff_waechst_exponentiell_und_achtet_retry_after():
     assert _backoff(0, None) < _backoff(4, None)
     assert _backoff(0, "7") == 7.0
     assert _backoff(0, "600") == 60.0  # gedeckelt
+
+
+def test_refresh_wirft_teure_pruefergebnisse_nicht_weg(store):
+    """Ein Filter darf eine Tatsache ueber die Welt nicht loeschen."""
+    _seed(store, 2)
+    store.record("lab0.com", "dns", "free", "NXDOMAIN")
+    store.record("lab0.com", "rdap", "free", "RDAP 404")
+    store.commit()
+    store.drop_candidates(["lab0.com"])
+    # Kandidat weg ...
+    assert [r["domain"] for r in store.all_candidates("com")] == ["lab1.com"]
+    # ... Pruefergebnis bleibt, damit ein spaeteres Wiederaufnehmen nichts kostet.
+    store.add_candidates([("lab0.com", "lab0", "com", "A", "zufall", 90.0)])
+    assert store.pending("dns", "com") == [] or \
+        "lab0.com" not in [r["domain"] for r in store.pending("dns", "com")]

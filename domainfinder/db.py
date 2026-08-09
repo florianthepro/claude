@@ -170,10 +170,14 @@ class Store:
                                (score, category, domain))
 
     def drop_candidates(self, domains: Sequence[str]) -> int:
-        """Entfernt Kandidaten samt ihren Pruefergebnissen."""
+        """Entfernt Kandidaten, behaelt aber ihre Pruefergebnisse.
+
+        Ein Pruefergebnis ist eine Tatsache ueber die Welt, ein Filter ist
+        unsere Meinung. Aendert sich die Meinung, darf die teuer erkaufte
+        Tatsache nicht verloren gehen -- sonst kostet jede Filterkorrektur
+        wieder Netzanfragen.
+        """
         with self._lock:
-            self._conn.executemany("DELETE FROM checks WHERE domain = ?",
-                                   [(d,) for d in domains])
             cur = self._conn.executemany("DELETE FROM candidates WHERE domain = ?",
                                          [(d,) for d in domains])
             self._conn.commit()
