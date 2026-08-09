@@ -185,5 +185,5 @@ Exit-Code 0, wenn mindestens ein Name registrierbar ist, sonst 1.
 ## Tests
 
 ```bash
-python3 -m pytest tests/ -q      # 74 Tests, ohne Netz
+python3 -m pytest tests/ -q      # 94 Tests, ohne Netz
 ```
