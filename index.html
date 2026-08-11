@@ -92,14 +92,19 @@ h2{font-size:10px;font-weight:400;letter-spacing:.2em;color:var(--dim);padding:0
 .t-CRITICAL{color:var(--crit)}.t-HIGH{color:var(--high)}.t-MEDIUM{color:var(--med)}.t-LOW{color:var(--low)}.t-UNSPECIFIED{color:var(--dim)}
 .t-OPEN{color:var(--crit)}.t-INVESTIGATING{color:var(--high)}.t-WAITING{color:var(--med)}.t-CLOSED{color:var(--dim)}
 .t-MALICIOUS{color:var(--crit)}.t-BENIGN{color:var(--low)}.t-UNDECIDED{color:var(--mut)}.t-NOT_APPLICABLE{color:var(--dim)}
+.r-crit{color:var(--crit)}.r-high{color:var(--high)}.r-low{color:var(--low)}.r-dim{color:var(--mut)}
+.r-crit em,.r-high em{font-style:normal}
+td [data-cp]{cursor:pointer}
+td [data-cp]:hover{color:#fff}
+.dot.SUSPICIOUS{background:var(--high)}.dot.UNKNOWN{background:var(--none)}.dot.DARWIN{background:#5b8dd6}.dot.WINDOWS{background:#5b8dd6}.dot.LINUX{background:#5b8dd6}
 
 .det{background:#050505}
 .det td{padding:0;white-space:normal}
 .detin{padding:12px 14px;border-left:2px solid #1f1f1f}
-.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:3px 22px;margin-bottom:10px}
-.kv div{display:flex;gap:9px;font-size:11px;border-bottom:1px solid #0f0f0f;padding:2px 0}
-.kv div span:first-child{color:var(--dim);min-width:132px;flex:0 0 132px}
-.kv div span:last-child{color:var(--fg);word-break:break-all}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:3px 22px;margin-bottom:10px}
+.kv div{display:flex;align-items:flex-start;gap:10px;font-size:11px;border-bottom:1px solid #0f0f0f;padding:2px 0}
+.kv div span:first-child{color:var(--dim);flex:0 0 44%;overflow-wrap:anywhere}
+.kv div span:last-child{color:var(--fg);flex:1 1 0;min-width:0;overflow-wrap:anywhere}
 pre{background:#0a0a0a;border:1px solid var(--line);padding:10px;overflow:auto;max-height:340px;color:#9a9a9a;font-size:11px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
 .sub{border:1px solid var(--line);margin-bottom:10px}
 .sub table{width:100%;border-collapse:collapse;font-size:11px}
@@ -134,7 +139,8 @@ pre{background:#0a0a0a;border:1px solid var(--line);padding:10px;overflow:auto;m
 var $=function(s){return document.querySelector(s)},out=$("#out"),go=$("#go"),sink=$("#sink"),meta=$("#meta"),qin=$("#q");
 function hh(){document.documentElement.style.setProperty("--hh",document.querySelector("header").offsetHeight+"px")}
 addEventListener("resize",hh);hh();
-var DB=null,F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}},SORT={k:"created",a:false},OPEN={},Q="";
+var DB=null,F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{},rep:{},thr:{},host:{},user:{},proc:{},os:{},fam:{},pc:{}},SORT={k:"created",a:false},SORTE={k:"time",a:false},OPEN={},Q="";
+var EDIM=[["rep","rep"],["thr","thr"],["host","host"],["user","user"],["proc","proc"],["os","os"],["fam","famx"],["pc","pcx"]];
 
 function esc(x){return String(x==null?"":x).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function S(x){return x==null?"":typeof x==="string"?x:typeof x==="number"||typeof x==="boolean"?String(x):""}
@@ -263,6 +269,8 @@ function parse(txt){
 }
 
 var OWN=Object.prototype.hasOwnProperty;
+function ob(x){return x!=null&&typeof x==="object"&&!Array.isArray(x)}
+function sub(x){return ob(x)?nmap(x):{}}
 function nkey(k){return k.toLowerCase().replace(/[^a-z0-9]/g,"")}
 function nmap(o){
   if(o.__n)return o.__n;
@@ -284,6 +292,8 @@ function kind(o){
   if(has(m,"eventedat")||(has(m,"eventtype")&&has(m,"externalsource")))return "ev";
   if(has(m,"body")&&has(m,"creator"))return "com";
   if(has(m,"filename")&&has(m,"mimetype"))return "att";
+  if(ob(m.process)||ob(m.parentprocess)||has(m,"r7hostid","endpointid")||(ob(m.r7context)&&has(m,"entryid"))||
+     (has(m,"hostname","assetname")&&(ob(m.file)||has(m,"sourceaddress","destinationaddress","sourceip","destinationip"))))return "evd";
   if(has(m,"disposition","firstalerttime","latestalerttime","responsibility","investigationtitle","investigationid","investigationstatus","investigationrrn"))return "inv";
   if(has(m,"status","state")&&has(m,"priority","severity")&&has(m,"title","name","rrn","id"))return "inv";
   if(has(m,"status","state")&&has(m,"title","name")&&has(m,"createdtime","createdat","source","assignee","assignedto"))return "inv";
@@ -291,17 +301,24 @@ function kind(o){
   return null;
 }
 function collect(root){
-  var bag={inv:[],alr:[],ev:[],com:[],att:[],raw:[]},pg=null,seen=new Set();
+  var bag={inv:[],alr:[],ev:[],com:[],att:[],raw:[],evd:[]},pg=null,seen=new Set(),unwrap=0;
   (function walk(n,dp){
     if(n==null||dp>12)return;
     if(Array.isArray(n)){for(var i=0;i<n.length;i++)walk(n[i],dp+1);return}
     if(typeof n!=="object")return;
     if(seen.has(n))return; seen.add(n);
     var md=nmap(n).metadata;
-    if(md&&typeof md==="object"&&!pg){var mm=nmap(md);if(mm.totaldata!=null||mm.totalpages!=null)pg=mm}
+    if(ob(md)&&!pg){var mm=nmap(md);if(mm.totaldata!=null||mm.totalpages!=null)pg=mm}
     var k=kind(n);
-    if(k){bag[k].push(n);if(k!=="inv")return}
-    for(var p in n){if(!OWN.call(n,p))continue;var v=n[p];if(v&&typeof v==="object")walk(v,dp+1)}
+    if(k)bag[k].push(n);
+    if(k&&k!=="inv"&&k!=="ev")return;
+    for(var p in n){if(!OWN.call(n,p))continue;var v=n[p];
+      if(v&&typeof v==="object"){walk(v,dp+1);continue}
+      if(typeof v==="string"&&unwrap<400&&v.length>20&&v.length<300000){
+        var s=v.trim();
+        if((s.charAt(0)==="{"&&s.charAt(s.length-1)==="}")||(s.charAt(0)==="["&&s.charAt(s.length-1)==="]")){
+          var r=tryParse(s);
+          if(r&&full(r.v)){unwrap++;walk(r.v,dp+1)}}}}
   })(root,0);
   return {bag:bag,pg:pg};
 }
@@ -359,6 +376,51 @@ function mkInv(o,i){
   return v;
 }
 
+function mkEvd(o,i){
+  var m=nmap(o),
+      pr=sub(m.process||m.proc),pp=sub(m.parentprocess||m.parent),
+      ef=sub(pr.exefile||pr.file),hs=sub(ef.hashes||pr.hashes),
+      hr=sub(pr.hashreputation||m.hashreputation),cl=sub(hr.classification),
+      ctx=sub(m.r7context),as=sub(ctx.asset||m.asset),us=sub(ctx.user||m.user),
+      fi=sub(m.file),fh=sub(fi.hashes),
+      ppf=sub(pp.exefile),pph=sub(ppf.hashes);
+  var v={idx:i,raw:o,
+    time:D(pick(pr,"starttime","createdtime")||pick(m,"timestamp","eventedat","time","createdtime","detectedtime")),
+    host:S(pick(m,"hostname","assetname","host","computername")||pick(as,"name")||pick(m,"endpointid","r7hostid")),
+    os:U(pick(m,"ostype","os","platform")),
+    user:S(pick(pr,"username","euidname","ruidname")||pick(m,"username","user","account","accountname")||pick(us,"name","username")),
+    proc:S(pick(pr,"name","processname")||pick(m,"processname")),
+    pid:S(pick(pr,"pid","processid")),
+    cmd:S(pick(pr,"cmdline","commandline")||pick(m,"cmdline","commandline")),
+    exe:S(pick(pr,"exepath","path","imagepath")),
+    cwd:S(pick(pr,"workingdir","cwd")),
+    sha:S(pick(hs,"sha256")||pick(fh,"sha256")).toLowerCase(),
+    md5:S(pick(hs,"md5")||pick(fh,"md5")).toLowerCase(),
+    sha1:S(pick(hs,"sha1")||pick(fh,"sha1")).toLowerCase(),
+    rep:U(pick(hr,"reputation")),
+    thr:U(pick(hr,"threatlevel")),
+    rel:U(pick(hr,"reliability")),
+    fam:S(pick(cl,"familyname","family")),
+    cls:S(pick(cl,"type")),
+    plat:S(pick(cl,"platform")),
+    eng:hr.enginematch!=null?S(hr.enginematch)+"/"+S(hr.enginecount):"",
+    par:S(pick(pp,"name")),
+    ppid:S(pick(pp,"pid")||pick(pr,"ppid")),
+    pcmd:S(pick(pp,"cmdline","commandline")),
+    pexe:S(pick(pp,"exepath","path")),
+    psha:S(pick(pph,"sha256")).toLowerCase(),
+    file:S(pick(fi,"path","name")),
+    sip:S(pick(m,"sourceaddress","sourceip","srcip")),
+    dip:S(pick(m,"destinationaddress","destinationip","dstip")),
+    dport:S(pick(m,"destinationport","dstport","port")),
+    rrn:S(pick(as,"rrn")||pick(m,"rrn")),
+    id:S(pick(m,"entryid","id","eventid")),
+    vendor:S(pick(m,"endpointvendor","vendor"))};
+  v.famx=[v.fam,v.cls,v.plat].filter(Boolean).join(" / ");
+  v.pcx=v.par?v.par+" → "+(v.proc||"—"):"";
+  v.blob=[v.host,v.user,v.proc,v.cmd,v.exe,v.par,v.pcmd,v.rep,v.thr,v.fam,v.cls,v.sha,v.md5,v.sha1,v.file,v.sip,v.dip,v.os,v.id,v.rrn].join(" ").toLowerCase();
+  return v;
+}
 var RX={
   ip:/\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
   h256:/\b[a-fA-F0-9]{64}\b/g,h1:/\b[a-fA-F0-9]{40}\b/g,md5:/\b[a-fA-F0-9]{32}\b/g,
@@ -394,14 +456,19 @@ function iocs(txt){
 function ingest(txt){
   var root;
   try{root=parse(txt)}catch(e){return fail()}
-  var c=collect(root),bag=c.bag;
-  if(!bag.inv.length&&!bag.alr.length&&!bag.ev.length&&!bag.com.length&&!bag.raw.length&&!bag.att.length)return empty(c.pg,txt.length);
+  var c=collect(root),bag=c.bag,k;
+  for(k in bag)if(bag[k].length)break;
+  if(!bag.inv.length&&!bag.alr.length&&!bag.ev.length&&!bag.com.length&&!bag.raw.length&&!bag.att.length&&!bag.evd.length)return empty(c.pg,txt.length);
   var invs=bag.inv.map(mkInv),alrs=[],nested=new Set(),i,j;
   for(i=0;i<invs.length;i++)for(j=0;j<invs[i].alerts.length;j++){alrs.push(invs[i].alerts[j]);nested.add(invs[i].alerts[j].raw)}
   for(i=0;i<bag.alr.length;i++)if(!nested.has(bag.alr[i]))alrs.push(mkAlert(bag.alr[i],null));
-  DB={inv:invs,alr:alrs,ev:bag.ev,com:bag.com,att:bag.att,raw:bag.raw,pg:c.pg,ioc:iocs(txt),n:txt.length,fix:FIX,lost:LOST};
-  F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};OPEN={};Q="";qin.value="";
-  SORT={k:invs.length?"created":"created",a:false};
+  var evds=bag.evd.map(mkEvd),io=iocs(txt);
+  for(i=0;i<bag.evd.length;i++){var em=nmap(bag.evd[i]);
+    [em.r7hostid,em.endpointid,em.hostid].forEach(function(x){var s=S(x).toLowerCase();if(s&&io.hash[s])delete io.hash[s]})}
+  for(i=0;i<evds.length;i++)if(evds[i].id)delete io.hash[S(evds[i].id).toLowerCase()];
+  DB={inv:invs,alr:alrs,evd:evds,ev:bag.ev,com:bag.com,att:bag.att,raw:bag.raw,pg:c.pg,ioc:io,n:txt.length,fix:FIX,lost:LOST};
+  F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{},rep:{},thr:{},host:{},user:{},proc:{},os:{},fam:{},pc:{}};OPEN={};Q="";qin.value="";
+  SORT={k:"created",a:false};SORTE={k:"time",a:false};
   idle();
   ["#q","#csv","#clr"].forEach(function(s){$(s).classList.remove("hide")});
   render();window.scrollTo(0,0);
@@ -409,7 +476,7 @@ function ingest(txt){
 function idle(){if(READ){go.textContent="JSON EINFÜGEN";go.className="hot"}else{go.textContent="STRG + V";go.className="arm"}}
 function fail(){go.textContent="× PARSE";go.className="err";setTimeout(idle,1800)}
 function empty(pg,n){
-  DB={inv:[],alr:[],ev:[],com:[],att:[],raw:[],pg:pg,ioc:{ip:{},pip:{},dom:{},mail:{},url:{},hash:{}},n:n||0,fix:FIX,lost:LOST};
+  DB={inv:[],alr:[],evd:[],ev:[],com:[],att:[],raw:[],pg:pg,ioc:{ip:{},pip:{},dom:{},mail:{},url:{},hash:{}},n:n||0,fix:FIX,lost:LOST};
   F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};OPEN={};Q="";qin.value="";
   render();go.textContent="× LEER";go.className="err";setTimeout(idle,1800);
 }
@@ -428,6 +495,14 @@ function match(v,skip){
 }
 function sel(skip){return DB.inv.filter(function(v){return match(v,skip)})}
 function nal(a){var n=0;for(var i=0;i<a.length;i++)n+=a[i].alerts.length;return n}
+function matchE(e,skip){
+  if(Q&&e.blob.indexOf(Q)<0)return false;
+  for(var i=0;i<EDIM.length;i++){var d=EDIM[i][0];if(d===skip)continue;
+    var ks=Object.keys(F[d]);if(!ks.length)continue;
+    if(ks.indexOf(e[EDIM[i][1]]||"—")<0)return false}
+  return true;
+}
+function selE(skip){return DB.evd.filter(function(e){return matchE(e,skip)})}
 function nfilt(){var n=0;for(var k in F)n+=Object.keys(F[k]).length;return n+(Q?1:0)}
 
 function tally(arr,fn){
@@ -445,9 +520,9 @@ function panel(title,dim,rows,tot,lim){
   if(!rows.length)return "";
   var more=lim&&rows.length>lim?rows.length-lim:0;
   if(lim)rows=rows.slice(0,lim);
-  var h='<div class="pnl"><h3>'+esc(title)+'<i>'+(more?"+"+more:"")+'</i></h3>';
+  var h='<div class="pnl"><h3>'+esc(title)+'<i>'+(more?"+"+more:"")+'</i></h3>',fs=F[dim]||{};
   for(var i=0;i<rows.length;i++){var r=rows[i],pc=tot?Math.round(r.n/tot*100):0;
-    h+='<div class="r'+(F[dim][r.k]?" on":"")+'" data-dim="'+dim+'" data-v="'+esc(r.k)+'" title="'+esc(r.k)+'">'+
+    h+='<div class="r'+(fs[r.k]?" on":"")+'" data-dim="'+dim+'" data-v="'+esc(r.k)+'" title="'+esc(r.k)+'">'+
        '<span class="k"><i class="dot '+esc(r.k.replace(/[^A-Z_]/g,""))+'"></i>'+esc(r.k)+'</span>'+
        '<span class="bar"><b style="width:'+Math.max(pc,1)+'%"></b></span>'+
        '<span class="n">'+r.n+'</span><span class="p">'+pc+'%</span></div>'}
@@ -505,12 +580,73 @@ function sortRows(rows){
     if(p<q)return -1*a;if(p>q)return 1*a;return 0})
 }
 function kvlist(o){
-  var h='<div class="kv">',ks=Object.keys(o);
-  for(var i=0;i<ks.length;i++){var v=o[ks[i]];
-    if(v&&typeof v==="object"&&!Array.isArray(v)){for(var s in v)h+='<div><span>'+esc(ks[i]+"."+s)+'</span><span>'+esc(S(v[s])||"—")+'</span></div>';continue}
-    if(Array.isArray(v)){if(v.length&&typeof v[0]==="object")continue;h+='<div><span>'+esc(ks[i])+'</span><span>'+esc(v.join(", ")||"—")+'</span></div>';continue}
-    h+='<div><span>'+esc(ks[i])+'</span><span>'+esc(v==null?"—":S(v)||String(v))+'</span></div>'}
+  var rows=[];
+  (function flat(n,pre,dp){
+    if(dp>4)return;
+    var ks=Object.keys(n);
+    for(var i=0;i<ks.length&&rows.length<260;i++){var k=pre?pre+"."+ks[i]:ks[i],v=n[ks[i]];
+      if(ob(v)){flat(v,k,dp+1);continue}
+      if(Array.isArray(v)){
+        if(v.length&&ob(v[0])){for(var j=0;j<v.length&&j<12;j++)flat(v[j],k+"["+j+"]",dp+1);continue}
+        rows.push([k,v.join(", ")]);continue}
+      rows.push([k,v==null?"":S(v)||String(v)])}
+  })(o,"",0);
+  var h='<div class="kv">';
+  for(var i=0;i<rows.length;i++)h+='<div><span>'+esc(rows[i][0])+'</span><span>'+esc(rows[i][1]||"—")+'</span></div>';
   return h+"</div>";
+}
+var ECOLS=[{k:"time",t:"ZEIT"},{k:"host",t:"ASSET"},{k:"user",t:"USER"},{k:"proc",t:"PROZESS"},{k:"pid",t:"PID"},
+ {k:"par",t:"PARENT"},{k:"cmd",t:"CMD"},{k:"rep",t:"REPUTATION"},{k:"fam",t:"KLASSIFIKATION"},{k:"exe",t:"PFAD"},{k:"sha",t:"SHA256"}];
+var EASC={host:1,user:1,proc:1,par:1,cmd:1,exe:1,sha:1,rep:1,fam:1};
+var REP={MALICIOUS:"crit",SUSPICIOUS:"high",UNKNOWN:"dim",BENIGN:"low",GOOD:"low"};
+function ecell(e,k){
+  switch(k){
+    case "time":return '<span class="mut">'+esc(fdt(e.time))+'</span>';
+    case "host":return esc(nz(e.host));
+    case "user":return e.user?esc(e.user):'<span class="dimc">—</span>';
+    case "proc":return e.proc?'<span>'+esc(e.proc)+'</span>':'<span class="dimc">—</span>';
+    case "pid":return '<span class="dimc">'+esc(nz(e.pid))+'</span>';
+    case "par":return e.par?'<span class="mut">'+esc(e.par)+'</span>':'<span class="dimc">—</span>';
+    case "cmd":return e.cmd?'<span class="mut">'+esc(e.cmd)+'</span>':'<span class="dimc">—</span>';
+    case "rep":return e.rep?'<span class="r-'+esc(REP[e.rep]||"dim")+'">'+esc(e.rep)+(e.thr?" / "+esc(e.thr):"")+(e.eng?' <em class="dimc">'+esc(e.eng)+'</em>':"")+'</span>':'<span class="dimc">—</span>';
+    case "fam":return e.fam||e.cls?'<span class="mut">'+esc([e.fam,e.cls,e.plat].filter(Boolean).join(" / "))+'</span>':'<span class="dimc">—</span>';
+    case "exe":return '<span class="dimc">'+esc(nz(e.exe||e.file))+'</span>';
+    case "sha":return e.sha||e.md5?'<span class="dimc" data-cp="'+esc(e.sha||e.md5)+'">'+esc((e.sha||e.md5).slice(0,16))+'</span>':'<span class="dimc">—</span>';
+  }
+  return "";
+}
+function sortValE(e,k){
+  if(k==="time")return e.time?+e.time:0;
+  if(k==="pid")return parseInt(e.pid,10)||0;
+  if(k==="rep")return ["MALICIOUS","SUSPICIOUS","UNKNOWN","BENIGN"].indexOf(e.rep)<0?9:["MALICIOUS","SUSPICIOUS","UNKNOWN","BENIGN"].indexOf(e.rep);
+  return S(e[k]).toLowerCase();
+}
+function sortRowsE(rows){
+  var k=SORTE.k,a=SORTE.a?1:-1;
+  return rows.slice().sort(function(x,y){var p=sortValE(x,k),q=sortValE(y,k);if(p<q)return -1*a;if(p>q)return 1*a;return 0});
+}
+function procTbl(e){
+  if(!e.proc&&!e.par)return "";
+  var row=function(lab,n,pid,cmd,exe,sha){
+    return '<tr><td class="dimc">'+lab+'</td><td>'+esc(nz(n))+'</td><td class="dimc">'+esc(nz(pid))+'</td><td>'+esc(nz(cmd))+'</td><td class="dimc">'+esc(nz(exe))+'</td><td class="dimc">'+esc(sha?sha.slice(0,24):"—")+'</td></tr>'};
+  return '<div class="sub"><table><tr><th></th><th>NAME</th><th>PID</th><th>CMD</th><th>PFAD</th><th>SHA256</th></tr>'+
+    (e.par?row("PARENT",e.par,e.ppid,e.pcmd,e.pexe,e.psha):"")+
+    (e.proc?row("CHILD",e.proc,e.pid,e.cmd,e.exe,e.sha):"")+"</table></div>";
+}
+function tlE(list){
+  var ds=list.map(function(v){return v.time}).filter(Boolean);
+  if(ds.length<2)return "";
+  var mn=new Date(Math.min.apply(null,ds)),mx=new Date(Math.max.apply(null,ds)),unit=UNITS[UNITS.length-1],i;
+  for(i=0;i<UNITS.length;i++){if((mx-mn)/UNITS[i]<=150){unit=UNITS[i];break}}
+  var st=Math.floor(mn/unit)*unit,cnt=Math.min(Math.round((Math.floor(mx/unit)*unit-st)/unit)+1,400),b=[];
+  for(i=0;i<cnt;i++)b.push({n:0,h:0});
+  for(i=0;i<list.length;i++){var v=list[i];if(!v.time)continue;
+    var ix=Math.round((Math.floor(v.time/unit)*unit-st)/unit);if(ix<0||ix>=cnt)continue;
+    b[ix].n++;if(v.rep==="MALICIOUS"||v.rep==="SUSPICIOUS"||v.thr==="CRITICAL")b[ix].h++}
+  var mxn=Math.max.apply(null,b.map(function(x){return x.n}))||1,h='<div class="tl"><div class="tlb">';
+  for(i=0;i<cnt;i++){var t=new Date(st+i*unit);
+    h+='<i style="height:'+(b[i].n?Math.max(b[i].n/mxn*100,2):0)+'%" title="'+esc((unit<864e5?fdt(t):fd(t))+"  n="+b[i].n+(b[i].h?"  mal="+b[i].h:""))+'">'+(b[i].h?'<u style="height:'+(b[i].h/b[i].n*100)+'%"></u>':"")+'</i>'}
+  return h+'</div><div class="tlx"><span>'+esc(unit<864e5?fdt(mn):fd(mn))+'</span><span>'+esc(dur(mx-mn))+'</span><span>'+esc(unit<864e5?fdt(mx):fd(mx))+'</span></div></div>';
 }
 function alertTbl(as){
   if(!as.length)return "";
@@ -544,6 +680,8 @@ function render(){
   var mh=[];
   if(inv.length)mh.push("<b>INV</b> "+f.length+(f.length!==inv.length?"/"+inv.length:""));
   if(DB.alr.length)mh.push("<b>ALR</b> "+fal.length+(fal.length!==DB.alr.length?"/"+DB.alr.length:""));
+  var fe=DB.evd.length?selE(null):[];
+  if(DB.evd.length)mh.push("<b>EVT</b> "+fe.length+(fe.length!==DB.evd.length?"/"+DB.evd.length:""));
   if(DB.ev.length)mh.push("<b>EVD</b> "+DB.ev.length);
   if(DB.com.length)mh.push("<b>CMT</b> "+DB.com.length);
   if(DB.raw.length)mh.push("<b>LOG</b> "+DB.raw.length);
@@ -584,6 +722,34 @@ function render(){
     if(t)H+='<section><h2>Verlauf</h2>'+t+'</section>';
   }
 
+  if(DB.evd.length){
+    var bad=fe.filter(function(e){return e.rep==="MALICIOUS"||e.rep==="SUSPICIOUS"||e.thr==="CRITICAL"||e.thr==="HIGH"}),
+        uq=function(a,k){var s={};for(var i=0;i<a.length;i++)if(a[i][k])s[a[i][k]]=1;return Object.keys(s).length},
+        hashed=fe.filter(function(e){return e.sha||e.md5});
+    H+='<section><div class="kpis">'+
+      kpi(fe.length,"EVENTS",DB.evd.length!==fe.length?"von "+DB.evd.length:"")+
+      kpi(bad.length,"MALICIOUS / SUSP.",pct(bad.length,fe.length))+
+      kpi(uq(fe,"host"),"ASSETS","")+
+      kpi(uq(fe,"user"),"USER","")+
+      kpi(uq(fe,"proc"),"PROZESSE","")+
+      kpi(uq(fe,"par"),"PARENTS","")+
+      kpi(uq(hashed,"sha")||uq(hashed,"md5"),"HASHES",hashed.length?pct(hashed.length,fe.length)+" m. Hash":"")+
+    '</div></section>';
+    if(!inv.length){var ch=chipbar();if(ch)H+='<section>'+ch+'</section>'}
+    var ep="";
+    [["REPUTATION","rep",function(e){return e.rep}],["THREAT LEVEL","thr",function(e){return e.thr}],
+     ["ASSET","host",function(e){return e.host}],["USER","user",function(e){return e.user}],
+     ["PROZESS","proc",function(e){return e.proc}],["OS","os",function(e){return e.os}]].forEach(function(x){
+      var s=selE(x[1]);ep+=panel(x[0],x[1],tally(s,x[2]),s.length,12)});
+    var sf=selE("fam"),famR=tally(sf,function(e){return e.famx?e.famx:[]});
+    if(famR.length)ep+=panel("KLASSIFIKATION","fam",famR,sf.length,8);
+    var sp=selE("pc"),parR=tally(sp,function(e){return e.pcx?e.pcx:[]});
+    if(parR.length)ep+=panel("PARENT → CHILD","pc",parR,sp.length,10);
+    H+='<section><div class="grid">'+ep+'</div></section>';
+    var te=tlE(fe);
+    if(te)H+='<section><h2>Verlauf</h2>'+te+'</section>';
+  }
+
   var ic=DB.ioc,iparts="";
   [["ip","EXTERN",30,"pub"],["pip","INTERN",24,""],["dom","DOMAINS",30,"pub"],["url","URLS",12,""],["mail","ACCOUNTS",20,""],["hash","HASHES",14,"pub"]].forEach(function(x){
     var b=iocBlock(ic[x[0]],x[3],x[2]);if(b)iparts+='<div class="pnl"><h3>'+x[1]+'<i>'+Object.keys(ic[x[0]]).length+'</i></h3><div class="ioc">'+b+'</div></div>'});
@@ -617,6 +783,19 @@ function render(){
     H+="</tbody></table></div></section>";
   }
 
+  if(DB.evd.length){
+    var er=sortRowsE(fe);
+    H+='<section><h2>Endpoint-Events</h2><div class="tw"><table class="tbl"><thead><tr>';
+    for(var ec=0;ec<ECOLS.length;ec++)H+='<th data-ek="'+ECOLS[ec].k+'" class="'+(SORTE.k===ECOLS[ec].k?"s"+(SORTE.a?" a":""):"")+'">'+ECOLS[ec].t+"</th>";
+    H+='</tr></thead><tbody>';
+    for(var e2=0;e2<er.length;e2++){var ev2=er[e2],eo=OPEN["v"+ev2.idx];
+      H+='<tr class="d'+(eo?" op":"")+'" data-ev="'+ev2.idx+'">';
+      for(ec=0;ec<ECOLS.length;ec++)H+="<td>"+ecell(ev2,ECOLS[ec].k)+"</td>";
+      H+="</tr>";
+      if(eo)H+='<tr class="det"><td colspan="'+ECOLS.length+'"><div class="detin">'+procTbl(ev2)+kvlist(ev2.raw)+'<pre>'+esc(JSON.stringify(ev2.raw,null,2))+"</pre></div></td></tr>"}
+    H+="</tbody></table></div></section>";
+  }
+
   if(DB.ev.length){
     H+='<section><h2>Evidence</h2><div class="tw"><table class="tbl"><thead><tr><th>ZEIT</th><th>QUELLE</th><th>TYP</th><th>DATEN</th></tr></thead><tbody>';
     for(var e=0;e<DB.ev.length;e++){var ev=DB.ev[e],dt=D(ev.evented_at||ev.created_at||ev.timestamp),op2=OPEN["e"+e],dd=ev.data;
@@ -646,7 +825,8 @@ function render(){
 function kpi(v,l,s){return '<div class="kpi"><b>'+esc(v)+'</b><span>'+esc(l)+'</span><small>'+esc(s||"")+"</small></div>"}
 function pct(n,t){return t?Math.round(n/t*100)+"%":""}
 function chipbar(){
-  var h="",any=false,names={prio:"prio",status:"status",disp:"disp",src:"src",asg:"asg",tag:"tag",atype:"alert",asrc:"src"};
+  var h="",any=false,names={prio:"prio",status:"status",disp:"disp",src:"src",asg:"asg",tag:"tag",atype:"alert",asrc:"src",
+    rep:"rep",thr:"threat",host:"asset",user:"user",proc:"proc",os:"os"};
   for(var d in F)for(var v in F[d]){any=true;
     h+='<span class="chip" data-x="'+d+'" data-v="'+esc(v)+'"><em>'+names[d]+'</em>'+esc(v)+'<s>×</s></span>'}
   if(Q){any=true;h+='<span class="chip" data-x="q"><em>text</em>'+esc(Q)+'<s>×</s></span>'}
@@ -661,8 +841,11 @@ document.addEventListener("click",function(e){
   if(c){if(c.dataset.x==="q"){Q="";qin.value=""}else delete F[c.dataset.x][c.dataset.v];render();return}
   var th=e.target.closest("th[data-k]");
   if(th){var k=th.dataset.k;if(SORT.k===k)SORT.a=!SORT.a;else{SORT.k=k;SORT.a=!!ASC[k]}render();return}
+  var te=e.target.closest("th[data-ek]");
+  if(te){var ek=te.dataset.ek;if(SORTE.k===ek)SORTE.a=!SORTE.a;else{SORTE.k=ek;SORTE.a=!!EASC[ek]}render();return}
   var tr=e.target.closest("tr.d");
-  if(tr){var key=tr.dataset.i!=null?"i"+tr.dataset.i:"e"+tr.dataset.e;
+  if(tr&&!e.target.closest("[data-cp]")){
+    var key=tr.dataset.i!=null?"i"+tr.dataset.i:tr.dataset.ev!=null?"v"+tr.dataset.ev:"e"+tr.dataset.e;
     if(OPEN[key])delete OPEN[key];else OPEN[key]=1;render();return}
   var ip=e.target.closest("[data-cp]");
   if(ip){var t=ip.dataset.cp;
@@ -674,15 +857,21 @@ function reQ(){clearTimeout(qt);qt=setTimeout(function(){var v=qin.value.trim().
 qin.addEventListener("input",reQ);
 qin.addEventListener("search",reQ);
 qin.addEventListener("keydown",function(e){if(e.key==="Escape"){qin.value="";reQ()}});
-$("#clr").addEventListener("click",function(){F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};Q="";qin.value="";OPEN={};render()});
+$("#clr").addEventListener("click",function(){F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{},rep:{},thr:{},host:{},user:{},proc:{},os:{},fam:{},pc:{}};Q="";qin.value="";OPEN={};render()});
+function csv(name,hd,rows){
+  var L=[hd.join(";")],i;
+  for(i=0;i<rows.length;i++)L.push(rows[i].map(function(x){x=S(x)||String(x==null?"":x);return /[";\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(";"));
+  var b=new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(b),a=document.createElement("a");
+  a.href=u;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(u)},2000);
+}
 $("#csv").addEventListener("click",function(){
   if(!DB)return;
-  var rows=sortRows(sel(null)),hd=["title","priority","status","disposition","source","assignee","email","alerts","created_time","first_alert_time","latest_alert_time","last_accessed","duration","tags","rrn"],L=[hd.join(";")];
-  for(var i=0;i<rows.length;i++){var v=rows[i];
-    L.push([v.title,v.prio,v.status,v.disp,v.src,v.asg,v.email,v.alerts.length,fdt(v.created),fdt(v.fa),fdt(v.la),fdt(v.acc),v.status==="CLOSED"?dur(v.dwell):dur(v.age),v.tags.join(","),v.rrn]
-      .map(function(x){x=S(x)||String(x==null?"":x);return /[";\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(";"))}
-  var b=new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(b),a=document.createElement("a");
-  a.href=u;a.download="investigations.csv";a.click();setTimeout(function(){URL.revokeObjectURL(u)},2000);
+  if(DB.inv.length){
+    csv("investigations.csv",["title","priority","status","disposition","source","assignee","email","alerts","created_time","first_alert_time","latest_alert_time","last_accessed","duration","tags","rrn"],
+      sortRows(sel(null)).map(function(v){return [v.title,v.prio,v.status,v.disp,v.src,v.asg,v.email,v.alerts.length,fdt(v.created),fdt(v.fa),fdt(v.la),fdt(v.acc),v.status==="CLOSED"?dur(v.dwell):dur(v.age),v.tags.join(","),v.rrn]}));
+    if(!DB.evd.length)return}
+  if(DB.evd.length)csv("endpoint_events.csv",["time","asset","os","user","process","pid","parent","ppid","cmd_line","parent_cmd_line","exe_path","working_dir","reputation","threat_level","engines","family","type","platform","sha256","sha1","md5","source_ip","dest_ip","dest_port","asset_rrn","entry_id"],
+    sortRowsE(selE(null)).map(function(e){return [fdt(e.time),e.host,e.os,e.user,e.proc,e.pid,e.par,e.ppid,e.cmd,e.pcmd,e.exe,e.cwd,e.rep,e.thr,e.eng,e.fam,e.cls,e.plat,e.sha,e.sha1,e.md5,e.sip,e.dip,e.dport,e.rrn,e.id]}));
 });
 var SEQ=0,FILE=location.protocol==="file:",READ=!FILE;
 function canRead(){
