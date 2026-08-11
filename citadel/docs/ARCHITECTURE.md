@@ -143,8 +143,11 @@ produktive Installation sie gegen auditiertes **libsignal** tauschen kann.
    Sessions, CSP/CSRF, Deployment, End-to-End-Smoke-Test.
 2. **Messenger-Kern + Backend (fertig, verifiziert):** X3DH + Double Ratchet,
    Relay/Directory, Safety-Numbers, client-verschlüsseltes Backup.
-3. **Messenger-UI (nächster Schritt):** Chat-Oberfläche, Safety-Number-Verifikation,
-   Recovery-Passphrase-Flow, lokale Persistenz (IndexedDB), OPK-Nachfüllung.
+3. **Messenger-UI (fertig, verifiziert):** Chat-Oberfläche, Safety-Number-Anzeige,
+   Recovery-Passphrase-Flow (Einrichten/Entsperren), lokale Persistenz (IndexedDB).
+   Nachweis per `npm run ui-e2e` (Playwright, zwei Browser: Registrierung inkl. TOTP,
+   Schlüssel-Setup, beidseitige Ent­schlüsselung, Safety-Number-Gleichheit, Reload-Persistenz).
 4. **Mail:** Anbindung, minimal & nativ integriert.
-5. **Betrieb:** WebAuthn/Passkeys als TOTP-Alternative, Admin-Audit-UI,
-   automatisierte Security-Tests in CI, Auslagerung auf auditiertes libsignal.
+5. **Betrieb & Härtung:** OPK-Nachfüllung mit Backup-Sync, WebAuthn/Passkeys als
+   TOTP-Alternative, Admin-Audit-UI, Security-Tests in CI, Auslagerung auf auditiertes
+   libsignal, Metadaten-Minimierung (sealed sender).

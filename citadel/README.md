@@ -42,6 +42,11 @@ und nur im internen Netz.
 | `npm run smoke` | End-to-End-Test der Auth-Kette gegen einen laufenden Server |
 | `npm run crypto-test` | E2E-Krypto-Kern verifizieren (headless, 22 Checks) |
 | `npm run messenger-e2e` | Messenger-Austausch durch den laufenden Server (11 Checks) |
+| `npm run ui-e2e` | Zwei-Nutzer-Browser-Test (Playwright): Registrierung → Chat → Safety-Number |
+
+`messenger-e2e` und `ui-e2e` erwarten einen laufenden Server mit `COOKIE_SECURE=false`
+(TOTP/Chat gegen `http://127.0.0.1`). `ui-e2e` braucht Chromium — in dieser Umgebung
+vorinstalliert, sonst `npx playwright install chromium`.
 
 ## Sicherheit (Kurzfassung)
 

@@ -1,42 +1,9 @@
+import { el, mount } from './dom.js'
+import { api, setCsrf } from './api.js'
+import { openMessenger } from './messenger.js'
+
 const root = document.getElementById('root')
-const state = { csrf: null }
-
-function el(tag, attrs = {}, ...kids) {
-  const n = document.createElement(tag)
-  for (const [k, v] of Object.entries(attrs)) {
-    if (v == null) continue
-    if (k === 'class') n.className = v
-    else if (k === 'text') n.textContent = v
-    else if (k === 'value' || k === 'checked' || k === 'disabled') n[k] = v
-    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v)
-    else n.setAttribute(k, v)
-  }
-  for (const kid of kids) if (kid != null) n.append(kid)
-  return n
-}
-
-function mount(node) {
-  root.replaceChildren(node)
-}
-
-async function api(method, path, body) {
-  const headers = {}
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
-  if (state.csrf && method !== 'GET') headers['X-CSRF-Token'] = state.csrf
-  const res = await fetch(path, {
-    method,
-    headers,
-    credentials: 'same-origin',
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  let data = null
-  try {
-    data = await res.json()
-  } catch {
-    /* empty */
-  }
-  return { ok: res.ok, status: res.status, data }
-}
+const show = (node) => mount(root, node)
 
 function field(labelText, attrs) {
   const input = el('input', attrs)
@@ -56,7 +23,7 @@ function renderAuth(tab = 'login') {
     el('button', { text: 'Registrieren', class: tab === 'register' ? 'active' : '', onClick: () => renderAuth('register') }),
   )
   card.append(brand(), tabs, tab === 'login' ? loginForm() : registerForm())
-  mount(card)
+  show(card)
 }
 
 function loginForm() {
@@ -66,7 +33,7 @@ function loginForm() {
   const msg = el('div', { class: 'msg' })
   const btn = el('button', { class: 'primary', type: 'submit', text: 'Anmelden' })
 
-  const form = el(
+  return el(
     'form',
     {
       onSubmit: async (e) => {
@@ -74,13 +41,9 @@ function loginForm() {
         btn.disabled = true
         msg.className = 'msg'
         msg.textContent = ''
-        const r = await api('POST', '/api/login', {
-          username: u.input.value,
-          password: p.input.value,
-          otp: o.input.value,
-        })
+        const r = await api('POST', '/api/login', { username: u.input.value, password: p.input.value, otp: o.input.value })
         if (r.ok && r.data?.ok) {
-          state.csrf = r.data.csrf
+          setCsrf(r.data.csrf)
           return boot()
         }
         btn.disabled = false
@@ -94,7 +57,6 @@ function loginForm() {
     btn,
     msg,
   )
-  return form
 }
 
 function registerForm() {
@@ -103,7 +65,7 @@ function registerForm() {
   const msg = el('div', { class: 'msg' })
   const btn = el('button', { class: 'primary', type: 'submit', text: 'Weiter' })
 
-  const form = el(
+  return el(
     'form',
     {
       onSubmit: async (e) => {
@@ -113,7 +75,7 @@ function registerForm() {
         msg.textContent = ''
         const r = await api('POST', '/api/register', { username: u.input.value, password: p.input.value })
         if (r.ok) {
-          state.csrf = r.data.csrf
+          setCsrf(r.data.csrf)
           return renderEnroll(r.data)
         }
         btn.disabled = false
@@ -130,7 +92,6 @@ function registerForm() {
     btn,
     msg,
   )
-  return form
 }
 
 function renderEnroll(data) {
@@ -151,7 +112,7 @@ function renderEnroll(data) {
         msg.textContent = ''
         const r = await api('POST', '/api/register/confirm', { token: o.input.value })
         if (r.ok && r.data?.ok) {
-          state.csrf = r.data.csrf
+          setCsrf(r.data.csrf)
           return renderBackup(r.data.backupCodes)
         }
         btn.disabled = false
@@ -166,25 +127,24 @@ function renderEnroll(data) {
     msg,
   )
   card.append(brand(), el('div', { class: 'hint', text: 'Scanne den Code in einer Authenticator-App.' }), form)
-  mount(card)
+  show(card)
 }
 
 function renderBackup(codes) {
   const card = el('div', { class: 'card' })
   const list = el('ul', { class: 'codes' })
-  for (const c of codes) list.append(el('li', { text: c }))
-  const btn = el('button', { class: 'primary', text: 'Weiter', onClick: () => boot() })
+  for (const code of codes) list.append(el('li', { text: code }))
   card.append(
     brand(),
     el('div', { class: 'hint', text: 'Backup-Codes — jetzt sichern, werden nur einmal gezeigt.' }),
     list,
-    btn,
+    el('button', { class: 'primary', text: 'Weiter', onClick: () => boot() }),
   )
-  mount(card)
+  show(card)
 }
 
 const MODULES = [
-  { name: 'Messenger', state: 'E2E · in Vorbereitung', locked: true },
+  { key: 'messenger', name: 'Messenger', state: 'E2E · X3DH + Double Ratchet', locked: false },
   { name: 'Mail', state: 'in Vorbereitung', locked: true },
   { name: 'Dateien', state: 'in Vorbereitung', locked: true },
   { name: 'Kalender', state: 'in Vorbereitung', locked: true },
@@ -196,7 +156,7 @@ function renderShell(user) {
     text: 'Abmelden',
     onClick: async () => {
       await api('POST', '/api/logout')
-      state.csrf = null
+      setCsrf(null)
       renderAuth('login')
     },
   })
@@ -204,27 +164,29 @@ function renderShell(user) {
     'div',
     { class: 'topbar' },
     brand(),
-    el('div', { style: 'display:flex;align-items:center;gap:12px' }, el('span', { class: 'user', text: user }), logout),
+    el('div', { class: 'topbar-right' }, el('span', { class: 'user', text: user }), logout),
   )
   const grid = el('div', { class: 'grid' })
   for (const m of MODULES) {
-    grid.append(
-      el(
-        'div',
-        { class: m.locked ? 'tile locked' : 'tile' },
-        el('span', { class: 'badge', text: m.locked ? 'gesperrt' : 'aktiv' }),
-        el('div', {}, el('div', { class: 'name', text: m.name }), el('div', { class: 'state', text: m.state })),
-      ),
+    const tile = el(
+      'div',
+      { class: m.locked ? 'tile locked' : 'tile', role: m.locked ? null : 'button', tabindex: m.locked ? null : '0' },
+      el('span', { class: 'badge', text: m.locked ? 'gesperrt' : 'aktiv' }),
+      el('div', {}, el('div', { class: 'name', text: m.name }), el('div', { class: 'state', text: m.state })),
     )
+    if (m.key === 'messenger') {
+      tile.addEventListener('click', () => openMessenger(root, user, () => renderShell(user)))
+    }
+    grid.append(tile)
   }
   wrap.append(top, grid)
-  mount(wrap)
+  show(wrap)
 }
 
 async function boot() {
   const r = await api('GET', '/api/me')
   if (r.ok && r.data?.authenticated) {
-    state.csrf = r.data.csrf
+    setCsrf(r.data.csrf)
     renderShell(r.data.username || 'user')
   } else {
     renderAuth('login')
