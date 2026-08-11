@@ -28,6 +28,7 @@ button{font:inherit;background:#0e0e0e;color:var(--fg);border:1px solid var(--li
 button:hover{background:#171717;border-color:#3a3a3a}
 button:active{background:#050505}
 button.hot{border-color:#4a4a4a;color:#fff}
+button.arm{border-color:#5f5f5f;color:#fff;background:#1a1a1a}
 button.err{border-color:var(--bad);color:var(--bad)}
 input.f{font:inherit;background:#0a0a0a;color:var(--fg);border:1px solid var(--line2);padding:5px 9px;width:180px;outline:none}
 input.f:focus{border-color:#3a3a3a}
@@ -110,7 +111,7 @@ pre{background:#0a0a0a;border:1px solid var(--line);padding:10px;overflow:auto;m
 .ioc span.pub{color:#d0d0d0}
 .ioc span.cp{border-color:var(--ok);color:var(--ok)}
 
-.empty{display:flex;align-items:center;justify-content:center;height:66vh;color:#1e1e1e;font-size:11px;letter-spacing:.3em}
+.empty{display:flex;align-items:center;justify-content:center;height:66vh;color:#2b2b2b;font-size:12px;letter-spacing:.34em}
 .hide{display:none}
 </style>
 </head>
@@ -124,7 +125,7 @@ pre{background:#0a0a0a;border:1px solid var(--line);padding:10px;overflow:auto;m
   <button id="go" class="hot">JSON EINF&Uuml;GEN</button>
 </header>
 <textarea id="sink" tabindex="-1" aria-hidden="true"></textarea>
-<main><div class="wrap" id="out"><div class="empty">&#9679;</div></div></main>
+<main><div class="wrap" id="out"><div class="empty">STRG + V</div></div></main>
 <script>
 (function(){
 "use strict";
@@ -283,11 +284,12 @@ function ingest(txt){
   DB={inv:invs,alr:alrs,ev:bag.ev,com:bag.com,att:bag.att,raw:bag.raw,pg:c.pg,ioc:iocs(txt),byRrn:byRrn,n:txt.length};
   F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};OPEN={};Q="";qin.value="";
   SORT={k:invs.length?"created":"created",a:false};
-  go.textContent="JSON EINFÜGEN";go.className="hot";
+  idle();
   ["#q","#csv","#clr"].forEach(function(s){$(s).classList.remove("hide")});
   render();window.scrollTo(0,0);
 }
-function fail(){go.textContent="× PARSE";go.className="err";setTimeout(function(){go.textContent="JSON EINFÜGEN";go.className="hot"},1800)}
+function idle(){if(READ){go.textContent="JSON EINFÜGEN";go.className="hot"}else{go.textContent="STRG + V";go.className="arm"}}
+function fail(){go.textContent="× PARSE";go.className="err";setTimeout(idle,1800)}
 
 function match(v,skip){
   if(Q&&v.blob.indexOf(Q)<0)return false;
@@ -513,7 +515,7 @@ function render(){
     H+="</tbody></table></div></section>";
   }
 
-  out.innerHTML=H||'<div class="empty">&#9679;</div>';
+  out.innerHTML=H||'<div class="empty">STRG + V</div>';
 }
 function kpi(v,l,s){return '<div class="kpi"><b>'+esc(v)+'</b><span>'+esc(l)+'</span><small>'+esc(s||"")+"</small></div>"}
 function pct(n,t){return t?Math.round(n/t*100)+"%":""}
@@ -552,23 +554,37 @@ $("#csv").addEventListener("click",function(){
   var b=new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(b),a=document.createElement("a");
   a.href=u;a.download="investigations.csv";a.click();setTimeout(function(){URL.revokeObjectURL(u)},2000);
 });
-var SEQ=0;
+var SEQ=0,FILE=location.protocol==="file:",READ=!FILE;
+function canRead(){
+  if(!(navigator.clipboard&&navigator.clipboard.readText))return Promise.resolve(false);
+  if(!navigator.permissions||!navigator.permissions.query)return Promise.resolve(!FILE);
+  return navigator.permissions.query({name:"clipboard-read"}).then(
+    function(s){return s.state==="granted"||(s.state==="prompt"&&!FILE)},
+    function(){return !FILE});
+}
 go.addEventListener("click",function(){
-  var my=++SEQ,done=false,to=setTimeout(function(){if(!done&&my===SEQ)arm()},1500);
-  if(navigator.clipboard&&navigator.clipboard.readText){
+  var my=++SEQ;
+  canRead().then(function(ok){
+    READ=ok;
+    if(my!==SEQ)return;
+    if(!ok)return arm();
+    var done=false,to=setTimeout(function(){if(!done&&my===SEQ)arm()},1200);
     navigator.clipboard.readText().then(function(t){
       done=true;clearTimeout(to);if(my!==SEQ)return;
       if(t&&t.trim())ingest(t);else arm();
     },function(){done=true;clearTimeout(to);if(my===SEQ)arm()});
-  }else{clearTimeout(to);arm()}
+  });
 });
-function arm(){go.textContent="STRG + V";go.className="";sink.value="";sink.focus()}
+function arm(){go.textContent="STRG + V";go.className="arm";sink.value="";sink.focus()}
 document.addEventListener("paste",function(e){
   var t=(e.clipboardData||window.clipboardData);if(!t)return;
   var v=t.getData("text");if(!v||!v.trim())return;
   if(document.activeElement===qin)return;
   e.preventDefault();SEQ++;sink.value="";ingest(v);
 });
+canRead().then(function(ok){READ=ok;if(!DB)idle()});
+out.innerHTML='<div class="empty">STRG + V</div>';
+sink.focus();
 })();
 </script>
 </body>
