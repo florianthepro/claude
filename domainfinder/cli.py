@@ -21,7 +21,7 @@ from .config import (DEFAULT_ENV_FILE, DEFAULT_RATES, DEFAULT_WORKERS, ConfigErr
                      cloudflare_creds, load_env_file, redact)
 from .db import Store
 from .filters import check
-from .gen import jargon, morpheme, phonotactic
+from .gen import itroot, jargon, morpheme, phonotactic
 from .output import write_rejections, write_results
 from .scoring import classify, explain, score
 from .select import cap
@@ -36,16 +36,30 @@ def log(msg: str) -> None:
 
 # --- Kandidaten --------------------------------------------------------------
 def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
-                     limit_c: int | None = None) -> dict[str, int]:
+                     limit_c: int | None = None, limit_d: int = 0,
+                     only_length: int | None = None) -> dict[str, int]:
     """Erzeugt die drei Quellen getrennt und legt die besten in der Datenbank ab.
 
     Die Quellen bleiben getrennt, und jede laeuft durch die Vielfaltsgrenze --
     sonst besteht die Spitze aus Varianten desselben Morphems.
     """
     added: dict[str, int] = {}
+    keep = (lambda lab: only_length is None or len(lab) == only_length)
+
+    if limit_d:
+        log("Quelle D: IT-Wurzel in genau fuenf Zeichen")
+        d_raw = sorted(((score(lab, "D"), lab, org) for lab, org in itroot.generate()
+                        if keep(lab)), reverse=True)
+        d_top = list(cap(d_raw, per_morpheme=10 ** 6, per_prefix=6, per_rhyme=6,
+                         limit=limit_d))
+        added["D"] = store.add_candidates(
+            [(f"{lab}.{tld}", lab, tld, "D", "it", sc) for sc, lab, _ in d_top])
+        log(f"  D: {len(d_raw)} bestehen die harten Kriterien, nach Vielfaltsgrenze"
+            f" {len(d_top)}, {added['D']} neu")
 
     log("Quelle C: Fachbegriffe aus Standards")
-    c_all = sorted(((score(lab, 'C'), lab, org) for lab, org in jargon.generate()), reverse=True)
+    c_all = sorted(((score(lab, 'C'), lab, org) for lab, org in jargon.generate()
+                    if keep(lab)), reverse=True)
     if limit_c:
         c_all = c_all[:limit_c]
     # Quelle C wird nicht gedeckelt: die Begriffe sind vorgegeben, nicht erzeugt.
@@ -54,14 +68,16 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     log(f"  C: {len(c_all)} bestehen die harten Kriterien, {added['C']} neu")
 
     log("Quelle B: semantische Komposita")
-    b_raw = sorted(((score(lab, 'B'), lab, org) for lab, org in morpheme.generate()), reverse=True)
+    b_raw = sorted(((score(lab, 'B'), lab, org) for lab, org in morpheme.generate()
+                    if keep(lab)), reverse=True)
     b_top = list(cap(b_raw, per_morpheme=3, per_prefix=4, per_rhyme=4, limit=limit_b))
     added["B"] = store.add_candidates(
         [(f"{lab}.{tld}", lab, tld, "B", classify(lab, "B"), sc) for sc, lab, _ in b_top])
     log(f"  B: {len(b_raw)} erzeugt, nach Vielfaltsgrenze {len(b_top)}, {added['B']} neu")
 
     log("Quelle A: phonotaktische Vollaufzaehlung (dauert einen Moment)")
-    a_raw = sorted(((score(lab, 'A'), lab, None) for lab in phonotactic.generate()), reverse=True)
+    a_raw = sorted(((score(lab, 'A'), lab, None) for lab in phonotactic.generate()
+                    if keep(lab)), reverse=True)
     a_top = list(cap(a_raw, limit=limit_a))
     added["A"] = store.add_candidates(
         [(f"{lab}.{tld}", lab, tld, "A", classify(lab, "A"), sc) for sc, lab, _ in a_top])
@@ -77,7 +93,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
         for tld in args.tld:
             log(f"== Kandidaten fuer .{tld} ==")
             build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
-                             limit_c=args.limit_c)
+                             limit_c=args.limit_c, limit_d=args.limit_d,
+                             only_length=args.only_length)
     finally:
         store.close()
     return 0
@@ -97,7 +114,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             log(f"===== .{tld} =====")
             if not store.pending("dns", tld, limit=1) and not store.results(tld, "dns", "free"):
                 build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
-                                 limit_c=args.limit_c)
+                                 limit_c=args.limit_c, limit_d=args.limit_d,
+                                 only_length=args.only_length)
             stage_zone(store, tld, args.zonefile)
             stage_dns(store, tld, workers=args.dns_workers, rate=args.dns_rate,
                       limit=args.limit_stage1)
@@ -216,6 +234,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--limit-a", type=int, default=9000)
         sp.add_argument("--limit-b", type=int, default=2500)
         sp.add_argument("--limit-c", type=int, default=None)
+        sp.add_argument("--limit-d", type=int, default=0,
+                        help="Quelle D: IT-Wurzel in genau fuenf Zeichen")
+        sp.add_argument("--only-length", type=int, default=None,
+                        help="nur Labels mit genau dieser Zeichenzahl")
 
     g = sub.add_parser("generate", help="nur Kandidaten erzeugen")
     add_gen_opts(g)

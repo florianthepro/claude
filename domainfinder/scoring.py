@@ -198,7 +198,7 @@ WEIGHTS = {
 # selbstreferenziellen Fachwitz ausdruecklich, also steht der Bonus hier offen
 # im Modell statt als stille Nachsortierung. Auf die Kalibrierung wirkt er
 # nicht: google, bitfabric und ahefid haben keine Quelle.
-SOURCE_BONUS = {"A": 0.0, "B": 0.0, "C": 12.0}
+SOURCE_BONUS = {"A": 0.0, "B": 0.0, "C": 12.0, "D": 10.0}
 
 
 def breakdown(label: str, source: str | None = None) -> dict[str, float]:
@@ -237,6 +237,8 @@ def classify(label: str, source: str) -> str:
     """Kategorie fuer die CSV-Spalte."""
     if source == "C":
         return "fachwitz"
+    if source == "D":
+        return "it"
     low = label.lower()
     if any(m in low for m in MORPHEMES_IT if len(m) >= 4):
         return "it"

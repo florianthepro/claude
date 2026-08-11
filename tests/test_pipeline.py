@@ -214,3 +214,13 @@ def test_refresh_wirft_teure_pruefergebnisse_nicht_weg(store):
     store.add_candidates([("lab0.com", "lab0", "com", "A", "zufall", 90.0)])
     assert store.pending("dns", "com") == [] or \
         "lab0.com" not in [r["domain"] for r in store.pending("dns", "com")]
+
+
+def test_quelle_d_haelt_die_wurzel_am_stueck_und_am_rand():
+    """Eine zerstueckelte Wurzel ist kein IT-Bezug mehr."""
+    from domainfinder.gen import itroot
+    for label, herkunft in itroot.generate():
+        assert len(label) == 5, f"{label} ist kein Fuenfzeichner"
+        assert passes(label), f"{label} besteht die harten Kriterien nicht"
+        assert itroot.roots_in(label), f"{label} traegt keine Wurzel am Rand"
+        assert "steht vorn" in herkunft or "steht hinten" in herkunft
