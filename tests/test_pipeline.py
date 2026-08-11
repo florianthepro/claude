@@ -227,13 +227,15 @@ def test_quelle_d_haelt_die_wurzel_am_stueck_und_am_rand():
         assert "steht vorn" in herkunft or "steht hinten" in herkunft
 
 
-def test_refresh_kennt_beide_rangordnungen():
-    """refresh darf die Startup-Skala nicht mit Infrastruktur-Scores ueberschreiben."""
+def test_refresh_kennt_alle_rangordnungen():
+    """refresh darf eine Skala nicht mit den Werten einer anderen ueberschreiben."""
     from domainfinder.cli import RANKERS
     from domainfinder.startup import rank as startup_rank
-    assert set(RANKERS) == {"infra", "startup"}
+    from domainfinder.vertraut import rank as vertraut_rank
+    assert set(RANKERS) == {"infra", "startup", "vertraut"}
     assert RANKERS["startup"]("gusto") == startup_rank("gusto")
-    assert RANKERS["infra"]("gusto") != RANKERS["startup"]("gusto")
+    assert RANKERS["vertraut"]("gusto") == vertraut_rank("gusto")
+    assert len({RANKERS[k]("gusto") for k in RANKERS}) == 3
 
 
 def test_vielfaltsgrenze_greift_auch_bei_fuenfzeichnern():

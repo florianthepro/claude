@@ -81,3 +81,18 @@ def test_module_lassen_sich_einzeln_importieren():
         r = subprocess.run([sys.executable, "-c", f"import {modul}"],
                            capture_output=True, text=True)
         assert r.returncode == 0, f"{modul} einzeln importiert: {r.stderr}"
+
+
+def test_vertraut_trennt_deutsche_auslaute_von_fremden():
+    """fodma und gukra enden auf -a. So endet kein deutsches Wort -- genau das
+    ist der Grund, warum sie fremd klingen."""
+    from domainfinder.vertraut import rank as vertraut
+    for gut in ("hafen", "nadel", "riegel", "kessel"):
+        for fremd in ("fodma", "gukra", "bralo", "kegmo"):
+            assert vertraut(gut) > vertraut(fremd), f"{gut} vs {fremd}"
+
+
+def test_drei_rangordnungen_bleiben_getrennt():
+    from domainfinder.cli import RANKERS
+    assert set(RANKERS) == {"infra", "startup", "vertraut"}
+    assert len({RANKERS[k]("fodma") for k in RANKERS}) == 3

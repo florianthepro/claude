@@ -26,7 +26,12 @@ PER_SKELETON = 3   # gleiches Konsonantengeruest
 # dieser Groesse trennt `gukra` und `gukre` und deckelt damit nichts. Das Fenster
 # muss zur Wortlaenge passen.
 def _window(label: str) -> int:
-    return 4 if len(label) >= 7 else max(2, len(label) - 3)
+    # Bei fuenf Zeichen war das Fenster frueher 2 -- damit fielen saemtliche
+    # Woerter auf -er in eine einzige Familie und die Grenze schnitt 69614
+    # Kandidaten auf 430. Drei Zeichen trennt -der, -ter, -ker voneinander.
+    if len(label) >= 7:
+        return 4
+    return 3 if len(label) >= 5 else 2
 
 
 def skeleton(label: str) -> str:

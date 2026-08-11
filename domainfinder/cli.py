@@ -26,15 +26,20 @@ from .output import write_rejections, write_results
 from .scoring import classify, explain, score
 from .select import cap
 from .startup import rank as startup_rank
+from .vertraut import rank as vertraut_rank
 from .stages import recheck, stage_dns, stage_rdap, stage_registrar, stage_zone
 
 ALT_TLDS = ("fail", "computer", "email", "exposed", "haus", "codes", "host")
 
 # Zwei Zwecke, zwei Rangordnungen. `infra` ist auf Proxmox/Traefik kalibriert,
 # `startup` auf Figma/Gusto. Welche die score-Spalte fuellt, entscheidet --rank.
+# Drei Zwecke, drei Rangordnungen. `infra` ist auf Proxmox/Traefik kalibriert,
+# `startup` auf Figma/Gusto, `vertraut` auf hafen/nadel/riegel -- also darauf,
+# ob ein Label klingt wie ein Wort, das es geben koennte.
 RANKERS = {
     "infra": score,
     "startup": lambda label, source=None: startup_rank(label),
+    "vertraut": lambda label, source=None: vertraut_rank(label),
 }
 
 
@@ -46,8 +51,9 @@ def log(msg: str) -> None:
 def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
                      limit_c: int | None = None, limit_d: int = 0,
                      limit_e: int = 0, limit_f: int = 0, limit_g: int = 0,
-                     only_length: int | None = None,
-                     rank: str = "infra") -> dict[str, int]:
+                     only_length: int | None = None, rank: str = "infra",
+                     cap_prefix: int = 5, cap_rhyme: int = 5,
+                     cap_skeleton: int = 3) -> dict[str, int]:
     """Erzeugt die drei Quellen getrennt und legt die besten in der Datenbank ab.
 
     Die Quellen bleiben getrennt, und jede laeuft durch die Vielfaltsgrenze --
@@ -93,7 +99,8 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
         log("Quelle D: IT-Wurzel in genau fuenf Zeichen")
         d_raw = sorted(((bewerte(lab, "D"), lab, org) for lab, org in itroot.generate()
                         if keep(lab)), reverse=True)
-        d_top = list(cap(d_raw, per_morpheme=10 ** 6, per_prefix=6, per_rhyme=6,
+        d_top = list(cap(d_raw, per_morpheme=10 ** 6, per_prefix=cap_prefix,
+                         per_rhyme=cap_rhyme, per_skeleton=cap_skeleton,
                          limit=limit_d))
         added["D"] = store.add_candidates(
             [(f"{lab}.{tld}", lab, tld, "D", "it", sc) for sc, lab, _ in d_top])
@@ -121,7 +128,8 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     log("Quelle A: phonotaktische Vollaufzaehlung (dauert einen Moment)")
     a_raw = sorted(((bewerte(lab, "A"), lab, None) for lab in phonotactic.generate()
                     if keep(lab)), reverse=True)
-    a_top = list(cap(a_raw, limit=limit_a))
+    a_top = list(cap(a_raw, per_prefix=cap_prefix, per_rhyme=cap_rhyme,
+                     per_skeleton=cap_skeleton, limit=limit_a))
     added["A"] = store.add_candidates(
         [(f"{lab}.{tld}", lab, tld, "A", classify(lab, "A"), sc) for sc, lab, _ in a_top])
     log(f"  A: {len(a_raw)} bestehen die harten Kriterien, nach Vielfaltsgrenze"
@@ -138,7 +146,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
             build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                              limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
                              limit_f=args.limit_f, limit_g=args.limit_g,
-                             only_length=args.only_length, rank=args.rank)
+                             only_length=args.only_length, rank=args.rank,
+                             cap_prefix=args.cap_prefix, cap_rhyme=args.cap_rhyme,
+                             cap_skeleton=args.cap_skeleton)
     finally:
         store.close()
     return 0
@@ -160,7 +170,9 @@ def cmd_run(args: argparse.Namespace) -> int:
                 build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                                  limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
                              limit_f=args.limit_f, limit_g=args.limit_g,
-                                 only_length=args.only_length, rank=args.rank)
+                                 only_length=args.only_length, rank=args.rank,
+                             cap_prefix=args.cap_prefix, cap_rhyme=args.cap_rhyme,
+                             cap_skeleton=args.cap_skeleton)
             stage_zone(store, tld, args.zonefile)
             stage_dns(store, tld, workers=args.dns_workers, rate=args.dns_rate,
                       limit=args.limit_stage1)
@@ -293,7 +305,11 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--only-length", type=int, default=None,
                         help="nur Labels mit genau dieser Zeichenzahl")
         sp.add_argument("--rank", choices=sorted(RANKERS), default="infra",
-                        help="infra = Proxmox/Traefik, startup = Figma/Gusto")
+                        help="infra = Proxmox/Traefik, startup = Figma/Gusto,"
+                             " vertraut = hafen/nadel/riegel")
+        sp.add_argument("--cap-prefix", type=int, default=5)
+        sp.add_argument("--cap-rhyme", type=int, default=5)
+        sp.add_argument("--cap-skeleton", type=int, default=3)
 
     g = sub.add_parser("generate", help="nur Kandidaten erzeugen")
     add_gen_opts(g)
