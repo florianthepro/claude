@@ -59,6 +59,9 @@ DOUBLE_LETTER = re.compile(r"(.)\1")
 LEGAL_ONSET_CLUSTERS = frozenset({
     "bl", "br", "dr", "fl", "fr", "gl", "gr", "kl", "kr", "pl", "pr", "tr",
     "sp", "st", "sk", "sl", "sn", "sm", "str", "spr", "skr", "spl",
+    # Echte deutsche Anlaute, die vorher fehlten. Massstab ist laut Aufgabe der
+    # deutschsprachige Hoerer -- fuer den sind Knoten, Pfad und Gnade eindeutig.
+    "kn", "pf", "gn",
 })
 # Cluster, die im Auslaut noch diktierbar sind.
 LEGAL_CODA_CLUSTERS = frozenset({
@@ -273,8 +276,9 @@ def check(label: str, *, compound: bool = False) -> Rejection | None:
     if len(label) > 1 and label[1] == "h" and label[0] not in VOWELS:
         return Rejection("anlaut", f"Anlaut {label[:2]!r} ist keine deutsche Schreibung")
 
+    max_cluster = 4 if compound else 3   # an der Wortfuge treffen zwei Raender
     for pos, cl in _clusters(label):
-        if len(cl) > 3:
+        if len(cl) > max_cluster:
             return Rejection("cluster", f"{cl!r} ist zu lang zum Mitschreiben")
         if pos == 0:
             if cl not in LEGAL_ONSET_CLUSTERS:
@@ -291,6 +295,12 @@ def check(label: str, *, compound: bool = False) -> Rejection | None:
                     continue
                 return Rejection("cluster", f"h im Binnencluster {cl!r} zwingt zum Raten,"
                                             " wo die Silbenfuge liegt")
+            if compound:
+                # An einer bekannten Wortfuge treffen Coda und Onset zweier
+                # echter Woerter aufeinander. `daten|pfad` ergibt `npf`, das es
+                # innerhalb eines Morphems nie gibt -- der Leser stolpert
+                # trotzdem nicht, weil er die Fuge sieht.
+                continue
             if len(cl) == 2:
                 if cl not in LEGAL_MEDIAL_CLUSTERS:
                     return Rejection("cluster", f"Binnencluster {cl!r} kommt in keiner der"
@@ -307,8 +317,9 @@ def check(label: str, *, compound: bool = False) -> Rejection | None:
                 if not ok:
                     return Rejection("cluster", f"Binnencluster {cl!r} ist nicht diktiersicher")
 
-    if _syllables(label) > 3:
-        return Rejection("silben", f"{_syllables(label)} Silben, hoechstens 3 erlaubt")
+    grenze = 4 if compound else 3       # Komposita duerfen eine Silbe mehr
+    if _syllables(label) > grenze:
+        return Rejection("silben", f"{_syllables(label)} Silben, hoechstens {grenze} erlaubt")
 
     for sprache, liste in (("de", BLACKLIST_HARD_DE), ("en", BLACKLIST_HARD_EN)):
         for word in liste:

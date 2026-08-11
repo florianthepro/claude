@@ -21,7 +21,7 @@ from .config import (DEFAULT_ENV_FILE, DEFAULT_RATES, DEFAULT_WORKERS, ConfigErr
                      cloudflare_creds, load_env_file, redact)
 from .db import Store
 from .filters import check
-from .gen import brand5, itroot, jargon, morpheme, phonotactic
+from .gen import brand5, compound, itroot, jargon, morpheme, phonotactic
 from .output import write_rejections, write_results
 from .scoring import classify, explain, score
 from .select import cap
@@ -45,7 +45,7 @@ def log(msg: str) -> None:
 # --- Kandidaten --------------------------------------------------------------
 def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
                      limit_c: int | None = None, limit_d: int = 0,
-                     limit_e: int = 0,
+                     limit_e: int = 0, limit_f: int = 0, limit_g: int = 0,
                      only_length: int | None = None,
                      rank: str = "infra") -> dict[str, int]:
     """Erzeugt die drei Quellen getrennt und legt die besten in der Datenbank ab.
@@ -57,6 +57,24 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     keep = (lambda lab: only_length is None or len(lab) == only_length)
     bewerte = RANKERS[rank]
     log(f"Rangordnung: {rank}")
+
+    for limit, quelle, erzeuger, kat, was in (
+            (limit_f, "F", compound.generate, "marke", "Komposita aus echten Woertern"),
+            (limit_g, "G", compound.generate_it, "it", "IT-Komposita aus echten Woertern")):
+        if not limit:
+            continue
+        log(f"Quelle {quelle}: {was}")
+        raw = sorted(((bewerte(lab, quelle), lab, org) for lab, org in erzeuger()
+                      if keep(lab)), reverse=True)
+        # Bei Komposita wiederholt sich das erste Wort naturgemaess -- eine
+        # enge Grenze wuerde `berg*` nach sechs Treffern abschneiden. Der Raum
+        # ist klein genug, um ihn ganz zu pruefen.
+        top = list(cap(raw, per_morpheme=10 ** 6, per_prefix=40, per_rhyme=40,
+                       per_skeleton=10 ** 6, limit=limit))
+        added[quelle] = store.add_candidates(
+            [(f"{lab}.{tld}", lab, tld, quelle, kat, sc) for sc, lab, _ in top])
+        log(f"  {quelle}: {len(raw)} bestehen die harten Kriterien, nach"
+            f" Vielfaltsgrenze {len(top)}, {added[quelle]} neu")
 
     if limit_e:
         log("Quelle E: Markenform CVCCV/CCVCV, vollstaendig aufgezaehlt")
@@ -119,6 +137,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
             log(f"== Kandidaten fuer .{tld} ==")
             build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                              limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
+                             limit_f=args.limit_f, limit_g=args.limit_g,
                              only_length=args.only_length, rank=args.rank)
     finally:
         store.close()
@@ -140,6 +159,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             if not store.pending("dns", tld, limit=1) and not store.results(tld, "dns", "free"):
                 build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                                  limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
+                             limit_f=args.limit_f, limit_g=args.limit_g,
                                  only_length=args.only_length, rank=args.rank)
             stage_zone(store, tld, args.zonefile)
             stage_dns(store, tld, workers=args.dns_workers, rate=args.dns_rate,
@@ -193,7 +213,7 @@ def cmd_refresh(args: argparse.Namespace) -> int:
             raus, neu = [], 0
             for row in store.all_candidates(tld):
                 # Quelle C traegt echte Standardbegriffe mit bekannter Morphemfuge.
-                verdict = check(row["label"], compound=row["source"] == "C")
+                verdict = check(row["label"], compound=row["source"] in ("C", "F", "G"))
                 if verdict is not None:
                     raus.append((row["domain"], str(verdict)))
                     continue
@@ -262,6 +282,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--limit-a", type=int, default=9000)
         sp.add_argument("--limit-b", type=int, default=2500)
         sp.add_argument("--limit-c", type=int, default=None)
+        sp.add_argument("--limit-f", type=int, default=0,
+                        help="Quelle F: Komposita aus echten Woertern")
+        sp.add_argument("--limit-g", type=int, default=0,
+                        help="Quelle G: IT-Komposita aus echten Woertern")
         sp.add_argument("--limit-e", type=int, default=0,
                         help="Quelle E: Markenform, vollstaendig aufgezaehlt")
         sp.add_argument("--limit-d", type=int, default=0,

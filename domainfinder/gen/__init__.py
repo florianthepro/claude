@@ -1,2 +1,3 @@
-"""Kandidatenquellen A bis E. Bewusst getrennt gehalten."""
-from . import brand5, itroot, jargon, lexicon, morpheme, phonotactic  # noqa: F401
+"""Kandidatenquellen A bis G. Bewusst getrennt gehalten."""
+from . import (brand5, compound, itroot, jargon, lexicon, morpheme,  # noqa: F401
+               phonotactic)

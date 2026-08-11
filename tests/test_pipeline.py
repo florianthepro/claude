@@ -246,3 +246,27 @@ def test_vielfaltsgrenze_greift_auch_bei_fuenfzeichnern():
     out = [lab for _, lab, _ in cap(items)]
     assert len([x for x in out if skeleton(x) == "gkr"]) <= 3
     assert "minta" in out
+
+
+def test_komposita_bleiben_einsprachig():
+    """forge+stern liest ein Deutscher als 'for gestern'. Ein Kompositum aus
+    zwei Sprachen klingt genau so fremd wie eine erfundene Silbe."""
+    from domainfinder.gen import compound
+    for erzeuger in (compound.generate, compound.generate_it):
+        for label, herkunft in erzeuger():
+            assert herkunft.endswith("(deutsch)") or herkunft.endswith("(englisch)")
+    alle = {lab for lab, _ in compound.generate()}
+    assert "forgestern" not in alle and "domestern" not in alle
+    assert "platestern" not in alle
+
+
+def test_komposita_pruefen_mit_bekannter_wortfuge():
+    """An der Wortfuge treffen Coda und Onset zweier Woerter aufeinander.
+    `daten|strom` ergibt `nstr` -- vier Konsonanten, die es innerhalb eines
+    Morphems nie gibt, die aber niemand falsch liest."""
+    from domainfinder.filters import check
+    assert check("datenstrom") is not None                # als erfundenes Wort
+    assert check("datenstrom", compound=True) is None     # als Kompositum
+    assert check("bitstrom", compound=True) is None
+    # `pf` ist ein echter deutscher Anlaut, datenpfad braucht die Fuge nicht.
+    assert check("datenpfad") is None
