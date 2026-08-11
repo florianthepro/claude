@@ -48,36 +48,31 @@ h2{font-size:10px;font-weight:400;letter-spacing:.2em;color:var(--dim);padding:0
 .chip s{color:var(--dim);text-decoration:none}
 .chip em{font-style:normal;color:var(--mut)}
 
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));border:1px solid var(--line);border-width:1px 0 0 1px}
-.kpi{background:var(--pnl);padding:11px 13px;border:1px solid var(--line);border-width:0 1px 1px 0}
-.kpi b{display:block;font-size:22px;font-weight:400;line-height:1.15;letter-spacing:-.02em}
-.kpi span{display:block;font-size:10px;letter-spacing:.14em;color:var(--dim);margin-top:3px}
-.kpi small{display:block;font-size:10px;color:var(--dim);margin-top:1px}
+.sum{background:var(--pnl);border:1px solid var(--line);padding:15px 17px 16px;line-height:1.68;font-size:12.5px}
+.sum p,.sum li{max-width:126ch}
+.sum p{margin-bottom:9px}
+.sum p:last-child{margin-bottom:0}
+.sum .hd{color:#fff;letter-spacing:.02em;padding-bottom:9px;margin-bottom:11px;border-bottom:1px solid var(--line)}
+.sum .mt{color:var(--mut)}
+.sum .hl{color:var(--dim);font-size:10px;letter-spacing:.2em;margin:14px 0 5px}
+.sum b{font-weight:400;color:#fff}
+.sum code{background:#131313;border:1px solid var(--line);padding:2px 7px;color:#dcdcdc;display:inline-block;max-width:100%;overflow-wrap:anywhere}
+.sum ul{list-style:none}
+.sum li{position:relative;padding-left:15px;margin-bottom:4px;color:var(--mut)}
+.sum li:before{content:"–";position:absolute;left:0;color:var(--dim)}
+.sum li.w{color:var(--fg)}
+.sum li.w:before{content:"!";color:var(--crit)}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));border:1px solid var(--line);border-width:1px 0 0 1px}
-.pnl{background:var(--pnl);padding:11px 13px 13px;border:1px solid var(--line);border-width:0 1px 1px 0}
-.pnl h3{font-size:10px;font-weight:400;letter-spacing:.18em;color:var(--dim);margin-bottom:9px;display:flex;justify-content:space-between}
-.pnl h3 i{font-style:normal;color:#2e2e2e}
-.r{display:grid;grid-template-columns:1fr 48px 32px 34px;align-items:center;gap:8px;padding:2.5px 0;cursor:pointer}
-.r:hover .k{color:#fff}
-.r.on .k{color:#fff}
-.r.on .bar b{background:#8a8a8a}
-.k{color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
-.bar{background:#131313;height:5px;position:relative}
-.bar b{position:absolute;left:0;top:0;bottom:0;background:#3a3a3a;min-width:1px}
-.n{text-align:right;color:var(--fg)}
-.p{text-align:right;color:var(--dim);font-size:11px}
-.dot{width:6px;height:6px;flex:0 0 6px;background:var(--none);display:inline-block}
-.dot.CRITICAL{background:var(--crit)}.dot.HIGH{background:var(--high)}.dot.MEDIUM{background:var(--med)}.dot.LOW{background:var(--low)}
-.dot.OPEN{background:var(--crit)}.dot.INVESTIGATING{background:var(--high)}.dot.WAITING{background:var(--med)}.dot.CLOSED{background:#3a3a3a}
-.dot.MALICIOUS{background:var(--crit)}.dot.BENIGN{background:var(--low)}.dot.UNDECIDED{background:var(--med)}
-
-.tl{background:var(--pnl);border:1px solid var(--line);padding:13px}
-.tlb{display:flex;align-items:flex-end;justify-content:space-between;gap:1px;height:104px}
-.tlb i{flex:1 1 0;min-width:1px;max-width:34px;background:#2f2f2f;position:relative}
-.tlb i:hover{background:#6f6f6f}
-.tlb i u{position:absolute;left:0;right:0;bottom:0;background:var(--crit)}
-.tlx{display:flex;justify-content:space-between;color:var(--dim);font-size:10px;margin-top:7px}
+.cgs{border:1px solid var(--line);background:var(--pnl);padding:8px 13px}
+.cg{display:flex;align-items:flex-start;gap:12px;padding:4px 0}
+.cg+.cg{border-top:1px solid #111}
+.cl{color:var(--dim);font-size:10px;letter-spacing:.16em;flex:0 0 124px;padding-top:4px}
+.cv{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0}
+.c{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#0d0d0d;padding:2px 8px;cursor:pointer;color:var(--mut);max-width:100%;overflow:hidden;white-space:nowrap}
+.c:hover{border-color:#3f3f3f;color:#fff}
+.c.on{border-color:#5f5f5f;color:#fff;background:#191919}
+.c b{font-weight:400;color:var(--fg)}
+.cm{color:var(--dim);font-size:11px;padding:2px 4px}
 
 .tbl{width:100%;border-collapse:separate;border-spacing:0;background:var(--pnl)}
 .tw{border:1px solid var(--line);overflow:auto;max-height:calc(100vh - var(--hh,42px) - 58px)}
@@ -516,84 +511,14 @@ var ASC={title:1,src:1,asg:1,rrn:1,prio:1,status:1,disp:1};
 function order(rows,key){var o=ORD[key];if(!o)return rows;
   return rows.slice().sort(function(a,b){var x=o.indexOf(a.k),y=o.indexOf(b.k);return (x<0?99:x)-(y<0?99:y)||b.n-a.n})}
 
-function panel(title,dim,rows,tot,lim){
+function counts(title,dim,rows,lim){
   if(!rows.length)return "";
-  var more=lim&&rows.length>lim?rows.length-lim:0;
+  var more=lim&&rows.length>lim?rows.length-lim:0,fs=F[dim]||{},i;
   if(lim)rows=rows.slice(0,lim);
-  var h='<div class="pnl"><h3>'+esc(title)+'<i>'+(more?"+"+more:"")+'</i></h3>',fs=F[dim]||{};
-  for(var i=0;i<rows.length;i++){var r=rows[i],pc=tot?Math.round(r.n/tot*100):0;
-    h+='<div class="r'+(fs[r.k]?" on":"")+'" data-dim="'+dim+'" data-v="'+esc(r.k)+'" title="'+esc(r.k)+'">'+
-       '<span class="k"><i class="dot '+esc(r.k.replace(/[^A-Z_]/g,""))+'"></i>'+esc(r.k)+'</span>'+
-       '<span class="bar"><b style="width:'+Math.max(pc,1)+'%"></b></span>'+
-       '<span class="n">'+r.n+'</span><span class="p">'+pc+'%</span></div>'}
-  return h+"</div>";
-}
-var UNITS=[3e5,9e5,18e5,36e5,108e5,216e5,432e5,864e5,1728e5,6048e5,12096e5,2592e6,7776e6];
-function tl(list){
-  var ds=list.map(function(v){return v.created}).filter(Boolean);
-  if(ds.length<2)return "";
-  var mn=new Date(Math.min.apply(null,ds)),mx=new Date(Math.max.apply(null,ds)),span=(mx-mn)/864e5,unit=UNITS[UNITS.length-1],i;
-  for(i=0;i<UNITS.length;i++){if((mx-mn)/UNITS[i]<=150){unit=UNITS[i];break}}
-  var st=Math.floor(mn/unit)*unit,en=Math.floor(mx/unit)*unit,cnt=Math.min(Math.round((en-st)/unit)+1,400),b=[];
-  for(i=0;i<cnt;i++)b.push({n:0,h:0});
-  var hot={CRITICAL:1,HIGH:1};
-  for(i=0;i<list.length;i++){var v=list[i];if(!v.created)continue;
-    var ix=Math.round((Math.floor(v.created/unit)*unit-st)/unit);if(ix<0||ix>=cnt)continue;
-    b[ix].n++;if(hot[v.prio])b[ix].h++}
-  var mxn=Math.max.apply(null,b.map(function(x){return x.n}))||1,h='<div class="tl"><div class="tlb">';
-  for(i=0;i<cnt;i++){var t=new Date(st+i*unit);
-    h+='<i style="height:'+(b[i].n?Math.max(b[i].n/mxn*100,2):0)+'%" title="'+esc((unit<864e5?fdt(t):fd(t))+"  n="+b[i].n+(b[i].h?"  crit/high="+b[i].h:""))+'">'+(b[i].h?'<u style="height:'+(b[i].h/b[i].n*100)+'%"></u>':"")+'</i>'}
-  return h+'</div><div class="tlx"><span>'+esc(unit<864e5?fdt(mn):fd(mn))+'</span><span>'+esc(Math.round(span)+"d")+'</span><span>'+esc(unit<864e5?fdt(mx):fd(mx))+'</span></div></div>';
-}
-
-var COLS=[
- {k:"title",t:"TITEL",w:1},{k:"prio",t:"PRIO",c:1},{k:"status",t:"STATUS",c:1},{k:"disp",t:"DISPOSITION",c:1},
- {k:"src",t:"QUELLE"},{k:"asg",t:"ASSIGNEE"},{k:"na",t:"ALERTS"},{k:"created",t:"ERSTELLT"},
- {k:"la",t:"LETZTER ALERT"},{k:"dwell",t:"DAUER"},{k:"rrn",t:"RRN"}];
-function cell(v,k){
-  switch(k){
-    case "title":return '<span>'+esc(nz(v.title))+'</span>';
-    case "prio":case "status":case "disp":return '<span class="t-'+esc(v[k])+'">'+esc(nz(v[k]))+'</span>';
-    case "src":return '<span class="mut">'+esc(nz(v.src))+'</span>';
-    case "asg":return v.asg?esc(v.asg):'<span class="dimc">—</span>';
-    case "na":return v.alerts.length?'<span>'+v.alerts.length+'</span>':'<span class="dimc">0</span>';
-    case "created":return '<span class="mut">'+esc(fdt(v.created))+'</span>';
-    case "la":return '<span class="mut">'+esc(fdt(v.la||v.fa))+'</span>';
-    case "dwell":return '<span class="mut">'+esc(v.status==="CLOSED"?dur(v.dwell):dur(v.age))+'</span>';
-    case "rrn":return '<span class="dimc">'+esc(tail(v.rrn))+'</span>';
-  }
-  return "";
-}
-function sortVal(v,k){
-  if(k==="na")return v.alerts.length;
-  if(k==="created")return v.created?+v.created:0;
-  if(k==="la")return v.la?+v.la:(v.fa?+v.fa:0);
-  if(k==="dwell")return v.status==="CLOSED"?(v.dwell||0):(v.age||0);
-  if(k==="prio")return ORD.prio.indexOf(v.prio)<0?9:ORD.prio.indexOf(v.prio);
-  if(k==="status")return ORD.status.indexOf(v.status)<0?9:ORD.status.indexOf(v.status);
-  if(k==="disp")return ORD.disp.indexOf(v.disp)<0?9:ORD.disp.indexOf(v.disp);
-  return S(v[k]).toLowerCase();
-}
-function sortRows(rows){
-  var k=SORT.k,a=SORT.a?1:-1;
-  return rows.slice().sort(function(x,y){var p=sortVal(x,k),q=sortVal(y,k);
-    if(p<q)return -1*a;if(p>q)return 1*a;return 0})
-}
-function kvlist(o){
-  var rows=[];
-  (function flat(n,pre,dp){
-    if(dp>4)return;
-    var ks=Object.keys(n);
-    for(var i=0;i<ks.length&&rows.length<260;i++){var k=pre?pre+"."+ks[i]:ks[i],v=n[ks[i]];
-      if(ob(v)){flat(v,k,dp+1);continue}
-      if(Array.isArray(v)){
-        if(v.length&&ob(v[0])){for(var j=0;j<v.length&&j<12;j++)flat(v[j],k+"["+j+"]",dp+1);continue}
-        rows.push([k,v.join(", ")]);continue}
-      rows.push([k,v==null?"":S(v)||String(v)])}
-  })(o,"",0);
-  var h='<div class="kv">';
-  for(var i=0;i<rows.length;i++)h+='<div><span>'+esc(rows[i][0])+'</span><span>'+esc(rows[i][1]||"—")+'</span></div>';
-  return h+"</div>";
+  var h='<div class="cg"><span class="cl">'+esc(title)+'</span><span class="cv">';
+  for(i=0;i<rows.length;i++)h+='<span class="c'+(fs[rows[i].k]?" on":"")+'" data-dim="'+dim+'" data-v="'+esc(rows[i].k)+'" title="'+esc(rows[i].k)+'"><i class="dot '+esc(rows[i].k.replace(/[^A-Z_]/g,""))+'"></i>'+esc(rows[i].k)+'<b>'+rows[i].n+'</b></span>';
+  if(more)h+='<span class="cm">+'+more+'</span>';
+  return h+'</span></div>';
 }
 var ECOLS=[{k:"time",t:"ZEIT"},{k:"host",t:"ASSET"},{k:"user",t:"USER"},{k:"proc",t:"PROZESS"},{k:"pid",t:"PID"},
  {k:"par",t:"PARENT"},{k:"cmd",t:"CMD"},{k:"rep",t:"REPUTATION"},{k:"fam",t:"KLASSIFIKATION"},{k:"exe",t:"PFAD"},{k:"sha",t:"SHA256"}];
@@ -633,153 +558,265 @@ function procTbl(e){
     (e.par?row("PARENT",e.par,e.ppid,e.pcmd,e.pexe,e.psha):"")+
     (e.proc?row("CHILD",e.proc,e.pid,e.cmd,e.exe,e.sha):"")+"</table></div>";
 }
-function tlE(list){
-  var ds=list.map(function(v){return v.time}).filter(Boolean);
-  if(ds.length<2)return "";
-  var mn=new Date(Math.min.apply(null,ds)),mx=new Date(Math.max.apply(null,ds)),unit=UNITS[UNITS.length-1],i;
-  for(i=0;i<UNITS.length;i++){if((mx-mn)/UNITS[i]<=150){unit=UNITS[i];break}}
-  var st=Math.floor(mn/unit)*unit,cnt=Math.min(Math.round((Math.floor(mx/unit)*unit-st)/unit)+1,400),b=[];
-  for(i=0;i<cnt;i++)b.push({n:0,h:0});
-  for(i=0;i<list.length;i++){var v=list[i];if(!v.time)continue;
-    var ix=Math.round((Math.floor(v.time/unit)*unit-st)/unit);if(ix<0||ix>=cnt)continue;
-    b[ix].n++;if(v.rep==="MALICIOUS"||v.rep==="SUSPICIOUS"||v.thr==="CRITICAL")b[ix].h++}
-  var mxn=Math.max.apply(null,b.map(function(x){return x.n}))||1,h='<div class="tl"><div class="tlb">';
-  for(i=0;i<cnt;i++){var t=new Date(st+i*unit);
-    h+='<i style="height:'+(b[i].n?Math.max(b[i].n/mxn*100,2):0)+'%" title="'+esc((unit<864e5?fdt(t):fd(t))+"  n="+b[i].n+(b[i].h?"  mal="+b[i].h:""))+'">'+(b[i].h?'<u style="height:'+(b[i].h/b[i].n*100)+'%"></u>':"")+'</i>'}
-  return h+'</div><div class="tlx"><span>'+esc(unit<864e5?fdt(mn):fd(mn))+'</span><span>'+esc(dur(mx-mn))+'</span><span>'+esc(unit<864e5?fdt(mx):fd(mx))+'</span></div></div>';
+var COLS=[
+ {k:"title",t:"TITEL"},{k:"prio",t:"PRIO"},{k:"status",t:"STATUS"},{k:"disp",t:"DISPOSITION"},
+ {k:"src",t:"QUELLE"},{k:"asg",t:"ASSIGNEE"},{k:"na",t:"ALERTS"},{k:"created",t:"ERSTELLT"},
+ {k:"la",t:"LETZTER ALERT"},{k:"dwell",t:"DAUER"},{k:"rrn",t:"RRN"}];
+function cell(v,k){
+  switch(k){
+    case "title":return "<span>"+esc(nz(v.title))+"</span>";
+    case "prio":case "status":case "disp":return '<span class="t-'+esc(v[k])+'">'+esc(nz(v[k]))+"</span>";
+    case "src":return '<span class="mut">'+esc(nz(v.src))+"</span>";
+    case "asg":return v.asg?esc(v.asg):'<span class="dimc">—</span>';
+    case "na":return v.alerts.length?"<span>"+v.alerts.length+"</span>":'<span class="dimc">0</span>';
+    case "created":return '<span class="mut">'+esc(fdt(v.created))+"</span>";
+    case "la":return '<span class="mut">'+esc(fdt(v.la||v.fa))+"</span>";
+    case "dwell":return '<span class="mut">'+esc(v.status==="CLOSED"?dur(v.dwell):dur(v.age))+"</span>";
+    case "rrn":return '<span class="dimc">'+esc(tail(v.rrn))+"</span>";
+  }
+  return "";
+}
+function sortVal(v,k){
+  if(k==="na")return v.alerts.length;
+  if(k==="created")return v.created?+v.created:0;
+  if(k==="la")return v.la?+v.la:(v.fa?+v.fa:0);
+  if(k==="dwell")return v.status==="CLOSED"?(v.dwell||0):(v.age||0);
+  if(k==="prio")return ORD.prio.indexOf(v.prio)<0?9:ORD.prio.indexOf(v.prio);
+  if(k==="status")return ORD.status.indexOf(v.status)<0?9:ORD.status.indexOf(v.status);
+  if(k==="disp")return ORD.disp.indexOf(v.disp)<0?9:ORD.disp.indexOf(v.disp);
+  return S(v[k]).toLowerCase();
+}
+function sortRows(rows){
+  var k=SORT.k,a=SORT.a?1:-1;
+  return rows.slice().sort(function(x,y){var p=sortVal(x,k),q=sortVal(y,k);if(p<q)return -1*a;if(p>q)return 1*a;return 0});
+}
+function kvlist(o){
+  var rows=[];
+  (function flat(n,pre,dp){
+    if(dp>4)return;
+    var ks=Object.keys(n);
+    for(var i=0;i<ks.length&&rows.length<260;i++){var k=pre?pre+"."+ks[i]:ks[i],v=n[ks[i]];
+      if(ob(v)){flat(v,k,dp+1);continue}
+      if(Array.isArray(v)){
+        if(v.length&&ob(v[0])){for(var j=0;j<v.length&&j<12;j++)flat(v[j],k+"["+j+"]",dp+1);continue}
+        rows.push([k,v.join(", ")]);continue}
+      rows.push([k,v==null?"":S(v)||String(v)])}
+  })(o,"",0);
+  var h='<div class="kv">';
+  for(var i=0;i<rows.length;i++)h+="<div><span>"+esc(rows[i][0])+"</span><span>"+esc(rows[i][1]||"—")+"</span></div>";
+  return h+"</div>";
 }
 function alertTbl(as){
   if(!as.length)return "";
   var h='<div class="sub"><table><tr><th>TITEL</th><th>TYP</th><th>QUELLE</th><th>REGEL</th><th>FIRST EVENT</th><th>LAST EVENT</th><th>ERSTELLT</th><th>AKTION</th></tr>';
   for(var i=0;i<as.length;i++){var a=as[i];
-    h+='<tr><td>'+esc(nz(a.title))+'</td><td>'+esc(nz(a.type))+'</td><td>'+esc(nz(a.src))+'</td><td>'+esc(nz(tail(a.rule)))+'</td><td>'+esc(fdt(a.first))+'</td><td>'+esc(fdt(a.last))+'</td><td>'+esc(fdt(a.created))+'</td><td>'+esc(nz(a.action))+'</td></tr>'}
+    h+="<tr><td>"+esc(nz(a.title))+"</td><td>"+esc(nz(a.type))+"</td><td>"+esc(nz(a.src))+"</td><td>"+esc(nz(tail(a.rule)))+"</td><td>"+esc(fdt(a.first))+"</td><td>"+esc(fdt(a.last))+"</td><td>"+esc(fdt(a.created))+"</td><td>"+esc(nz(a.action))+"</td></tr>"}
   return h+"</table></div>";
 }
 function iocBlock(m,cls,max){
   var ks=Object.keys(m).sort(function(a,b){return m[b]-m[a]||(a<b?-1:1)});
   if(!ks.length)return "";
   var more=ks.length>max?ks.length-max:0;ks=ks.slice(0,max);
-  var h="";for(var i=0;i<ks.length;i++)h+='<span class="'+cls+'" data-cp="'+esc(ks[i])+'" title="'+esc(ks[i])+'">'+esc(ks[i])+'<em>'+m[ks[i]]+'</em></span>';
-  return h+(more?'<span class="dimc" style="padding:2px 7px">+'+more+'</span>':"");
+  var h="";for(var i=0;i<ks.length;i++)h+='<span class="'+cls+'" data-cp="'+esc(ks[i])+'" title="'+esc(ks[i])+'">'+esc(ks[i])+"<em>"+m[ks[i]]+"</em></span>";
+  return h+(more?'<span class="cm">+'+more+"</span>":"");
 }
-
+var TOOL=[
+ [/^(ngrok|cloudflared|frpc|frps|chisel|localtunnel|pagekite|zrok)(\.exe)?$/i,"Tunnel-Werkzeug, macht interne Dienste von außen erreichbar"],
+ [/^(teamviewer|anydesk|rustdesk|screenconnect|splashtop|logmein|atera|ultravnc|vncserver)/i,"Fernwartungs-Software"],
+ [/^(mimikatz|lazagne|procdump|secretsdump|pwdump)/i,"Werkzeug zum Abgreifen von Zugangsdaten"],
+ [/^(certutil|bitsadmin|mshta|regsvr32|rundll32|wmic|msbuild|installutil|cscript|wscript)(\.exe)?$/i,"wird häufig zum Nachladen und Ausführen von Code missbraucht"],
+ [/^(nc|ncat|netcat|socat)(\.exe)?$/i,"Netzwerk-Werkzeug, oft für Reverse Shells"],
+ [/^(psexec|paexec|psexesvc)(\.exe)?$/i,"führt Befehle auf anderen Rechnern aus"]
+];
+var CMDF=[
+ [/-enc(odedcommand)?\s|frombase64string|::frombase64/i,"kodierte Kommandozeile"],
+ [/-w(indowstyle)?\s+hidden|-nop\b|-noprofile/i,"versteckte Ausführung"],
+ [/iex\s|invoke-expression|downloadstring/i,"lädt Code nach und führt ihn direkt aus"],
+ [/(curl|wget)\s[^|]*\|\s*(ba)?sh/i,"lädt ein Skript und führt es direkt aus"],
+ [/\/dev\/tcp\//i,"Reverse-Shell-Muster"]
+];
+var TMPP=/(^|[\/\\])(tmp|temp|downloads|public|programdata)([\/\\]|$)/i;
+var PERS=/launchagents|launchdaemons|[\/\\]cron|\\run\\|\\runonce\\|startup/i;
+function fmde(d){return d?P(d.getDate())+"."+P(d.getMonth()+1)+"."+d.getFullYear()+" "+P(d.getHours())+":"+P(d.getMinutes()):"—"}
+function fmd(d){return d?P(d.getDate())+"."+P(d.getMonth()+1)+"."+d.getFullYear():"—"}
+function rng(ds){
+  ds=ds.filter(Boolean);if(!ds.length)return "";
+  var mn=new Date(Math.min.apply(null,ds)),mx=new Date(Math.max.apply(null,ds));
+  return +mn===+mx?fmde(mn):fmd(mn)===fmd(mx)?fmde(mn)+" – "+P(mx.getHours())+":"+P(mx.getMinutes()):fmde(mn)+" – "+fmde(mx);
+}
+function top(rows,n,fn){
+  var o=[];for(var i=0;i<rows.length&&i<n;i++)o.push((fn?fn(rows[i].k):rows[i].k)+" ("+rows[i].n+")");
+  return o.join(", ")+(rows.length>n?", …":"");
+}
+function flagsE(e){
+  var o=[],i,pn=S(e.proc),cm=S(e.cmd);
+  if(e.rep==="MALICIOUS"||e.rep==="SUSPICIOUS"){
+    var m=/^(\d+)\/(\d+)$/.exec(e.eng),ratio=m?+m[1]/+m[2]:null;
+    var t="Reputation "+e.rep+(e.thr?", Threat Level "+e.thr:"")+(e.eng?", "+e.eng+" Engines":"")+(e.famx?", "+e.famx:"");
+    if((ratio!=null&&ratio<0.35)||e.rel==="LOW")t+=" — schwach belegt"+(e.rel==="LOW"?", Reliability LOW":"")+", Fehlalarm möglich";
+    o.push({t:t,w:!(ratio!=null&&ratio<0.35)});
+  }
+  for(i=0;i<TOOL.length;i++)if(TOOL[i][0].test(pn)){o.push({t:pn+": "+TOOL[i][1],w:true});break}
+  for(i=0;i<CMDF.length;i++)if(CMDF[i][0].test(cm)){o.push({t:CMDF[i][1]+": "+cm.slice(0,120),w:true,ex:true})}
+  if(e.exe&&TMPP.test(e.exe))o.push({t:"Programm liegt in einem temporären oder Download-Verzeichnis: "+e.exe,w:true,ex:true});
+  if(e.file&&PERS.test(e.file))o.push({t:"Schreibt in einen Autostart-Pfad: "+e.file,w:true,ex:true});
+  if(/^(root|system|nt-autoritaet)$/i.test(S(e.user)))o.push({t:"läuft mit Systemrechten ("+e.user+")",w:true});
+  if(e.dip&&priv(e.dip)===false)o.push({t:"Verbindung nach außen zu "+e.dip+(e.dport?":"+e.dport:""),w:true});
+  return o;
+}
+function flagBlock(items){
+  if(!items.length)return "";
+  var h='<p class="hl">Auffällig</p><ul>';
+  for(var i=0;i<items.length;i++)h+='<li'+(items[i].w?' class="w"':"")+'>'+esc(items[i].t)+'</li>';
+  return h+"</ul>";
+}
+function sumEvd(l){
+  if(!l.length)return "";
+  var h="",i,e;
+  if(l.length===1){
+    e=l[0];
+    h+='<p class="hd">'+esc([e.host,e.os,e.user,fmde(e.time)].filter(Boolean).join("  ·  "))+'</p>';
+    var ln="";
+    if(e.proc)ln="<b>"+esc(e.proc)+"</b>"+(e.pid?" (PID "+esc(e.pid)+")":"");
+    if(e.par)ln+=(ln?" gestartet von ":"Gestartet von ")+esc(e.par)+(e.ppid?" (PID "+esc(e.ppid)+")":"");
+    if(e.sip||e.dip)ln+=(ln?", ":"")+"Verbindung "+esc(e.sip||"?")+" → "+esc(e.dip||"?")+(e.dport?":"+esc(e.dport):"");
+    if(ln)h+="<p>"+ln+"</p>";
+    if(e.cmd)h+='<p><code>'+esc(e.cmd)+'</code></p>';
+    var d=[];
+    if(e.exe)d.push("Pfad "+e.exe); if(e.file)d.push("Datei "+e.file);
+    if(e.cwd)d.push("Verzeichnis "+e.cwd); if(e.sha)d.push("SHA256 "+e.sha); else if(e.md5)d.push("MD5 "+e.md5);
+    if(d.length)h+='<p class="mt">'+esc(d.join("   ·   "))+"</p>";
+    return h+flagBlock(flagsE(e));
+  }
+  var uq=function(k){var s={};for(var j=0;j<l.length;j++)if(l[j][k])s[l[j][k]]=1;return Object.keys(s).length};
+  var bad=l.filter(function(x){return x.rep==="MALICIOUS"||x.rep==="SUSPICIOUS"});
+  h+='<p class="hd">'+l.length+" Endpoint-Events  ·  "+uq("host")+" Assets  ·  "+uq("user")+" User  ·  "+uq("proc")+" Prozesse  ·  "+esc(rng(l.map(function(x){return x.time})))+"</p>";
+  if(bad.length)h+="<p><b>"+bad.length+" von "+l.length+"</b> Events mit Reputation MALICIOUS oder SUSPICIOUS, auf "+(function(){var s={};bad.forEach(function(x){if(x.host)s[x.host]=1});return Object.keys(s).length})()+" Assets.</p>";
+  var tp=tally(l,function(x){return x.proc?x.proc:[]}),ta=tally(l,function(x){return x.host?x.host:[]}),tu=tally(l,function(x){return x.user?x.user:[]});
+  if(tp.length)h+='<p class="mt">Prozesse: '+esc(top(tp,6))+"</p>";
+  if(ta.length>1)h+='<p class="mt">Assets: '+esc(top(ta,6))+"</p>";
+  if(tu.length>1)h+='<p class="mt">User: '+esc(top(tu,6))+"</p>";
+  var agg={},order=[];
+  for(i=0;i<l.length;i++){var fs=flagsE(l[i]);
+    for(var j=0;j<fs.length;j++){var key=fs[j].t.replace(/:.*$/,"");
+      if(!agg[key]){agg[key]={t:fs[j].t,w:fs[j].w,ex:fs[j].ex,n:0,who:{}};order.push(key)}
+      agg[key].n++;if(l[i].host)agg[key].who[l[i].host]=1}}
+  var items=order.map(function(k){var a=agg[k],w=Object.keys(a.who),t=a.t;
+    if(a.n>1&&a.ex&&t.indexOf(": ")>0)t=t.replace(": ",", z. B. ");
+    return {t:t+(a.n>1?"  ["+a.n+" Events"+(w.length>1?", "+w.length+" Assets":"")+"]":""),w:a.w}});
+  items.sort(function(x,y){return (y.w?1:0)-(x.w?1:0)});
+  return h+flagBlock(items.slice(0,12));
+}
+function sumInv(l,al){
+  if(!l.length)return "";
+  var h="",i,open=l.filter(function(v){return v.status&&v.status!=="CLOSED"}),
+      closed=l.filter(function(v){return v.status==="CLOSED"}),
+      un=l.filter(function(v){return !v.asg}),
+      mal=l.filter(function(v){return v.disp==="MALICIOUS"});
+  h+='<p class="hd">'+l.length+" Investigations  ·  "+open.length+" offen  ·  "+closed.length+" geschlossen"+
+     (al.length?"  ·  "+al.length+" Alerts":"")+"  ·  "+esc(rng(l.map(function(v){return v.created})))+"</p>";
+  var hot=open.filter(function(v){return v.prio==="CRITICAL"||v.prio==="HIGH"})
+    .sort(function(a,b){var x=ORD.prio.indexOf(a.prio),y=ORD.prio.indexOf(b.prio);
+      return (x<0?9:x)-(y<0?9:y)||(b.age||0)-(a.age||0)});
+  if(hot.length){
+    h+='<p class="hl">Offen und dringend</p><ul>';
+    for(i=0;i<hot.length&&i<8;i++){var v=hot[i];
+      h+='<li class="w"><b>'+esc(v.prio)+"</b> seit "+esc(dur(v.age))+
+         (v.status!=="OPEN"?" ("+esc(v.status)+")":"")+
+         (v.asg?", "+esc(v.asg):", ohne Zuweisung")+
+         " — "+esc(v.title||tail(v.rrn))+"</li>"}
+    h+="</ul>"+(hot.length>8?'<p class="mt">… '+(hot.length-8)+" weitere</p>":"");
+  }
+  var notes=[];
+  if(mal.length)notes.push({t:mal.length+" als MALICIOUS bewertet"+(mal.length<=3?": "+mal.map(function(v){return v.title||tail(v.rrn)}).join(", "):""),w:true});
+  if(un.length)notes.push({t:un.length+" von "+l.length+" ohne Zuweisung",w:un.length>0&&open.length>0});
+  var stale=open.filter(function(v){return v.acc&&Date.now()-v.acc>6048e5});
+  if(stale.length)notes.push({t:stale.length+" offen und seit über 7 Tagen nicht angefasst",w:true});
+  var noal=l.filter(function(v){return !v.alerts.length});
+  if(noal.length&&noal.length<l.length)notes.push({t:noal.length+" ohne zugeordnete Alerts",w:false});
+  if(DB.pg&&DB.pg.totaldata!=null&&DB.pg.totaldata>DB.inv.length)
+    notes.push({t:"Die API meldet "+DB.pg.totaldata+" Datensätze, hier liegen "+DB.inv.length+" — nur ein Auszug"+(DB.pg.totalpages?" (Seite "+((DB.pg.index||0)+1)+" von "+DB.pg.totalpages+")":""),w:true});
+  if(DB.lost)notes.push({t:DB.lost+" Datensätze im JSON waren nicht lesbar",w:true});
+  if(notes.length)h+=flagBlock(notes);
+  return h;
+}
+function sumOther(){
+  var p=[];
+  if(DB.ev.length)p.push(DB.ev.length+" Evidence-Einträge");
+  if(DB.com.length)p.push(DB.com.length+" Kommentare");
+  if(DB.raw.length)p.push(DB.raw.length+" Log-Zeilen");
+  if(DB.att.length)p.push(DB.att.length+" Anhänge");
+  if(!p.length)return "";
+  if(DB.inv.length||DB.evd.length)return '<p class="mt">Dazu: '+esc(p.join(", "))+"</p>";
+  return '<p class="hd">'+esc(p.join("  ·  "))+"</p>";
+}
 function render(){
   if(!DB)return;
-  var inv=DB.inv,f=sel(null),H="";
-  var closed=f.filter(function(v){return v.status==="CLOSED"}),
-      open=f.filter(function(v){return v.status&&v.status!=="CLOSED"}),
-      hot=f.filter(function(v){return v.prio==="CRITICAL"||v.prio==="HIGH"}),
-      mal=f.filter(function(v){return v.disp==="MALICIOUS"}),
-      un=f.filter(function(v){return !v.asg}),
-      dw=closed.map(function(v){return v.dwell}).filter(function(x){return x!=null&&x>=0}),
-      ages=open.map(function(v){return v.age}).filter(function(x){return x!=null}),
-      fal=DB.alr.filter(function(a){return a.pi==null||match(inv[a.pi],null)});
-  var avg=function(a){return a.length?a.reduce(function(x,y){return x+y},0)/a.length:null};
-  var med=function(a){if(!a.length)return null;var s=a.slice().sort(function(x,y){return x-y});return s[Math.floor(s.length/2)]};
+  var inv=DB.inv,f=sel(null),fe=DB.evd.length?selE(null):[],H="",i;
+  var fal=DB.alr.filter(function(a){return a.pi==null||match(inv[a.pi],null)});
 
   var mh=[];
   if(inv.length)mh.push("<b>INV</b> "+f.length+(f.length!==inv.length?"/"+inv.length:""));
   if(DB.alr.length)mh.push("<b>ALR</b> "+fal.length+(fal.length!==DB.alr.length?"/"+DB.alr.length:""));
-  var fe=DB.evd.length?selE(null):[];
   if(DB.evd.length)mh.push("<b>EVT</b> "+fe.length+(fe.length!==DB.evd.length?"/"+DB.evd.length:""));
   if(DB.ev.length)mh.push("<b>EVD</b> "+DB.ev.length);
   if(DB.com.length)mh.push("<b>CMT</b> "+DB.com.length);
   if(DB.raw.length)mh.push("<b>LOG</b> "+DB.raw.length);
-  if(DB.pg&&DB.pg.totaldata!=null)mh.push("<b>API</b> "+esc(String(DB.pg.totaldata))+(DB.pg.totalpages!=null?" &middot; S."+esc(String(DB.pg.index!=null?DB.pg.index+1:1))+"/"+esc(String(DB.pg.totalpages)):""));
+  if(DB.pg&&DB.pg.totaldata!=null)mh.push("<b>API</b> "+esc(String(DB.pg.totaldata)));
   mh.push("<b>KB</b> "+Math.round(DB.n/1024));
   if(DB.fix)mh.push('<b class="wfix">FIX</b> '+DB.fix);
   if(DB.lost)mh.push('<b class="wlost">LOST</b> '+DB.lost);
   meta.innerHTML="<span>"+mh.join("</span><span>")+"</span>";
 
-  if(inv.length){
-    H+='<section><div class="kpis">'+
-      kpi(f.length,"INVESTIGATIONS",inv.length!==f.length?"von "+inv.length:"")+
-      kpi(open.length,"OFFEN",pct(open.length,f.length))+
-      kpi(closed.length,"GESCHLOSSEN",pct(closed.length,f.length))+
-      kpi(hot.length,"CRIT / HIGH",pct(hot.length,f.length))+
-      kpi(mal.length,"MALICIOUS",pct(mal.length,f.length))+
-      kpi(un.length,"OHNE ASSIGNEE",pct(un.length,f.length))+
-      kpi(fal.length,"ALERTS",f.length?(fal.length/f.length).toFixed(1)+" / inv":"")+
-      kpi(dur(med(dw)),"MED. DAUER",dw.length?"n="+dw.length:"")+
-      kpi(dur(med(ages)),"MED. ALTER OFFEN",ages.length?"n="+ages.length:"")+
-    '</div></section>';
+  var sm=sumInv(f,fal)+sumEvd(fe)+sumOther();
+  if(sm)H+='<section><div class="sum">'+sm+"</div></section>";
 
-    var chips=chipbar();
-    if(chips)H+='<section>'+chips+'</section>';
+  var ch=chipbar();
+  if(ch)H+="<section>"+ch+"</section>";
 
-    H+='<section><div class="grid">'+
-      panel("PRIORITÄT","prio",order(tally(sel("prio"),function(v){return v.prio}),"prio"),sel("prio").length)+
-      panel("STATUS","status",order(tally(sel("status"),function(v){return v.status}),"status"),sel("status").length)+
-      panel("DISPOSITION","disp",order(tally(sel("disp"),function(v){return v.disp}),"disp"),sel("disp").length)+
-      panel("QUELLE","src",tally(sel("src"),function(v){return v.src}),sel("src").length,8)+
-      panel("ASSIGNEE","asg",tally(sel("asg"),function(v){return v.asg}),sel("asg").length,10)+
-      panel("TAGS","tag",tally(sel("tag"),function(v){return v.tags.length?v.tags:"—"}),sel("tag").length,10)+
-      panel("ALERT-TYP","atype",tally(sel("atype"),function(v){return v.alerts.length?v.alerts.map(function(a){return a.type||"—"}):[]}),nal(sel("atype")),12)+
-      panel("ALERT-QUELLE","asrc",tally(sel("asrc"),function(v){return v.alerts.length?v.alerts.map(function(a){return a.src||"—"}):[]}),nal(sel("asrc")),8)+
-    '</div></section>';
-
-    var t=tl(f);
-    if(t)H+='<section><h2>Verlauf</h2>'+t+'</section>';
+  var cg="";
+  if(inv.length>1){
+    cg+=counts("PRIORITÄT","prio",order(tally(sel("prio"),function(v){return v.prio}),"prio"),8);
+    cg+=counts("STATUS","status",order(tally(sel("status"),function(v){return v.status}),"status"),8);
+    cg+=counts("DISPOSITION","disp",order(tally(sel("disp"),function(v){return v.disp}),"disp"),8);
+    cg+=counts("QUELLE","src",tally(sel("src"),function(v){return v.src}),8);
+    cg+=counts("ASSIGNEE","asg",tally(sel("asg"),function(v){return v.asg}),10);
+    cg+=counts("TAG","tag",tally(sel("tag"),function(v){return v.tags.length?v.tags:[]}),10);
+    cg+=counts("ALERT-TYP","atype",tally(sel("atype"),function(v){return v.alerts.map(function(a){return a.type||"—"})}),8);
   }
-
-  if(DB.evd.length){
-    var bad=fe.filter(function(e){return e.rep==="MALICIOUS"||e.rep==="SUSPICIOUS"||e.thr==="CRITICAL"||e.thr==="HIGH"}),
-        uq=function(a,k){var s={};for(var i=0;i<a.length;i++)if(a[i][k])s[a[i][k]]=1;return Object.keys(s).length},
-        hashed=fe.filter(function(e){return e.sha||e.md5});
-    H+='<section><div class="kpis">'+
-      kpi(fe.length,"EVENTS",DB.evd.length!==fe.length?"von "+DB.evd.length:"")+
-      kpi(bad.length,"MALICIOUS / SUSP.",pct(bad.length,fe.length))+
-      kpi(uq(fe,"host"),"ASSETS","")+
-      kpi(uq(fe,"user"),"USER","")+
-      kpi(uq(fe,"proc"),"PROZESSE","")+
-      kpi(uq(fe,"par"),"PARENTS","")+
-      kpi(uq(hashed,"sha")||uq(hashed,"md5"),"HASHES",hashed.length?pct(hashed.length,fe.length)+" m. Hash":"")+
-    '</div></section>';
-    if(!inv.length){var ch=chipbar();if(ch)H+='<section>'+ch+'</section>'}
-    var ep="";
-    [["REPUTATION","rep",function(e){return e.rep}],["THREAT LEVEL","thr",function(e){return e.thr}],
-     ["ASSET","host",function(e){return e.host}],["USER","user",function(e){return e.user}],
-     ["PROZESS","proc",function(e){return e.proc}],["OS","os",function(e){return e.os}]].forEach(function(x){
-      var s=selE(x[1]);ep+=panel(x[0],x[1],tally(s,x[2]),s.length,12)});
-    var sf=selE("fam"),famR=tally(sf,function(e){return e.famx?e.famx:[]});
-    if(famR.length)ep+=panel("KLASSIFIKATION","fam",famR,sf.length,8);
-    var sp=selE("pc"),parR=tally(sp,function(e){return e.pcx?e.pcx:[]});
-    if(parR.length)ep+=panel("PARENT → CHILD","pc",parR,sp.length,10);
-    H+='<section><div class="grid">'+ep+'</div></section>';
-    var te=tlE(fe);
-    if(te)H+='<section><h2>Verlauf</h2>'+te+'</section>';
+  if(DB.evd.length>1){
+    cg+=counts("REPUTATION","rep",tally(selE("rep"),function(e){return e.rep?e.rep:[]}),8);
+    cg+=counts("THREAT","thr",tally(selE("thr"),function(e){return e.thr?e.thr:[]}),8);
+    cg+=counts("ASSET","host",tally(selE("host"),function(e){return e.host?e.host:[]}),12);
+    cg+=counts("USER","user",tally(selE("user"),function(e){return e.user?e.user:[]}),12);
+    cg+=counts("PROZESS","proc",tally(selE("proc"),function(e){return e.proc?e.proc:[]}),12);
+    cg+=counts("PARENT → CHILD","pc",tally(selE("pc"),function(e){return e.pcx?e.pcx:[]}),8);
   }
-
-  var ic=DB.ioc,iparts="";
-  [["ip","EXTERN",30,"pub"],["pip","INTERN",24,""],["dom","DOMAINS",30,"pub"],["url","URLS",12,""],["mail","ACCOUNTS",20,""],["hash","HASHES",14,"pub"]].forEach(function(x){
-    var b=iocBlock(ic[x[0]],x[3],x[2]);if(b)iparts+='<div class="pnl"><h3>'+x[1]+'<i>'+Object.keys(ic[x[0]]).length+'</i></h3><div class="ioc">'+b+'</div></div>'});
-  if(iparts)H+='<section><h2>Indikatoren</h2><div class="grid">'+iparts+'</div></section>';
+  if(cg)H+='<section><div class="cgs">'+cg+"</div></section>";
 
   if(inv.length){
     var rows=sortRows(f);
     H+='<section><h2>Investigations</h2><div class="tw"><table class="tbl"><thead><tr>';
     for(var c=0;c<COLS.length;c++)H+='<th data-k="'+COLS[c].k+'" class="'+(SORT.k===COLS[c].k?"s"+(SORT.a?" a":""):"")+'">'+COLS[c].t+"</th>";
-    H+='</tr></thead><tbody>';
-    for(var i=0;i<rows.length;i++){var v=rows[i],op=OPEN["i"+v.idx];
+    H+="</tr></thead><tbody>";
+    for(i=0;i<rows.length;i++){var v=rows[i],op=OPEN["i"+v.idx];
       H+='<tr class="d'+(op?" op":"")+'" data-i="'+v.idx+'">';
       for(c=0;c<COLS.length;c++)H+="<td>"+cell(v,COLS[c].k)+"</td>";
       H+="</tr>";
-      if(op)H+='<tr class="det"><td colspan="'+COLS.length+'"><div class="detin">'+kvlist(v.raw)+alertTbl(v.alerts)+(v.url?'<div class="kv"><div><span>link</span><span>'+esc(v.url)+'</span></div></div>':"")+'<pre>'+esc(JSON.stringify(v.raw,null,2))+"</pre></div></td></tr>";
-    }
+      if(op)H+='<tr class="det"><td colspan="'+COLS.length+'"><div class="detin">'+kvlist(v.raw)+alertTbl(v.alerts)+"<pre>"+esc(JSON.stringify(v.raw,null,2))+"</pre></div></td></tr>"}
     H+="</tbody></table></div></section>";
   }
 
-  if(fal.length){
-    var ag=tally(fal,function(a){return a.type||"—"});
-    H+='<section><h2>Alerts</h2><div class="tw"><table class="tbl"><thead><tr><th>TYP</th><th>N</th><th>QUELLE</th><th>REGEL</th><th>FIRST</th><th>LAST</th></tr></thead><tbody>';
-    var grp={};
-    for(var a=0;a<fal.length;a++){var al=fal[a],k=al.type||"—";
-      if(!grp[k])grp[k]={n:0,src:{},rule:{},f:null,l:null};
-      var g=grp[k];g.n++;if(al.src)g.src[al.src]=1;if(al.rule)g.rule[tail(al.rule)]=1;
+  if(fal.length&&inv.length){
+    var ag=tally(fal,function(a){return a.type||"—"}),grp={};
+    for(i=0;i<fal.length;i++){var al=fal[i],kk=al.type||"—";
+      if(!grp[kk])grp[kk]={n:0,src:{},rule:{},f:null,l:null};
+      var g=grp[kk];g.n++;if(al.src)g.src[al.src]=1;if(al.rule)g.rule[tail(al.rule)]=1;
       var fx=al.first||al.created,lx=al.last||al.created;
       if(fx&&(!g.f||fx<g.f))g.f=fx;if(lx&&(!g.l||lx>g.l))g.l=lx}
-    for(var z=0;z<ag.length;z++){var kk=ag[z].k,gg=grp[kk];
-      H+='<tr><td>'+esc(kk)+'</td><td>'+gg.n+'</td><td class="mut">'+esc(Object.keys(gg.src).join(", ")||"—")+'</td><td class="dimc">'+esc(Object.keys(gg.rule).slice(0,3).join(", ")||"—")+'</td><td class="mut">'+esc(fdt(gg.f))+'</td><td class="mut">'+esc(fdt(gg.l))+'</td></tr>'}
+    H+='<section><h2>Alerts</h2><div class="tw"><table class="tbl"><thead><tr><th>TYP</th><th>N</th><th>QUELLE</th><th>REGEL</th><th>FIRST</th><th>LAST</th></tr></thead><tbody>';
+    for(i=0;i<ag.length;i++){var gg=grp[ag[i].k];
+      H+="<tr><td>"+esc(ag[i].k)+"</td><td>"+gg.n+'</td><td class="mut">'+esc(Object.keys(gg.src).join(", ")||"—")+'</td><td class="dimc">'+esc(Object.keys(gg.rule).slice(0,3).join(", ")||"—")+'</td><td class="mut">'+esc(fdt(gg.f))+'</td><td class="mut">'+esc(fdt(gg.l))+"</td></tr>"}
     H+="</tbody></table></div></section>";
   }
 
@@ -787,42 +824,47 @@ function render(){
     var er=sortRowsE(fe);
     H+='<section><h2>Endpoint-Events</h2><div class="tw"><table class="tbl"><thead><tr>';
     for(var ec=0;ec<ECOLS.length;ec++)H+='<th data-ek="'+ECOLS[ec].k+'" class="'+(SORTE.k===ECOLS[ec].k?"s"+(SORTE.a?" a":""):"")+'">'+ECOLS[ec].t+"</th>";
-    H+='</tr></thead><tbody>';
-    for(var e2=0;e2<er.length;e2++){var ev2=er[e2],eo=OPEN["v"+ev2.idx];
+    H+="</tr></thead><tbody>";
+    for(i=0;i<er.length;i++){var ev2=er[i],eo=OPEN["v"+ev2.idx];
       H+='<tr class="d'+(eo?" op":"")+'" data-ev="'+ev2.idx+'">';
       for(ec=0;ec<ECOLS.length;ec++)H+="<td>"+ecell(ev2,ECOLS[ec].k)+"</td>";
       H+="</tr>";
-      if(eo)H+='<tr class="det"><td colspan="'+ECOLS.length+'"><div class="detin">'+procTbl(ev2)+kvlist(ev2.raw)+'<pre>'+esc(JSON.stringify(ev2.raw,null,2))+"</pre></div></td></tr>"}
+      if(eo)H+='<tr class="det"><td colspan="'+ECOLS.length+'"><div class="detin">'+procTbl(ev2)+kvlist(ev2.raw)+"<pre>"+esc(JSON.stringify(ev2.raw,null,2))+"</pre></div></td></tr>"}
     H+="</tbody></table></div></section>";
   }
 
   if(DB.ev.length){
     H+='<section><h2>Evidence</h2><div class="tw"><table class="tbl"><thead><tr><th>ZEIT</th><th>QUELLE</th><th>TYP</th><th>DATEN</th></tr></thead><tbody>';
-    for(var e=0;e<DB.ev.length;e++){var ev=DB.ev[e],dt=D(ev.evented_at||ev.created_at||ev.timestamp),op2=OPEN["e"+e],dd=ev.data;
+    for(i=0;i<DB.ev.length;i++){var ev=DB.ev[i],em=nmap(ev),dt=D(pick(em,"eventedat","createdat","timestamp")),op2=OPEN["e"+i],dd=em.data;
       var flat=typeof dd==="string"?dd:JSON.stringify(dd||ev);
-      H+='<tr class="d'+(op2?" op":"")+'" data-e="'+e+'"><td class="mut">'+esc(fdt(dt))+'</td><td>'+esc(nz(S(ev.external_source)))+'</td><td class="mut">'+esc(nz(S(ev.event_type)))+'</td><td class="dimc">'+esc(flat.slice(0,180))+"</td></tr>";
-      if(op2){var pd=dd;if(typeof dd==="string"){try{pd=JSON.parse(dd)}catch(x){}}
-        H+='<tr class="det"><td colspan="4"><div class="detin">'+(pd&&typeof pd==="object"?kvlist(pd):"")+'<pre>'+esc(JSON.stringify(pd&&typeof pd==="object"?pd:ev,null,2))+"</pre></div></td></tr>"}}
+      H+='<tr class="d'+(op2?" op":"")+'" data-e="'+i+'"><td class="mut">'+esc(fdt(dt))+"</td><td>"+esc(nz(S(em.externalsource)))+'</td><td class="mut">'+esc(nz(S(em.eventtype)))+'</td><td class="dimc">'+esc(flat.slice(0,180))+"</td></tr>";
+      if(op2){var pd=dd;if(typeof dd==="string"){var pr=tryParse(dd);if(pr)pd=pr.v}
+        H+='<tr class="det"><td colspan="4"><div class="detin">'+(ob(pd)?kvlist(pd):"")+"<pre>"+esc(JSON.stringify(ob(pd)?pd:ev,null,2))+"</pre></div></td></tr>"}}
     H+="</tbody></table></div></section>";
   }
 
   if(DB.com.length){
     H+='<section><h2>Kommentare</h2><div class="tw"><table class="tbl"><thead><tr><th>ZEIT</th><th>AUTOR</th><th>SICHTBARKEIT</th><th>TEXT</th></tr></thead><tbody>';
-    for(var m2=0;m2<DB.com.length;m2++){var cm=DB.com[m2],cr=cm.creator||{};
-      H+='<tr><td class="mut">'+esc(fdt(D(cm.created_time)))+'</td><td>'+esc(nz(S(cr.name)))+'</td><td class="dimc">'+esc(nz(S(cm.visibility)))+'</td><td style="white-space:normal">'+esc(S(cm.body))+"</td></tr>"}
+    for(i=0;i<DB.com.length;i++){var cm=nmap(DB.com[i]),cr=sub(cm.creator);
+      H+='<tr><td class="mut">'+esc(fdt(D(cm.createdtime)))+"</td><td>"+esc(nz(S(cr.name)))+'</td><td class="dimc">'+esc(nz(S(cm.visibility)))+'</td><td style="white-space:normal">'+esc(S(cm.body))+"</td></tr>"}
     H+="</tbody></table></div></section>";
   }
 
   if(DB.raw.length){
     H+='<section><h2>Log Events</h2><div class="tw"><table class="tbl"><thead><tr><th>ZEIT</th><th>HOST</th><th>APP</th><th>ZEILE</th></tr></thead><tbody>';
-    for(var r2=0;r2<Math.min(DB.raw.length,500);r2++){var rw=DB.raw[r2];
-      H+='<tr><td class="mut">'+esc(fdt(D(rw.timestamp||rw.time)))+'</td><td>'+esc(nz(S(rw.hostname||rw.host)))+'</td><td class="mut">'+esc(nz(S(rw.appname||rw.app)))+'</td><td class="dimc">'+esc(S(rw.source_data||rw.message||JSON.stringify(rw)).slice(0,220))+"</td></tr>"}
+    for(i=0;i<DB.raw.length&&i<500;i++){var rw=nmap(DB.raw[i]);
+      H+='<tr><td class="mut">'+esc(fdt(D(pick(rw,"timestamp","time"))))+"</td><td>"+esc(nz(S(pick(rw,"hostname","host"))))+'</td><td class="mut">'+esc(nz(S(pick(rw,"appname","app"))))+'</td><td class="dimc">'+esc(S(pick(rw,"sourcedata","message")||JSON.stringify(DB.raw[i])).slice(0,220))+"</td></tr>"}
     H+="</tbody></table></div></section>";
   }
 
+  var ic=DB.ioc,ipx="";
+  [["EXTERN","ip",24,"pub"],["INTERN","pip",18,""],["DOMAINS","dom",24,"pub"],["URLS","url",8,""],["ACCOUNTS","mail",16,""],["HASHES","hash",10,"pub"]].forEach(function(x){
+    var blk=iocBlock(ic[x[1]],x[3],x[2]);
+    if(blk)ipx+='<div class="cg"><span class="cl">'+x[0]+'</span><span class="cv ioc">'+blk+"</span></div>"});
+  if(ipx)H+='<section><h2>Indikatoren</h2><div class="cgs">'+ipx+"</div></section>";
+
   out.innerHTML=H||'<div class="empty">STRG + V</div>';
 }
-function kpi(v,l,s){return '<div class="kpi"><b>'+esc(v)+'</b><span>'+esc(l)+'</span><small>'+esc(s||"")+"</small></div>"}
 function pct(n,t){return t?Math.round(n/t*100)+"%":""}
 function chipbar(){
   var h="",any=false,names={prio:"prio",status:"status",disp:"disp",src:"src",asg:"asg",tag:"tag",atype:"alert",asrc:"src",
@@ -835,8 +877,8 @@ function chipbar(){
 
 document.addEventListener("click",function(e){
   if(!e.target||!e.target.closest)return;
-  var r=e.target.closest(".r");
-  if(r){var d=r.dataset.dim,v=r.dataset.v;if(F[d][v])delete F[d][v];else F[d][v]=1;render();return}
+  var r=e.target.closest("[data-dim]");
+  if(r){var d=r.dataset.dim,v=r.dataset.v;if(!F[d])F[d]={};if(F[d][v])delete F[d][v];else F[d][v]=1;render();return}
   var c=e.target.closest(".chip");
   if(c){if(c.dataset.x==="q"){Q="";qin.value=""}else delete F[c.dataset.x][c.dataset.v];render();return}
   var th=e.target.closest("th[data-k]");
