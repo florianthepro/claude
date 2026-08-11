@@ -1,61 +1,71 @@
 # wifi-audit.sh
 
-Schlanker, selbstständiger WPA/WPA2-Handshake-Audit auf Basis der
-aircrack-ng-Suite. Neufassung meiner `cli.sh` / `enhanced-cli.sh` — auf den
-Kern reduziert, minimale Nachfragen, sauberes visuelles Feedback und ohne den
-Scan-Hänger.
+Autonomer WPA/WPA2-Handshake-Audit auf Basis der aircrack-ng-Suite.
+Neufassung meiner `cli.sh` / `enhanced-cli.sh` — auf den Kern reduziert,
+maximal selbstständig, minimale Interaktion.
 
 > ⚠️ **Nur autorisierter Einsatz.** Ausschließlich Netzwerke testen, die dir
 > gehören oder für die du eine schriftliche Erlaubnis hast.
 
-## Ablauf (vollautomatisch)
+## Prinzip
 
 ```
-root → Interface → Monitor-Mode → Scan → Ziel wählen
-     → Handshake (+ Deauth) → Cracken → optional verbinden
+starten → (Interface nur falls mehrere) → Netz wählen
+        → Angriff läuft autonom → warten → Ergebnis
 ```
 
-Einzige Nachfrage im Standardlauf: **welches Netz** angegriffen wird.
-Mit `-b`/`-c`/`-e` läuft alles ohne Rückfrage.
+Nach der Zielwahl **keine weiteren Fragen**. Der Angriff eskaliert den Deauth
+selbst und wartet in Runden, bis der Handshake sitzt — dann wird sofort
+gecrackt.
+
+- **Interface**: automatisch erkannt; Nachfrage nur bei mehreren Adaptern.
+- **Ziel**: aus der Scan-Liste, `Enter` wählt das stärkste Netz.
+- **Deauth**: gezielt gegen alle erkannten Clients des Ziels **plus** Broadcast,
+  mit automatisch steigender Stärke (5 → 30) über die Runden.
+- **Handshake**: wird laufend geprüft; sobald erfasst, endet die Wartephase.
+- **Cracken**: startet automatisch; Ergebnis wird in `./wifi-audit-results.txt`
+  protokolliert.
 
 ## Nutzung
 
 ```bash
-sudo ./wifi-audit.sh                       # geführt, minimal
+sudo ./wifi-audit.sh                       # geführt: nur Ziel wählen, dann warten
+sudo ./wifi-audit.sh -b AA:BB:CC:11:22:33  # ohne jede Frage (Kanal wird gesucht)
 sudo ./wifi-audit.sh -w /pfad/liste.txt    # eigene Wortliste
-sudo ./wifi-audit.sh -b AA:BB:CC:11:22:33 -c 6 -e "Netz"   # vollautomatisch
-sudo ./wifi-audit.sh -y                    # ohne Autorisierungs-Nachfrage
+sudo ./wifi-audit.sh -C                    # bei Erfolg automatisch verbinden
 ```
 
 | Option | Bedeutung |
 |--------|-----------|
-| `-i, --iface`    | WLAN-Interface (sonst automatisch erkannt) |
-| `-w, --wordlist` | Wortliste (Standard: `rockyou.txt`) |
-| `-b, --bssid`    | Ziel-BSSID → überspringt Scan/Auswahl |
-| `-c, --channel`  | Ziel-Kanal |
-| `-e, --essid`    | Ziel-Name |
-| `-s, --scan-time`| Scan-Dauer (Standard 15 s) |
-| `-T, --cap-time` | Handshake-Timeout (Standard 90 s) |
-| `-y, --yes`      | Autorisierungs-Hinweis ohne Nachfrage |
+| `-i, --iface`     | WLAN-Interface (sonst automatisch) |
+| `-w, --wordlist`  | Wortliste (Standard: `rockyou.txt`, auto-entpackt) |
+| `-b, --bssid`     | Ziel-BSSID → Scan/Auswahl entfällt, Kanal wird gesucht |
+| `-c, --channel`   | Ziel-Kanal (optional zu `-b`) |
+| `-e, --essid`     | Ziel-Name (optional zu `-b`) |
+| `-s, --scan-time` | Scan-Dauer (Standard 15 s) |
+| `-T, --cap-time`  | Handshake-Budget (Standard 180 s) |
+| `-C, --connect`   | Bei Erfolg automatisch per `nmcli` verbinden |
+| `-y, --yes`       | Ohne Autorisierungs-Nachfrage starten |
 
-## Was gegenüber den alten Scripts behoben ist
+## Robustheit / behobene Fehler
 
-- **Scan hängt nicht mehr.** Statt `timeout airodump-ng …` (airodump fängt
-  SIGTERM ab und blockiert) läuft der Scan im Hintergrund und wird sauber per
-  `SIGINT` beendet; `--write-interval 1` sorgt für eine geflushte CSV.
-- **Robuster CSV-Parser.** Wertet nur die AP-Sektion aus (stoppt bei
-  `Station MAC`), verträgt ESSIDs mit Kommas, versteckte SSIDs und
-  Carriage-Returns; sortiert nach Signalstärke.
-- **Monitor-Interface wird zuverlässig erkannt** (Name bleibt gleich *oder*
-  wird zu `<if>mon`) über `iw dev … type monitor`.
-- **Automatische Elevation** per `sudo` ohne Doppel-Nachfrage.
-- **Sauberes Aufräumen** bei jedem Exit/Ctrl-C: Monitor-Mode aus,
-  NetworkManager zurück, Temp-Dateien weg.
-- **Kein `set -e`-Frühabbruch** — Tools mit legitimem Exit-Code ≠ 0
-  killen das Script nicht mehr.
+- **Scan hängt nicht.** Hintergrundprozess + sauberes `SIGINT` statt
+  `timeout airodump-ng …` (airodump fängt SIGTERM ab und blockiert);
+  `--write-interval 1` für geflushte CSV.
+- **Robuster CSV-Parser.** Nur AP-Sektion (stoppt bei `Station MAC`),
+  ESSIDs mit Kommas, versteckte SSIDs, Carriage-Returns; nach Signal sortiert.
+- **Gezielter Deauth.** Erkennt verbundene Clients des Ziels aus der
+  Capture-CSV (case-insensitiv, fremde APs ignoriert) und deauthed sie direkt —
+  deutlich schneller als reiner Broadcast.
+- **Zuverlässige Monitor-Erkennung** über `iw dev … type monitor` (Name bleibt
+  gleich *oder* wird zu `<if>mon`).
+- **Auto-sudo** ohne Doppel-Nachfrage · **sauberes Cleanup** bei jedem
+  Exit/Ctrl-C (Monitor aus, NetworkManager zurück, Temp weg).
+- **Kein `set -e`-Frühabbruch** durch Tools mit legitimem Exit-Code ≠ 0.
+- Geprüft mit `bash -n` und `shellcheck` (keine warnings/errors).
 
 ## Voraussetzungen
 
-`aircrack-ng`-Suite (`airmon-ng`, `airodump-ng`, `aireplay-ng`, `aircrack-ng`)
-und `iw`. Fehlen sie, versucht das Script `apt-get install` automatisch.
-Für „verbinden" optional `nmcli`.
+aircrack-ng-Suite (`airmon-ng`, `airodump-ng`, `aireplay-ng`, `aircrack-ng`)
+und `iw`; fehlen sie, versucht das Script `apt-get install` automatisch.
+Für `-C` (verbinden) optional `nmcli`.
