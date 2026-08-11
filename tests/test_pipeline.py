@@ -89,7 +89,8 @@ def test_vielfaltsgrenze_haelt_die_reihenfolge():
 # --- Generatoren -------------------------------------------------------------
 def test_generatoren_liefern_ausschliesslich_gueltige_labels():
     for label, _ in jargon.generate():
-        assert passes(label), f"Quelle C liefert ungueltiges Label {label}"
+        # Quelle C darf ein h an der Morphemfuge tragen (sig|hup).
+        assert passes(label, compound=True), f"Quelle C liefert ungueltiges Label {label}"
     for i, (label, _) in enumerate(morpheme.generate()):
         assert passes(label), f"Quelle B liefert ungueltiges Label {label}"
         if i > 2000:
@@ -224,3 +225,24 @@ def test_quelle_d_haelt_die_wurzel_am_stueck_und_am_rand():
         assert passes(label), f"{label} besteht die harten Kriterien nicht"
         assert itroot.roots_in(label), f"{label} traegt keine Wurzel am Rand"
         assert "steht vorn" in herkunft or "steht hinten" in herkunft
+
+
+def test_refresh_kennt_beide_rangordnungen():
+    """refresh darf die Startup-Skala nicht mit Infrastruktur-Scores ueberschreiben."""
+    from domainfinder.cli import RANKERS
+    from domainfinder.startup import rank as startup_rank
+    assert set(RANKERS) == {"infra", "startup"}
+    assert RANKERS["startup"]("gusto") == startup_rank("gusto")
+    assert RANKERS["infra"]("gusto") != RANKERS["startup"]("gusto")
+
+
+def test_vielfaltsgrenze_greift_auch_bei_fuenfzeichnern():
+    """Bei einem Fuenfzeichner ist ein Vier-Zeichen-Fenster fast das ganze Wort.
+    Ohne Konsonantengeruest bestand die Spitze aus gukra/gikre/gakre/pukre."""
+    from domainfinder.select import skeleton
+    assert skeleton("gukra") == skeleton("gikre") == skeleton("gakre") == "gkr"
+    items = [(90.0 - i, lab, None) for i, lab in enumerate(
+        ["gukra", "gikre", "gakre", "gukre", "gakri", "minta"])]
+    out = [lab for _, lab, _ in cap(items)]
+    assert len([x for x in out if skeleton(x) == "gkr"]) <= 3
+    assert "minta" in out

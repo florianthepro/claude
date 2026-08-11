@@ -21,13 +21,21 @@ from .config import (DEFAULT_ENV_FILE, DEFAULT_RATES, DEFAULT_WORKERS, ConfigErr
                      cloudflare_creds, load_env_file, redact)
 from .db import Store
 from .filters import check
-from .gen import itroot, jargon, morpheme, phonotactic
+from .gen import brand5, itroot, jargon, morpheme, phonotactic
 from .output import write_rejections, write_results
 from .scoring import classify, explain, score
 from .select import cap
+from .startup import rank as startup_rank
 from .stages import recheck, stage_dns, stage_rdap, stage_registrar, stage_zone
 
 ALT_TLDS = ("fail", "computer", "email", "exposed", "haus", "codes", "host")
+
+# Zwei Zwecke, zwei Rangordnungen. `infra` ist auf Proxmox/Traefik kalibriert,
+# `startup` auf Figma/Gusto. Welche die score-Spalte fuellt, entscheidet --rank.
+RANKERS = {
+    "infra": score,
+    "startup": lambda label, source=None: startup_rank(label),
+}
 
 
 def log(msg: str) -> None:
@@ -37,7 +45,9 @@ def log(msg: str) -> None:
 # --- Kandidaten --------------------------------------------------------------
 def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
                      limit_c: int | None = None, limit_d: int = 0,
-                     only_length: int | None = None) -> dict[str, int]:
+                     limit_e: int = 0,
+                     only_length: int | None = None,
+                     rank: str = "infra") -> dict[str, int]:
     """Erzeugt die drei Quellen getrennt und legt die besten in der Datenbank ab.
 
     Die Quellen bleiben getrennt, und jede laeuft durch die Vielfaltsgrenze --
@@ -45,10 +55,25 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     """
     added: dict[str, int] = {}
     keep = (lambda lab: only_length is None or len(lab) == only_length)
+    bewerte = RANKERS[rank]
+    log(f"Rangordnung: {rank}")
+
+    if limit_e:
+        log("Quelle E: Markenform CVCCV/CCVCV, vollstaendig aufgezaehlt")
+        e_raw = sorted(((bewerte(lab, "E"), lab, org) for lab, org in brand5.generate()
+                        if keep(lab)), reverse=True)
+        # Kein Deckel: der Raum ist klein genug fuer eine vollstaendige Pruefung,
+        # und eine Vorauswahl waere hier genau der blinde Fleck, den Quelle E
+        # vermeiden soll.
+        e_top = e_raw[:limit_e]
+        added["E"] = store.add_candidates(
+            [(f"{lab}.{tld}", lab, tld, "E", "marke", sc) for sc, lab, _ in e_top])
+        log(f"  E: {len(e_raw)} bestehen die harten Kriterien, nach Vielfaltsgrenze"
+            f" {len(e_top)}, {added['E']} neu")
 
     if limit_d:
         log("Quelle D: IT-Wurzel in genau fuenf Zeichen")
-        d_raw = sorted(((score(lab, "D"), lab, org) for lab, org in itroot.generate()
+        d_raw = sorted(((bewerte(lab, "D"), lab, org) for lab, org in itroot.generate()
                         if keep(lab)), reverse=True)
         d_top = list(cap(d_raw, per_morpheme=10 ** 6, per_prefix=6, per_rhyme=6,
                          limit=limit_d))
@@ -58,7 +83,7 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
             f" {len(d_top)}, {added['D']} neu")
 
     log("Quelle C: Fachbegriffe aus Standards")
-    c_all = sorted(((score(lab, 'C'), lab, org) for lab, org in jargon.generate()
+    c_all = sorted(((bewerte(lab, "C"), lab, org) for lab, org in jargon.generate()
                     if keep(lab)), reverse=True)
     if limit_c:
         c_all = c_all[:limit_c]
@@ -68,7 +93,7 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     log(f"  C: {len(c_all)} bestehen die harten Kriterien, {added['C']} neu")
 
     log("Quelle B: semantische Komposita")
-    b_raw = sorted(((score(lab, 'B'), lab, org) for lab, org in morpheme.generate()
+    b_raw = sorted(((bewerte(lab, "B"), lab, org) for lab, org in morpheme.generate()
                     if keep(lab)), reverse=True)
     b_top = list(cap(b_raw, per_morpheme=3, per_prefix=4, per_rhyme=4, limit=limit_b))
     added["B"] = store.add_candidates(
@@ -76,7 +101,7 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     log(f"  B: {len(b_raw)} erzeugt, nach Vielfaltsgrenze {len(b_top)}, {added['B']} neu")
 
     log("Quelle A: phonotaktische Vollaufzaehlung (dauert einen Moment)")
-    a_raw = sorted(((score(lab, 'A'), lab, None) for lab in phonotactic.generate()
+    a_raw = sorted(((bewerte(lab, "A"), lab, None) for lab in phonotactic.generate()
                     if keep(lab)), reverse=True)
     a_top = list(cap(a_raw, limit=limit_a))
     added["A"] = store.add_candidates(
@@ -93,8 +118,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
         for tld in args.tld:
             log(f"== Kandidaten fuer .{tld} ==")
             build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
-                             limit_c=args.limit_c, limit_d=args.limit_d,
-                             only_length=args.only_length)
+                             limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
+                             only_length=args.only_length, rank=args.rank)
     finally:
         store.close()
     return 0
@@ -114,8 +139,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             log(f"===== .{tld} =====")
             if not store.pending("dns", tld, limit=1) and not store.results(tld, "dns", "free"):
                 build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
-                                 limit_c=args.limit_c, limit_d=args.limit_d,
-                                 only_length=args.only_length)
+                                 limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
+                                 only_length=args.only_length, rank=args.rank)
             stage_zone(store, tld, args.zonefile)
             stage_dns(store, tld, workers=args.dns_workers, rate=args.dns_rate,
                       limit=args.limit_stage1)
@@ -161,15 +186,18 @@ def cmd_refresh(args: argparse.Namespace) -> int:
     man dafuer alle Netzanfragen wiederholen.
     """
     store = Store(args.db)
+    bewerte = RANKERS[args.rank]
+    log(f"Rangordnung: {args.rank}")
     try:
         for tld in args.tld:
             raus, neu = [], 0
             for row in store.all_candidates(tld):
-                verdict = check(row["label"])
+                # Quelle C traegt echte Standardbegriffe mit bekannter Morphemfuge.
+                verdict = check(row["label"], compound=row["source"] == "C")
                 if verdict is not None:
                     raus.append((row["domain"], str(verdict)))
                     continue
-                neuer = score(row["label"], row["source"])
+                neuer = bewerte(row["label"], row["source"])
                 if abs(neuer - row["score"]) > 1e-9:
                     store.update_score(row["domain"], neuer, classify(row["label"], row["source"]))
                     neu += 1
@@ -234,10 +262,14 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--limit-a", type=int, default=9000)
         sp.add_argument("--limit-b", type=int, default=2500)
         sp.add_argument("--limit-c", type=int, default=None)
+        sp.add_argument("--limit-e", type=int, default=0,
+                        help="Quelle E: Markenform, vollstaendig aufgezaehlt")
         sp.add_argument("--limit-d", type=int, default=0,
                         help="Quelle D: IT-Wurzel in genau fuenf Zeichen")
         sp.add_argument("--only-length", type=int, default=None,
                         help="nur Labels mit genau dieser Zeichenzahl")
+        sp.add_argument("--rank", choices=sorted(RANKERS), default="infra",
+                        help="infra = Proxmox/Traefik, startup = Figma/Gusto")
 
     g = sub.add_parser("generate", help="nur Kandidaten erzeugen")
     add_gen_opts(g)
@@ -267,6 +299,9 @@ def build_parser() -> argparse.ArgumentParser:
     rf = sub.add_parser("refresh", help="aktuelle Filter/Gewichte auf den Bestand anwenden")
     rf.add_argument("--tld", action="append", default=None)
     rf.add_argument("--alt-tlds", action="store_true")
+    rf.add_argument("--rank", choices=sorted(RANKERS), default="infra",
+                    help="muss zur Rangordnung des Laufs passen, sonst werden die"
+                         " gespeicherten Werte mit der falschen Skala ueberschrieben")
     rf.set_defaults(func=cmd_refresh)
 
     rc = sub.add_parser("recheck", help="Cloudflare unmittelbar vor der Registrierung fragen")

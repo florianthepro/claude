@@ -18,8 +18,20 @@ _FAMILY_MORPHS = tuple(sorted(
 ))
 
 PER_MORPHEME = 3   # gleiches tragendes Morphem
-PER_PREFIX = 5     # gleicher Wortanfang (4 Zeichen)
-PER_RHYME = 5      # gleicher Wortausgang (4 Zeichen)
+PER_PREFIX = 5     # gleicher Wortanfang
+PER_RHYME = 5      # gleicher Wortausgang
+PER_SKELETON = 3   # gleiches Konsonantengeruest
+
+# Bei einem Fuenfzeichner sind vier Zeichen fast das ganze Wort -- ein Fenster
+# dieser Groesse trennt `gukra` und `gukre` und deckelt damit nichts. Das Fenster
+# muss zur Wortlaenge passen.
+def _window(label: str) -> int:
+    return 4 if len(label) >= 7 else max(2, len(label) - 3)
+
+
+def skeleton(label: str) -> str:
+    """Konsonantengeruest. `gukra`, `gikre` und `gakre` teilen sich `gkr`."""
+    return "".join(ch for ch in label if ch not in "aeiou")
 
 
 def morpheme_family(label: str) -> str | None:
@@ -31,26 +43,32 @@ def morpheme_family(label: str) -> str | None:
 
 def cap(items: Iterable[tuple[float, str, object]], *, per_morpheme: int = PER_MORPHEME,
         per_prefix: int = PER_PREFIX, per_rhyme: int = PER_RHYME,
+        per_skeleton: int = PER_SKELETON,
         limit: int | None = None) -> Iterator[tuple[float, str, object]]:
     """Erwartet nach Score absteigend sortierte (score, label, payload)-Tupel."""
     seen_m: dict[str, int] = {}
     seen_p: dict[str, int] = {}
     seen_r: dict[str, int] = {}
+    seen_s: dict[str, int] = {}
     taken = 0
     for scr, label, payload in items:
         if limit is not None and taken >= limit:
             return
         fam = morpheme_family(label)
-        pre, rhy = label[:4], label[-4:]
+        w = _window(label)
+        pre, rhy, ske = label[:w], label[-w:], skeleton(label)
         if fam and seen_m.get(fam, 0) >= per_morpheme:
             continue
         if seen_p.get(pre, 0) >= per_prefix:
             continue
         if seen_r.get(rhy, 0) >= per_rhyme:
             continue
+        if seen_s.get(ske, 0) >= per_skeleton:
+            continue
         if fam:
             seen_m[fam] = seen_m.get(fam, 0) + 1
         seen_p[pre] = seen_p.get(pre, 0) + 1
         seen_r[rhy] = seen_r.get(rhy, 0) + 1
+        seen_s[ske] = seen_s.get(ske, 0) + 1
         taken += 1
         yield scr, label, payload

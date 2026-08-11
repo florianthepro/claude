@@ -33,7 +33,9 @@ def generate() -> Iterator[tuple[str, str]]:
             if cand in seen:
                 continue
             seen.add(cand)
-            if passes(cand):
+            # Quelle C liefert echte Begriffe aus Standards: die Morphemfuge
+            # ist bekannt, deshalb ist sig|hup zulaessig.
+            if passes(cand, compound=True):
                 yield cand, note
 
 
@@ -43,7 +45,7 @@ def rejected() -> list[tuple[str, str]]:
 
     out = []
     for label, origin in JARGON:
-        r = check(label.lower())
+        r = check(label.lower(), compound=True)
         if r:
             out.append((label, f"{origin} -> {r}"))
     return out

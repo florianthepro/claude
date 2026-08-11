@@ -4,7 +4,7 @@ import pytest
 
 from domainfinder.filters import check, passes, soft_hits
 
-GOOD = ["bitrot", "purlink", "granot", "nodepot", "tarpit", "sighup", "badalg",
+GOOD = ["bitrot", "purlink", "granot", "nodepot", "tarpit", "badalg",
         "notimp", "stratum", "helo", "fastopen", "sigterm"]
 
 
@@ -91,3 +91,58 @@ def test_dg_stoert_nur_vor_e_und_i():
     """gabledge ist englisch, badglue ist eine harte Morphemfuge."""
     assert check("gabledge").rule == "folge"
     assert passes("badglue"), check("badglue")
+
+
+@pytest.mark.parametrize("label", [
+    "dusfa",   # sf
+    "bufdo",   # fd
+    "bekga",   # kg
+    "pokfa",   # kf
+    "pumno",   # mn
+    "durho",   # h im Cluster
+    "bemha",   # h im Cluster
+    "pulho",   # h im Cluster
+])
+def test_unsprechbare_binnencluster_fallen(label):
+    """Aus einem echten Lauf: diese standen in einer Liste, die
+    'leicht aussprechbar' sein sollte. Jedes Paar laesst sich zwar in zwei
+    Einzelbuchstaben zerlegen -- genau das war das Schlupfloch."""
+    r = check(label)
+    assert r is not None and r.rule == "cluster", f"{label}: bekam {r}"
+
+
+@pytest.mark.parametrize("label", [
+    "gusto", "dogma", "minta", "kanto", "bralo", "salte", "purlink", "bitrot",
+    "karsten", "silber", "kurbel", "tundra",
+])
+def test_natuerliche_binnencluster_bleiben(label):
+    assert passes(label), check(label)
+
+
+def test_h_hinter_konsonant_nur_bei_echten_komposita():
+    """sig|hup hat eine bekannte Morphemfuge, durho hat keine.
+
+    `compound=True` ist ein Vertrauensflag, kein Filter: es sagt dem Pruefer,
+    dass die Fuge bekannt ist. Nur Quelle C setzt es, und die speist eine
+    kuratierte Liste echter Standardbegriffe ein. Fuer alles Erzeugte gilt der
+    strenge Weg -- und nur der entscheidet ueber die Ergebnisliste.
+    """
+    for erfunden in ("durho", "bemha", "pulho"):
+        assert not passes(erfunden), f"{erfunden} muss im Normalmodus fallen"
+    assert check("sighup") is not None            # als erfundener Name: raus
+    assert passes("sighup", compound=True)        # als Standardbegriff: bleibt
+    assert passes("sinkhole", compound=True)
+
+
+@pytest.mark.parametrize("label", ["fikno", "fikne", "pusno", "pusmi", "kakto", "sakle"])
+def test_lautgleiche_kraftausdruecke_im_erlaubten_alphabet(label):
+    """Die Blacklist stand in Schreibweisen, die das Alphabet gar nicht kennt.
+    'fick' kann nie vorkommen (c verboten), 'fik' klingt identisch und kam
+    ungehindert durch."""
+    r = check(label)
+    assert r is not None and r.rule.startswith("blacklist"), f"{label}: bekam {r}"
+
+
+def test_fag_faellt():
+    """Stand auf Platz 10 einer Ergebnisliste, bevor der Eintrag da war."""
+    assert check("fagmo").rule == "blacklist_en"

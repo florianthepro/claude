@@ -69,6 +69,62 @@ LEGAL_CODA_CLUSTERS = frozenset({
     "mt", "nst", "rst", "lst", "mpf", "rgt", "lft",
 })
 
+# Einzelkonsonanten, die eine Silbe schliessen bzw. eroeffnen duerfen.
+# `h` fehlt in der Coda-Menge mit Absicht: es ist dort nicht hoerbar.
+LEGAL_CODA_CONSONANTS = frozenset("bdfgklmnprst")
+LEGAL_ONSET_CONSONANTS = frozenset("bdfghklmnprst")
+
+# Zweiercluster im Wortinneren. Der Sprecher muss die Silbenfuge finden koennen,
+# ohne zu raten. Zugelassen ist, was im Deutschen oder Englischen wirklich
+# vorkommt: Nasal oder Liquid plus Konsonant (Senf, Wurf, Kampf), s plus
+# Konsonant (Kasten), f plus t (Kraft), Plosiv plus Liquid als Anlaut der
+# zweiten Silbe (A-dler, Si-gnal) und die gelaeufigen Plosivpaare.
+#
+# Ohne diese Liste laesst sich jedes Paar in zwei Einzelbuchstaben zerlegen und
+# gilt damit als zulaessig -- so kamen `dusfa`, `bufdo`, `bekga` und `pokfa`
+# in eine Ergebnisliste, die "leicht aussprechbar" sein sollte.
+LEGAL_MEDIAL_CLUSTERS = frozenset({
+    # Nasal + Konsonant
+    "mp", "mb", "mf", "ms", "mt", "md",
+    "nt", "nd", "nk", "ng", "ns", "nf", "nd",
+    # Liquid + Konsonant
+    "lt", "ld", "lk", "lg", "lp", "lb", "lf", "ls", "lm", "ln",
+    "rt", "rd", "rk", "rg", "rp", "rb", "rf", "rs", "rm", "rn", "rl",
+    # s + Konsonant
+    "sp", "st", "sk", "sm", "sn", "sl",
+    # Reibelaut + Plosiv
+    "ft",
+    # Plosiv + Liquid: eroeffnet die zweite Silbe (A-dler, Zi-trone)
+    "br", "bl", "dr", "gr", "gl", "kr", "kl", "pr", "pl", "tr", "fl", "fr", "dl",
+    # gelaeufige Plosivpaare und Zischauslaute
+    "kt", "pt", "ts", "ps", "ds", "bs", "gs", "gn", "kn", "pf",
+    # Nachgetragen, weil sie sonst echte Woerter verwerfen:
+    "gm",  # Figma, Pigment, Segment
+    "gt",  # sagte, sigterm
+    "bt",  # abteilen
+    "dm",  # Admiral
+    "tm",  # atmen
+    "fs",  # Chefs, rootfs
+    "ks",  # Keks
+    "tl",  # Ortlich, Atlas
+    "dn",  # Ordner
+    "tn",  # Ordnung
+})
+
+# Klangeinordnung der Binnencluster. Das ist KEIN Filter -- `nf`, `rf` und `mf`
+# sind diktiersicher und bleiben zugelassen. Fuer einen Markennamen klingen sie
+# aber hart, und `gen/brand5.py` sowie `startup.py` brauchen dieselbe Einteilung.
+# Sie steht hier, weil alles uebrige Clusterwissen auch hier steht.
+PRIME_MEDIAL = frozenset({
+    "nt", "nd", "nk", "ng", "mp", "mb",      # Nasal + Plosiv: Vanta, Canva
+    "rt", "rd", "rk", "rg", "lt", "ld", "lk", "lg",   # Liquid + Plosiv
+    "st", "sp", "sk",                        # s + Plosiv: Gusto
+    "gr", "br", "dr", "tr", "kr", "pr", "gl", "bl", "kl", "pl", "fl", "fr",
+    "gm", "dm", "tm",                        # Plosiv + Nasal: Figma
+})
+FAIR_MEDIAL = frozenset({"ns", "rs", "ls", "ms", "rl", "rn", "lm", "ln", "ft",
+                         "kt", "pt", "sl", "sm", "sn"})
+
 # --- Anstoessige / komische Teilzeichenfolgen ---------------------------------
 # Nur Eintraege, die im erlaubten Alphabet ueberhaupt vorkommen koennen, sind
 # wirksam -- der Rest bleibt zur Dokumentation stehen.
@@ -79,6 +135,8 @@ BLACKLIST_HARD_EN = (
     "testis", "tit", "turd", "gimp", "hitler", "isis", "nazi", "klan", "kkk",
     "genocid", "rapist", "molest", "incest", "bdsm", "fetish", "hentai",
     "shit", "shag", "prostit", "hooligan", "bomb", "murder", "suicid",
+    "pus", "dik", "kok", "knob", "bugger", "tosser", "minge",
+    "fag", "spic", "kike", "gook", "chink", "tranny", "retard",
 )
 BLACKLIST_HARD_DE = (
     "arsch", "hure", "nutte", "titte", "titten", "pimmel", "muschi", "hoden",
@@ -91,6 +149,12 @@ BLACKLIST_HARD_DE = (
     # Aus einem echten Lauf nachgetragen: kopule, pupore, pubod standen in der
     # Ergebnisliste, bevor diese Eintraege da waren.
     "kopul", "pupo", "pubo", "pudel", "pimp", "grapsch", "lusche",
+    # Zweite Runde. Die Liste enthielt nur Schreibweisen mit c, die im
+    # erlaubten Alphabet gar nicht vorkommen koennen -- lautgleiche Varianten
+    # kamen dadurch ungehindert durch (fikno, fikne standen in einer
+    # Ergebnisliste). Blacklists muessen im selben Alphabet gedacht werden,
+    # in dem erzeugt wird.
+    "fik", "fak", "kak", "sak", "pup", "hurn", "nutt", "prut",
 )
 
 # --- Bekannte Marken ----------------------------------------------------------
@@ -134,8 +198,15 @@ def _clusters(label: str) -> list[tuple[int, str]]:
     return [(m.start(), m.group()) for m in re.finditer(r"[^aeiou]{2,}", label)]
 
 
-def check(label: str) -> Rejection | None:
-    """Gibt None zurueck, wenn das Label alle harten Kriterien erfuellt."""
+def check(label: str, *, compound: bool = False) -> Rejection | None:
+    """Gibt None zurueck, wenn das Label alle harten Kriterien erfuellt.
+
+    `compound=True` sagt: dieses Label ist ein echtes Kompositum aus einem
+    Standard, die Morphemfuge ist bekannt. Dann darf ein `h` hinter einem
+    Konsonanten stehen -- `sig|hup` und `sink|hole` liest jeder richtig.
+    Bei erfundenen Namen fehlt diese Fuge, und `durho` oder `bemha` zwingen
+    den Sprecher zum Raten. Nur Quelle C setzt das Flag.
+    """
     label = label.lower()
 
     if not label.isascii() or not label.isalpha():
@@ -189,14 +260,29 @@ def check(label: str) -> Rejection | None:
             if cl not in LEGAL_CODA_CLUSTERS:
                 return Rejection("cluster", f"Auslautcluster {cl!r} ist nicht diktiersicher")
         else:
-            # Binnencluster: muss sich in legalen Coda- + Onset-Teil zerlegen lassen.
-            ok = any(
-                (not a or a in LEGAL_CODA_CLUSTERS or len(a) == 1)
-                and (not b or b in LEGAL_ONSET_CLUSTERS or len(b) == 1)
-                for a, b in ((cl[:i], cl[i:]) for i in range(len(cl) + 1))
-            )
-            if not ok:
-                return Rejection("cluster", f"Binnencluster {cl!r} ist nicht diktiersicher")
+            if "h" in cl:
+                # Ein h im Cluster kann nur eine Morphemfuge sein. Bei einem
+                # echten Kompositum ist das in Ordnung und die Cluster-Liste
+                # gilt hier nicht -- sig|hup steht in keiner Silbentabelle.
+                if compound:
+                    continue
+                return Rejection("cluster", f"h im Binnencluster {cl!r} zwingt zum Raten,"
+                                            " wo die Silbenfuge liegt")
+            if len(cl) == 2:
+                if cl not in LEGAL_MEDIAL_CLUSTERS:
+                    return Rejection("cluster", f"Binnencluster {cl!r} kommt in keiner der"
+                                                " beiden Sprachen vor")
+            else:
+                # Dreiercluster nur, wenn er sich in eine echte Coda und einen
+                # echten Onset zerlegen laesst -- ohne Schlupfloch fuer
+                # Einzelbuchstaben, sonst ist jede Kombination erlaubt.
+                ok = any(
+                    (a in LEGAL_CODA_CONSONANTS or a in LEGAL_CODA_CLUSTERS)
+                    and (b in LEGAL_ONSET_CONSONANTS or b in LEGAL_ONSET_CLUSTERS)
+                    for a, b in ((cl[:i], cl[i:]) for i in range(1, len(cl)))
+                )
+                if not ok:
+                    return Rejection("cluster", f"Binnencluster {cl!r} ist nicht diktiersicher")
 
     if _syllables(label) > 3:
         return Rejection("silben", f"{_syllables(label)} Silben, hoechstens 3 erlaubt")
@@ -214,8 +300,8 @@ def check(label: str) -> Rejection | None:
     return None
 
 
-def passes(label: str) -> bool:
-    return check(label) is None
+def passes(label: str, *, compound: bool = False) -> bool:
+    return check(label, compound=compound) is None
 
 
 def soft_hits(label: str) -> list[str]:

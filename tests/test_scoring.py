@@ -52,3 +52,32 @@ def test_quellenbonus_hebt_den_fachwitz_ohne_die_kalibrierung_zu_stoeren():
     assert score("badsig", "C") - score("badsig") == 12.0
     assert score("google") > score("ahefid")      # Referenzen haben keine Quelle
     assert score("mastud", "B") == score("mastud")
+
+
+def test_startup_rangordnung_bevorzugt_weiche_binnencluster():
+    """Senf und Wurf sind diktiersicher, klingen als Marke aber hart."""
+    from domainfinder.startup import rank
+    assert rank("gusto") > rank("punfo")     # st schlaegt nf
+    assert rank("kanto") > rank("kilfa")     # nt schlaegt lf
+    assert min(rank("gusto"), rank("figma")) > max(rank("gokna"), rank("dumfa"))
+
+
+def test_beide_rangordnungen_bleiben_getrennt():
+    """startup darf die auf Proxmox kalibrierte Skala nicht veraendern."""
+    from domainfinder.startup import rank
+    assert score("google") > score("ahefid")
+    assert rank("gusto") > rank("ahefid")
+    assert score("gusto") != rank("gusto")
+
+
+def test_module_lassen_sich_einzeln_importieren():
+    """gen/brand5 -> startup -> scoring -> gen/__init__ -> gen/brand5 war ein
+    Ringschluss. Er blieb verborgen, weil die CLI zufaellig in der richtigen
+    Reihenfolge importiert."""
+    import subprocess
+    import sys
+    for modul in ("domainfinder.startup", "domainfinder.gen.brand5",
+                  "domainfinder.scoring", "domainfinder.filters"):
+        r = subprocess.run([sys.executable, "-c", f"import {modul}"],
+                           capture_output=True, text=True)
+        assert r.returncode == 0, f"{modul} einzeln importiert: {r.stderr}"
