@@ -272,3 +272,14 @@ def test_komposita_pruefen_mit_bekannter_wortfuge():
     assert check("bitstrom", compound=True) is None
     # `pf` ist ein echter deutscher Anlaut, datenpfad braucht die Fuge nicht.
     assert check("datenpfad") is None
+
+
+def test_markennamen_haben_keine_vokalhaufen_an_der_fuge():
+    """stro+era, geo+ina, nimbu+io waren die Spitze der ersten Fassung."""
+    from domainfinder.gen import branding
+    alle = {lab for lab, _ in branding.generate()}
+    for schlecht in ("stroera", "geoina", "nimbuio", "stoaera"):
+        assert schlecht not in alle, f"Vokalhaufen: {schlecht}"
+    # Und der Stamm muss erkennbar bleiben: gasket -> gask -> gaskio war zu viel.
+    assert "gaskio" not in alle
+    assert "granita" in alle and "pfada" in alle

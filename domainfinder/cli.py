@@ -21,7 +21,8 @@ from .config import (DEFAULT_ENV_FILE, DEFAULT_RATES, DEFAULT_WORKERS, ConfigErr
                      cloudflare_creds, load_env_file, redact)
 from .db import Store
 from .filters import check
-from .gen import brand5, compound, itpair, itroot, jargon, morpheme, phonotactic
+from .gen import (brand5, branding, compound, itpair, itroot, jargon, morpheme,
+                  phonotactic)
 from .output import write_rejections, write_results
 from .scoring import classify, explain, score
 from .select import cap
@@ -51,7 +52,7 @@ def log(msg: str) -> None:
 def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
                      limit_c: int | None = None, limit_d: int = 0,
                      limit_e: int = 0, limit_f: int = 0, limit_g: int = 0,
-                     limit_h: int = 0,
+                     limit_h: int = 0, limit_i: int = 0,
                      only_length: int | None = None, rank: str = "infra",
                      cap_prefix: int = 5, cap_rhyme: int = 5,
                      cap_skeleton: int = 3) -> dict[str, int]:
@@ -64,6 +65,15 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     keep = (lambda lab: only_length is None or len(lab) == only_length)
     bewerte = RANKERS[rank]
     log(f"Rangordnung: {rank}")
+
+    if limit_i:
+        log("Quelle I: Markennamen aus Bildwortschatz")
+        i_raw = sorted(((bewerte(lab, "I"), lab, org) for lab, org in branding.generate()
+                        if keep(lab)), reverse=True)
+        i_top = i_raw[:limit_i]          # kleiner Raum, vollstaendig pruefen
+        added["I"] = store.add_candidates(
+            [(f"{lab}.{tld}", lab, tld, "I", "marke", sc) for sc, lab, _ in i_top])
+        log(f"  I: {len(i_raw)} bestehen die harten Kriterien, {added['I']} neu")
 
     if limit_h:
         log("Quelle H: zwei IT-Kuerzel, fuenf oder sechs Zeichen")
@@ -155,7 +165,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
             log(f"== Kandidaten fuer .{tld} ==")
             build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                              limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
-                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h,
+                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h, limit_i=args.limit_i,
                              only_length=args.only_length, rank=args.rank,
                              cap_prefix=args.cap_prefix, cap_rhyme=args.cap_rhyme,
                              cap_skeleton=args.cap_skeleton)
@@ -179,7 +189,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             if not store.pending("dns", tld, limit=1) and not store.results(tld, "dns", "free"):
                 build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                                  limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
-                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h,
+                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h, limit_i=args.limit_i,
                                  only_length=args.only_length, rank=args.rank,
                              cap_prefix=args.cap_prefix, cap_rhyme=args.cap_rhyme,
                              cap_skeleton=args.cap_skeleton)
@@ -304,6 +314,8 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--limit-a", type=int, default=9000)
         sp.add_argument("--limit-b", type=int, default=2500)
         sp.add_argument("--limit-c", type=int, default=None)
+        sp.add_argument("--limit-i", type=int, default=0,
+                        help="Quelle I: Markennamen aus Bildwortschatz")
         sp.add_argument("--limit-h", type=int, default=0,
                         help="Quelle H: zwei IT-Kuerzel, 5 oder 6 Zeichen")
         sp.add_argument("--limit-f", type=int, default=0,
