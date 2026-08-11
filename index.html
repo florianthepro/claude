@@ -24,6 +24,8 @@ header{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px
 .meta{color:var(--dim);font-size:11px;display:flex;gap:16px;flex:1;min-width:0;overflow:hidden;white-space:nowrap}
 .meta span{display:inline-flex;gap:6px}
 .meta b{color:var(--mut);font-weight:400}
+.meta b.wfix{color:var(--med)}
+.meta b.wlost{color:var(--bad)}
 button{font:inherit;background:#0e0e0e;color:var(--fg);border:1px solid var(--line2);padding:5px 12px;cursor:pointer;letter-spacing:.08em}
 button:hover{background:#171717;border-color:#3a3a3a}
 button:active{background:#050505}
@@ -145,92 +147,210 @@ function dur(ms){if(ms==null||!isFinite(ms)||ms<0)return "—";var m=Math.round(
 function tail(r){var v=S(r);var i=v.lastIndexOf(":");return i<0?v:v.slice(i+1)}
 function nz(v){return v||"—"}
 
+var FIX=0,LOST=0;
+function ctl(t){
+  if(!/[\x00-\x08\x0b\x0c\x0e-\x1f]|"[^"\\]*(\\.[^"\\]*)*[\n\r]/.test(t))return t;
+  var o=[],q=false,esq=false;
+  for(var i=0;i<t.length;i++){var c=t[i],n=t.charCodeAt(i);
+    if(q){
+      if(esq){o.push(c);esq=false;continue}
+      if(c==="\\"){o.push(c);esq=true;continue}
+      if(c==='"'){q=false;o.push(c);continue}
+      if(n<32){o.push(n===10?"\\n":n===13?"\\r":n===9?"\\t":" ");continue}
+      o.push(c);continue}
+    if(c==='"')q=true;
+    o.push(c)}
+  return o.join("");
+}
+function commas(t){
+  if(t.indexOf(",")<0)return t;
+  var o=[],q=false,esq=false,prev="",i,c;
+  for(i=0;i<t.length;i++){c=t[i];
+    if(q){o.push(c);if(esq){esq=false}else if(c==="\\"){esq=true}else if(c==='"'){q=false;prev='"'}continue}
+    if(c==='"'){q=true;o.push(c);continue}
+    if(c===","){
+      if(prev==="{"||prev==="["||prev===","){continue}
+      var j=i+1;while(j<t.length&&/\s/.test(t[j]))j++;
+      var nx=t[j];
+      if(nx==="}"||nx==="]"||nx===","||j>=t.length)continue;
+      o.push(c);prev=",";continue}
+    o.push(c);
+    if(!/\s/.test(c))prev=c;
+  }
+  return o.join("");
+}
+function fixups(t){
+  var a=[],b;
+  b=t.replace(/[\u201c\u201d\u201e\u201f\u2033]/g,'"').replace(/[\u2018\u2019\u201a\u201b\u2032]/g,"'")
+     .replace(/[\u00a0\u202f\u2007]/g," ").replace(/[\u200b-\u200f\u2028\u2029\ufeff]/g,"");
+  if(b!==t)a.push(b);else b=t;
+  a.push(b=commas(b));
+  a.push(b=ctl(b));
+  a.push(b=commas(b));
+  a.push(b.replace(/\/\*[\s\S]*?\*\//g,"").replace(/(^|[^:"'\\])\/\/[^\n\r]*/g,"$1"));
+  a.push(b.replace(/(^|[[{,:\s])(NaN|-?Infinity)(\s*[,}\]]|$)/g,"$1null$3"));
+  a.push(b.replace(/(^|[[{,:\s])None(\s*[,}\]]|$)/g,"$1null$2").replace(/(^|[[{,:\s])True(\s*[,}\]]|$)/g,"$1true$2").replace(/(^|[[{,:\s])False(\s*[,}\]]|$)/g,"$1false$2"));
+  if(/&quot;|&amp;|&lt;/.test(b))a.push(b.replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&"));
+  if(b.indexOf('"')<0&&b.indexOf("'")>=0)a.push(b.replace(/'/g,'"'));
+  return a;
+}
+function tryParse(t){
+  try{return{v:JSON.parse(t)}}catch(e){}
+  var f=fixups(t);
+  for(var i=0;i<f.length;i++){try{var v=JSON.parse(f[i]);FIX++;return{v:v}}catch(e){}}
+  return null;
+}
+function closers(t,from){
+  var st=[],q=false,esq=false,cuts=[],i,c;
+  for(i=from;i<t.length;i++){c=t[i];
+    if(q){if(esq){esq=false}else if(c==="\\"){esq=true}else if(c==='"'){q=false;push(i+1)}continue}
+    if(c==='"'){q=true;continue}
+    if(c==="{"||c==="[")st.push(c==="{"?"}":"]");
+    else if(c==="}"||c==="]"){st.pop();push(i+1)}
+    else if(c===",")push(i);
+  }
+  function push(p){cuts.push({p:p,c:st.slice().reverse().join("")});if(cuts.length>48)cuts.shift()}
+  return {open:st.length>0||q,q:q,end:st.slice().reverse().join(""),cuts:cuts};
+}
+function salvage(t,from){
+  var s=closers(t,from);
+  if(!s.open)return null;
+  var cand=[t.slice(from)+(s.q?'"':"")+s.end],i,was=FIX;
+  for(i=s.cuts.length-1;i>=0;i--)cand.push(t.slice(from,s.cuts[i].p)+s.cuts[i].c);
+  for(i=0;i<cand.length;i++){var r=tryParse(cand[i]);if(r){if(FIX===was)FIX++;return r.v}}
+  return null;
+}
+function full(v){
+  if(v==null||typeof v!=="object")return false;
+  if(Array.isArray(v))return v.length>0;
+  for(var k in v)if(OWN.call(v,k))return true;
+  return false;
+}
 function scan(t){
-  var res=[],dep=0,st=-1,q=false,esq=false;
+  var res=[],dep=0,st=-1,q=false,esq=false,last=0;
   for(var i=0;i<t.length;i++){var c=t[i];
     if(q){if(esq){esq=false}else if(c==="\\"){esq=true}else if(c==='"'){q=false}continue}
     if(c==='"'){q=true;continue}
     if(c==="{"||c==="["){if(dep===0)st=i;dep++}
-    else if(c==="}"||c==="]"){dep--;if(dep===0&&st>=0){try{res.push(JSON.parse(t.slice(st,i+1)))}catch(e){}st=-1}else if(dep<0){dep=0}}
+    else if(c==="}"||c==="]"){dep--;
+      if(dep===0&&st>=0){var r=tryParse(t.slice(st,i+1));if(r&&full(r.v))res.push(r.v);else LOST++;st=-1;last=i+1}
+      else if(dep<0){dep=0}}
   }
+  var from=st>=0&&st>=last?st:-1;
+  if(from<0){var rest=t.slice(last),ix=rest.search(/[{[]/);if(ix>=0)from=last+ix}
+  if(from>=0){var sv=salvage(t,from);if(full(sv))res.push(sv);else LOST++}
   return res;
 }
 function parse(txt){
-  var t=String(txt).replace(/^﻿/,"").trim();
+  FIX=0;LOST=0;
+  var t=String(txt).replace(/^\ufeff/,"").trim();
   if(!t)throw 0;
-  try{return JSON.parse(t)}catch(e){}
-  var ln=t.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean),a=[],ok=ln.length>0;
-  for(var i=0;i<ln.length;i++){try{a.push(JSON.parse(ln[i]))}catch(e){ok=false;break}}
-  if(ok&&a.length)return a;
+  var r=tryParse(t);
+  if(r)return r.v;
+  var ln=t.split(/\r?\n/),a=[],bad=0,strict=0,i,x,keep=FIX,last=-1;
+  for(i=ln.length-1;i>=0;i--)if(ln[i].trim()){last=i;break}
+  for(i=0;i<ln.length&&!bad;i++){x=ln[i].trim();if(!x)continue;
+    if(x.charAt(0)!=="{"&&x.charAt(0)!=="["){bad++;break}
+    var p=tryParse(x);
+    if(p&&full(p.v)){a.push(p.v);strict++;continue}
+    if(i===last){var sv=salvage(x,0);if(full(sv)){a.push(sv);continue}}
+    bad++}
+  if(strict&&a.length&&!bad)return a;
+  FIX=keep;a=null;
   var sc=scan(t);
   if(sc.length)return sc.length===1?sc[0]:sc;
   throw 0;
 }
 
-function has(o){for(var i=1;i<arguments.length;i++)if(arguments[i] in o)return true;return false}
+var OWN=Object.prototype.hasOwnProperty;
+function nkey(k){return k.toLowerCase().replace(/[^a-z0-9]/g,"")}
+function nmap(o){
+  if(o.__n)return o.__n;
+  var m={};for(var k in o){if(!OWN.call(o,k))continue;var n=nkey(k);if(!(n in m))m[n]=o[k]}
+  try{Object.defineProperty(o,"__n",{value:m,enumerable:false})}catch(e){}
+  return m;
+}
+function pick(m){for(var i=1;i<arguments.length;i++){var v=m[arguments[i]];if(v!=null&&v!=="")return v}return null}
+function has(m){for(var i=1;i<arguments.length;i++)if(m[arguments[i]]!=null)return true;return false}
 function kind(o){
-  var r=S(o.rrn||o.RRN);
+  var m=nmap(o),r=S(m.rrn);
   if(/:investigation:/i.test(r))return "inv";
   if(/:evidence:/i.test(r))return "ev";
   if(/:comment:/i.test(r))return "com";
   if(/:attachment:/i.test(r))return "att";
-  if(has(o,"alert_type","alert_type_description","detection_rule_rrn","rule_rrn","alert_source","agent_action_taken","applicable_close_reasons"))return "alr";
-  if(has(o,"evented_at")||(has(o,"event_type")&&has(o,"external_source")))return "ev";
-  if(has(o,"body")&&has(o,"creator"))return "com";
-  if(has(o,"file_name")&&has(o,"mime_type"))return "att";
-  if(has(o,"disposition")||has(o,"first_alert_time")||has(o,"latest_alert_time")||has(o,"responsibility"))return "inv";
-  if(has(o,"status")&&has(o,"priority")&&(has(o,"title")||has(o,"rrn")))return "inv";
-  if(has(o,"rule_name")||has(o,"first_event_time")||has(o,"latest_event_time"))return "alr";
-  if(has(o,"source_data")||(has(o,"timestamp")&&has(o,"hostname")))return "raw";
+  if((m.alerts!=null||m.investigationalerts!=null)&&has(m,"title","name","status","state","investigationid","investigationtitle"))return "inv";
+  if(/:alert/i.test(r)&&has(m,"alerttype","detectionrulerrn","alertsource"))return "alr";
+  if(has(m,"alerttype","alerttypedescription","detectionrulerrn","rulerrn","alertsource","agentactiontaken","applicableclosereasons","firsteventtime","latesteventtime","rulename"))return "alr";
+  if(has(m,"eventedat")||(has(m,"eventtype")&&has(m,"externalsource")))return "ev";
+  if(has(m,"body")&&has(m,"creator"))return "com";
+  if(has(m,"filename")&&has(m,"mimetype"))return "att";
+  if(has(m,"disposition","firstalerttime","latestalerttime","responsibility","investigationtitle","investigationid","investigationstatus","investigationrrn"))return "inv";
+  if(has(m,"status","state")&&has(m,"priority","severity")&&has(m,"title","name","rrn","id"))return "inv";
+  if(has(m,"status","state")&&has(m,"title","name")&&has(m,"createdtime","createdat","source","assignee","assignedto"))return "inv";
+  if(has(m,"sourcedata")||(has(m,"timestamp")&&has(m,"hostname")))return "raw";
   return null;
 }
 function collect(root){
-  var bag={inv:[],alr:[],ev:[],com:[],att:[],raw:[]},pg=null,seen=[];
+  var bag={inv:[],alr:[],ev:[],com:[],att:[],raw:[]},pg=null,seen=new Set();
   (function walk(n,dp){
-    if(n==null||dp>10)return;
+    if(n==null||dp>12)return;
     if(Array.isArray(n)){for(var i=0;i<n.length;i++)walk(n[i],dp+1);return}
     if(typeof n!=="object")return;
-    if(seen.indexOf(n)>=0)return; seen.push(n);
-    if(n.metadata&&typeof n.metadata==="object"&&(n.metadata.total_data!=null||n.metadata.total_pages!=null))pg=n.metadata;
+    if(seen.has(n))return; seen.add(n);
+    var md=nmap(n).metadata;
+    if(md&&typeof md==="object"&&!pg){var mm=nmap(md);if(mm.totaldata!=null||mm.totalpages!=null)pg=mm}
     var k=kind(n);
     if(k){bag[k].push(n);if(k!=="inv")return}
-    for(var p in n){if(!Object.prototype.hasOwnProperty.call(n,p))continue;var v=n[p];if(v&&typeof v==="object")walk(v,dp+1)}
+    for(var p in n){if(!OWN.call(n,p))continue;var v=n[p];if(v&&typeof v==="object")walk(v,dp+1)}
   })(root,0);
   return {bag:bag,pg:pg};
 }
 
 function mkAlert(o,parent){
+  var m=nmap(o);
   return {raw:o,
-    title:S(o.title||o.name||o.alert_type||o.alert_type_description),
-    type:S(o.alert_type||o.alert_type_description||o.rule_name||o.name),
-    desc:S(o.alert_type_description),
-    src:S(o.alert_source||o.external_source||o.source),
-    rule:S(o.rule_name||o.detection_rule_rrn||o.rule_rrn),
-    id:S(o.id||o.alert_id||o.rrn),
-    action:S(o.agent_action_taken),
-    created:D(o.created_time||o.created_at),
-    first:D(o.first_event_time),
-    last:D(o.latest_event_time),
+    title:S(pick(m,"title","name","alerttype","alerttypedescription","type","rulename")),
+    type:S(pick(m,"alerttype","type","alerttypedescription","typedescription","rulename","name","title")),
+    desc:S(pick(m,"alerttypedescription","typedescription","description")),
+    src:S(pick(m,"alertsource","externalsource","source","producer")),
+    rule:S(pick(m,"rulename","detectionrulerrn","rulerrn","detectionrule")),
+    id:S(pick(m,"id","alertid","rrn","alertrrn")),
+    action:S(pick(m,"agentactiontaken","actiontaken","action")),
+    created:D(pick(m,"createdtime","createdat","created","timestamp")),
+    first:D(pick(m,"firsteventtime","firsteventat","starttime")),
+    last:D(pick(m,"latesteventtime","lasteventtime","endtime")),
     pi:parent};
 }
+function person(x){
+  if(x==null)return{n:"",e:""};
+  if(typeof x!=="object")return{n:S(x),e:/@/.test(S(x))?S(x):""};
+  if(Array.isArray(x))return x.length?person(x[0]):{n:"",e:""};
+  var m=nmap(x);return{n:S(pick(m,"name","displayname","username","fullname","email")),e:S(pick(m,"email","mail"))};
+}
 function mkInv(o,i){
-  var a=o.assignee,nm="",em="";
-  if(a&&typeof a==="object"){nm=S(a.name);em=S(a.email)}else{nm=S(a)}
+  var m=nmap(o),a=person(pick(m,"assignee","assignedto","owner","analyst"));
   var v={idx:i,raw:o,
-    title:S(o.title||o.name),
-    rrn:S(o.rrn||o.id),
-    id:S(o.id||o.rrn),
-    prio:U(o.priority),status:U(o.status),disp:U(o.disposition),src:U(o.source),resp:U(o.responsibility),
-    org:S(o.organization_id),
-    asg:nm||em||"",email:em,
-    created:D(o.created_time||o.created_at),
-    acc:D(o.last_accessed||o.last_accessed_time),
-    fa:D(o.first_alert_time),la:D(o.latest_alert_time),
-    tags:Array.isArray(o.tags)?o.tags.map(S).filter(Boolean):[],
-    url:S(o.entity_url||o.url),
+    title:S(pick(m,"title","investigationtitle","name","investigationname","summary")),
+    rrn:S(pick(m,"rrn","investigationrrn","id","investigationid")),
+    id:S(pick(m,"id","investigationid","rrn")),
+    prio:U(pick(m,"priority","investigationpriority","severity")),
+    status:U(pick(m,"status","investigationstatus","state")),
+    disp:U(pick(m,"disposition","investigationdisposition")),
+    src:U(pick(m,"source","investigationsource","createdvia","origin")),
+    resp:U(pick(m,"responsibility")),
+    org:S(pick(m,"organizationid","orgid","organization")),
+    asg:a.n||a.e,email:a.e,
+    created:D(pick(m,"createdtime","investigationcreatedtime","createdat","created","opentime")),
+    acc:D(pick(m,"lastaccessed","lastaccessedtime","updatedat","lastupdated","closedtime","closetime")),
+    fa:D(pick(m,"firstalerttime","firstalertat")),
+    la:D(pick(m,"latestalerttime","lastalerttime","mostrecentalerttime")),
+    tags:[],url:S(pick(m,"entityurl","url","link")),
     alerts:[]};
-  var pools=["alerts","alert","product_alerts","productAlerts","product_alert"];
-  for(var p=0;p<pools.length;p++){var x=o[pools[p]];
+  var tg=pick(m,"tags","labels");
+  if(Array.isArray(tg))v.tags=tg.map(function(t){return t&&typeof t==="object"?S(pick(nmap(t),"name","tag","value")):S(t)}).filter(Boolean);
+  else if(tg)v.tags=[S(tg)].filter(Boolean);
+  var pools=["alerts","alert","investigationalerts","productalerts","productalert","detections"];
+  for(var p=0;p<pools.length;p++){var x=m[pools[p]];
     if(Array.isArray(x)){for(var j=0;j<x.length;j++)if(x[j]&&typeof x[j]==="object")v.alerts.push(mkAlert(x[j],i))}
     else if(x&&typeof x==="object")v.alerts.push(mkAlert(x,i));}
   v.dwell=v.created&&v.status==="CLOSED"&&v.acc?v.acc-v.created:null;
@@ -275,13 +395,11 @@ function ingest(txt){
   var root;
   try{root=parse(txt)}catch(e){return fail()}
   var c=collect(root),bag=c.bag;
-  if(!bag.inv.length&&!bag.alr.length&&!bag.ev.length&&!bag.com.length&&!bag.raw.length)return fail();
-  var invs=bag.inv.map(mkInv),alrs=[],i,j;
-  for(i=0;i<invs.length;i++)for(j=0;j<invs[i].alerts.length;j++)alrs.push(invs[i].alerts[j]);
-  var nested=[];for(i=0;i<invs.length;i++)for(j=0;j<invs[i].alerts.length;j++)nested.push(invs[i].alerts[j].raw);
-  for(i=0;i<bag.alr.length;i++)if(nested.indexOf(bag.alr[i])<0)alrs.push(mkAlert(bag.alr[i],null));
-  var byRrn={};for(i=0;i<invs.length;i++)if(invs[i].rrn)byRrn[invs[i].rrn]=invs[i];
-  DB={inv:invs,alr:alrs,ev:bag.ev,com:bag.com,att:bag.att,raw:bag.raw,pg:c.pg,ioc:iocs(txt),byRrn:byRrn,n:txt.length};
+  if(!bag.inv.length&&!bag.alr.length&&!bag.ev.length&&!bag.com.length&&!bag.raw.length&&!bag.att.length)return empty(c.pg,txt.length);
+  var invs=bag.inv.map(mkInv),alrs=[],nested=new Set(),i,j;
+  for(i=0;i<invs.length;i++)for(j=0;j<invs[i].alerts.length;j++){alrs.push(invs[i].alerts[j]);nested.add(invs[i].alerts[j].raw)}
+  for(i=0;i<bag.alr.length;i++)if(!nested.has(bag.alr[i]))alrs.push(mkAlert(bag.alr[i],null));
+  DB={inv:invs,alr:alrs,ev:bag.ev,com:bag.com,att:bag.att,raw:bag.raw,pg:c.pg,ioc:iocs(txt),n:txt.length,fix:FIX,lost:LOST};
   F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};OPEN={};Q="";qin.value="";
   SORT={k:invs.length?"created":"created",a:false};
   idle();
@@ -290,6 +408,11 @@ function ingest(txt){
 }
 function idle(){if(READ){go.textContent="JSON EINFÜGEN";go.className="hot"}else{go.textContent="STRG + V";go.className="arm"}}
 function fail(){go.textContent="× PARSE";go.className="err";setTimeout(idle,1800)}
+function empty(pg,n){
+  DB={inv:[],alr:[],ev:[],com:[],att:[],raw:[],pg:pg,ioc:{ip:{},pip:{},dom:{},mail:{},url:{},hash:{}},n:n||0,fix:FIX,lost:LOST};
+  F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};OPEN={};Q="";qin.value="";
+  render();go.textContent="× LEER";go.className="err";setTimeout(idle,1800);
+}
 
 function match(v,skip){
   if(Q&&v.blob.indexOf(Q)<0)return false;
@@ -304,6 +427,7 @@ function match(v,skip){
   return true;
 }
 function sel(skip){return DB.inv.filter(function(v){return match(v,skip)})}
+function nal(a){var n=0;for(var i=0;i<a.length;i++)n+=a[i].alerts.length;return n}
 function nfilt(){var n=0;for(var k in F)n+=Object.keys(F[k]).length;return n+(Q?1:0)}
 
 function tally(arr,fn){
@@ -423,8 +547,10 @@ function render(){
   if(DB.ev.length)mh.push("<b>EVD</b> "+DB.ev.length);
   if(DB.com.length)mh.push("<b>CMT</b> "+DB.com.length);
   if(DB.raw.length)mh.push("<b>LOG</b> "+DB.raw.length);
-  if(DB.pg&&DB.pg.total_data!=null)mh.push("<b>API</b> "+esc(String(DB.pg.total_data))+(DB.pg.total_pages!=null?" &middot; S."+esc(String(DB.pg.index!=null?DB.pg.index+1:1))+"/"+esc(String(DB.pg.total_pages)):""));
+  if(DB.pg&&DB.pg.totaldata!=null)mh.push("<b>API</b> "+esc(String(DB.pg.totaldata))+(DB.pg.totalpages!=null?" &middot; S."+esc(String(DB.pg.index!=null?DB.pg.index+1:1))+"/"+esc(String(DB.pg.totalpages)):""));
   mh.push("<b>KB</b> "+Math.round(DB.n/1024));
+  if(DB.fix)mh.push('<b class="wfix">FIX</b> '+DB.fix);
+  if(DB.lost)mh.push('<b class="wlost">LOST</b> '+DB.lost);
   meta.innerHTML="<span>"+mh.join("</span><span>")+"</span>";
 
   if(inv.length){
@@ -450,8 +576,8 @@ function render(){
       panel("QUELLE","src",tally(sel("src"),function(v){return v.src}),sel("src").length,8)+
       panel("ASSIGNEE","asg",tally(sel("asg"),function(v){return v.asg}),sel("asg").length,10)+
       panel("TAGS","tag",tally(sel("tag"),function(v){return v.tags.length?v.tags:"—"}),sel("tag").length,10)+
-      panel("ALERT-TYP","atype",tally(sel("atype"),function(v){return v.alerts.length?v.alerts.map(function(a){return a.type||"—"}):[]}),fal.length,12)+
-      panel("ALERT-QUELLE","asrc",tally(sel("asrc"),function(v){return v.alerts.length?v.alerts.map(function(a){return a.src||"—"}):[]}),fal.length,8)+
+      panel("ALERT-TYP","atype",tally(sel("atype"),function(v){return v.alerts.length?v.alerts.map(function(a){return a.type||"—"}):[]}),nal(sel("atype")),12)+
+      panel("ALERT-QUELLE","asrc",tally(sel("asrc"),function(v){return v.alerts.length?v.alerts.map(function(a){return a.src||"—"}):[]}),nal(sel("asrc")),8)+
     '</div></section>';
 
     var t=tl(f);
@@ -528,6 +654,7 @@ function chipbar(){
 }
 
 document.addEventListener("click",function(e){
+  if(!e.target||!e.target.closest)return;
   var r=e.target.closest(".r");
   if(r){var d=r.dataset.dim,v=r.dataset.v;if(F[d][v])delete F[d][v];else F[d][v]=1;render();return}
   var c=e.target.closest(".chip");
@@ -543,7 +670,10 @@ document.addEventListener("click",function(e){
     ip.classList.add("cp");setTimeout(function(){ip.classList.remove("cp")},700)}
 });
 var qt;
-qin.addEventListener("input",function(){clearTimeout(qt);qt=setTimeout(function(){Q=qin.value.trim().toLowerCase();render()},160)});
+function reQ(){clearTimeout(qt);qt=setTimeout(function(){var v=qin.value.trim().toLowerCase();if(v!==Q){Q=v;render()}},160)}
+qin.addEventListener("input",reQ);
+qin.addEventListener("search",reQ);
+qin.addEventListener("keydown",function(e){if(e.key==="Escape"){qin.value="";reQ()}});
 $("#clr").addEventListener("click",function(){F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};Q="";qin.value="";OPEN={};render()});
 $("#csv").addEventListener("click",function(){
   if(!DB)return;
