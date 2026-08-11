@@ -6,128 +6,40 @@
 <title>IDR Investigation Analyzer</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{
---bg:#000;--pnl:#080808;--pnl2:#0d0d0d;--line:#1b1b1b;--line2:#282828;
---fg:#e2e2e2;--mut:#787878;--dim:#454545;
---crit:#ff2f2f;--high:#ff8c00;--med:#e3c000;--low:#3aa757;--none:#4a4a4a;
---ok:#3aa757;--bad:#ff2f2f;--acc:#5b8dd6;
-}
+:root{--bg:#000;--pnl:#080808;--line:#1b1b1b;--line2:#282828;--fg:#e4e4e4;--mut:#8a8a8a;--dim:#4a4a4a;--bad:#ff3b30}
 html{background:var(--bg)}
-body{background:var(--bg);color:var(--fg);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono",monospace;-webkit-font-smoothing:antialiased;padding-bottom:60px}
+body{background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono",monospace;-webkit-font-smoothing:antialiased}
 ::selection{background:#2a2a2a}
-::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar{width:10px}
 ::-webkit-scrollbar-thumb{background:#1f1f1f}
 ::-webkit-scrollbar-track{background:#000}
 
-header{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:10px 16px;background:#000;border-bottom:1px solid var(--line)}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line)}
 .brand{font-size:12px;letter-spacing:.22em;color:#fff}
-.meta{color:var(--dim);font-size:11px;display:flex;gap:16px;flex:1;min-width:0;overflow:hidden;white-space:nowrap}
-.meta span{display:inline-flex;gap:6px}
-.meta b{color:var(--mut);font-weight:400}
-.meta b.wfix{color:var(--med)}
-.meta b.wlost{color:var(--bad)}
-button{font:inherit;background:#0e0e0e;color:var(--fg);border:1px solid var(--line2);padding:5px 12px;cursor:pointer;letter-spacing:.08em}
-button:hover{background:#171717;border-color:#3a3a3a}
+button{font:inherit;font-size:12px;background:#0e0e0e;color:var(--fg);border:1px solid var(--line2);padding:7px 16px;cursor:pointer;letter-spacing:.1em}
+button:hover{background:#171717;border-color:#3f3f3f}
 button:active{background:#050505}
-button.hot{border-color:#4a4a4a;color:#fff}
-button.arm{border-color:#5f5f5f;color:#fff;background:#1a1a1a}
+button.hot{border-color:#4f4f4f;color:#fff}
+button.arm{border-color:#666;color:#fff;background:#1a1a1a}
 button.err{border-color:var(--bad);color:var(--bad)}
-input.f{font:inherit;background:#0a0a0a;color:var(--fg);border:1px solid var(--line2);padding:5px 9px;width:180px;outline:none}
-input.f:focus{border-color:#3a3a3a}
-input.f::placeholder{color:#3a3a3a}
 #sink{position:fixed;left:-9999px;top:0;opacity:0;width:1px;height:1px}
 
-main{padding:0 16px}
-.wrap{max-width:1720px;margin:0 auto}
-section{margin-top:16px}
-h2{font-size:10px;font-weight:400;letter-spacing:.2em;color:var(--dim);padding:0 0 7px;text-transform:uppercase}
-
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.chip{display:inline-flex;align-items:center;gap:7px;background:#101010;border:1px solid var(--line2);padding:3px 8px;cursor:pointer;font-size:11px}
-.chip:hover{border-color:#4a4a4a}
-.chip s{color:var(--dim);text-decoration:none}
-.chip em{font-style:normal;color:var(--mut)}
-
-.sum{background:var(--pnl);border:1px solid var(--line);padding:15px 17px 16px;line-height:1.68;font-size:12.5px}
-.sum p,.sum li{max-width:126ch}
-.sum p{margin-bottom:9px}
+main{padding:34px 22px 80px}
+.sum{max-width:88ch;margin:0 auto;line-height:1.85;font-size:13.5px}
+.sum p{margin-bottom:19px}
 .sum p:last-child{margin-bottom:0}
-.sum .hd{color:#fff;letter-spacing:.02em;padding-bottom:9px;margin-bottom:11px;border-bottom:1px solid var(--line)}
-.sum .mt{color:var(--mut)}
-.sum .hl{color:var(--dim);font-size:10px;letter-spacing:.2em;margin:14px 0 5px}
 .sum b{font-weight:400;color:#fff}
-.sum code{background:#131313;border:1px solid var(--line);padding:2px 7px;color:#dcdcdc;display:inline-block;max-width:100%;overflow-wrap:anywhere}
-.sum ul{list-style:none}
-.sum li{position:relative;padding-left:15px;margin-bottom:4px;color:var(--mut)}
-.sum li:before{content:"–";position:absolute;left:0;color:var(--dim)}
-.sum li.w{color:var(--fg)}
-.sum li.w:before{content:"!";color:var(--crit)}
-
-.cgs{border:1px solid var(--line);background:var(--pnl);padding:8px 13px}
-.cg{display:flex;align-items:flex-start;gap:12px;padding:4px 0}
-.cg+.cg{border-top:1px solid #111}
-.cl{color:var(--dim);font-size:10px;letter-spacing:.16em;flex:0 0 124px;padding-top:4px}
-.cv{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0}
-.c{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#0d0d0d;padding:2px 8px;cursor:pointer;color:var(--mut);max-width:100%;overflow:hidden;white-space:nowrap}
-.c:hover{border-color:#3f3f3f;color:#fff}
-.c.on{border-color:#5f5f5f;color:#fff;background:#191919}
-.c b{font-weight:400;color:var(--fg)}
-.cm{color:var(--dim);font-size:11px;padding:2px 4px}
-
-.tbl{width:100%;border-collapse:separate;border-spacing:0;background:var(--pnl)}
-.tw{border:1px solid var(--line);overflow:auto;max-height:calc(100vh - var(--hh,42px) - 58px)}
-.tbl th{font-weight:400;text-align:left;font-size:10px;letter-spacing:.13em;color:var(--dim);padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;background:#0c0c0c;z-index:10}
-.tbl th:hover{color:var(--mut)}
-.tbl th.s:after{content:"↓";margin-left:5px;color:#555}
-.tbl th.s.a:after{content:"↑"}
-.tbl td{padding:5px 9px;border-bottom:1px solid #111;vertical-align:top;white-space:nowrap;max-width:460px;overflow:hidden;text-overflow:ellipsis}
-.tbl tr.d:hover td{background:#0f0f0f;cursor:pointer}
-.tbl tr.op td{background:#101010}
-.mut{color:var(--mut)}.dimc{color:var(--dim)}
-.t-CRITICAL{color:var(--crit)}.t-HIGH{color:var(--high)}.t-MEDIUM{color:var(--med)}.t-LOW{color:var(--low)}.t-UNSPECIFIED{color:var(--dim)}
-.t-OPEN{color:var(--crit)}.t-INVESTIGATING{color:var(--high)}.t-WAITING{color:var(--med)}.t-CLOSED{color:var(--dim)}
-.t-MALICIOUS{color:var(--crit)}.t-BENIGN{color:var(--low)}.t-UNDECIDED{color:var(--mut)}.t-NOT_APPLICABLE{color:var(--dim)}
-.r-crit{color:var(--crit)}.r-high{color:var(--high)}.r-low{color:var(--low)}.r-dim{color:var(--mut)}
-.r-crit em,.r-high em{font-style:normal}
-td [data-cp]{cursor:pointer}
-td [data-cp]:hover{color:#fff}
-.dot.SUSPICIOUS{background:var(--high)}.dot.UNKNOWN{background:var(--none)}.dot.DARWIN{background:#5b8dd6}.dot.WINDOWS{background:#5b8dd6}.dot.LINUX{background:#5b8dd6}
-
-.det{background:#050505}
-.det td{padding:0;white-space:normal}
-.detin{padding:12px 14px;border-left:2px solid #1f1f1f}
-.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:3px 22px;margin-bottom:10px}
-.kv div{display:flex;align-items:flex-start;gap:10px;font-size:11px;border-bottom:1px solid #0f0f0f;padding:2px 0}
-.kv div span:first-child{color:var(--dim);flex:0 0 44%;overflow-wrap:anywhere}
-.kv div span:last-child{color:var(--fg);flex:1 1 0;min-width:0;overflow-wrap:anywhere}
-pre{background:#0a0a0a;border:1px solid var(--line);padding:10px;overflow:auto;max-height:340px;color:#9a9a9a;font-size:11px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
-.sub{border:1px solid var(--line);margin-bottom:10px}
-.sub table{width:100%;border-collapse:collapse;font-size:11px}
-.sub th{background:#0a0a0a;color:var(--dim);font-weight:400;text-align:left;padding:5px 8px;font-size:10px;letter-spacing:.1em;position:static}
-.sub td{padding:4px 8px;border-top:1px solid #101010;color:var(--mut)}
-
-.ioc{display:flex;flex-wrap:wrap;gap:5px}
-.ioc span{background:#0f0f0f;border:1px solid var(--line);padding:2px 7px;cursor:pointer;font-size:11px;color:var(--mut);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ioc span:hover{border-color:#444;color:#fff}
-.ioc span em{font-style:normal;color:#333;margin-left:6px}
-.ioc span.pub{color:#d0d0d0}
-.ioc span.cp{border-color:var(--ok);color:var(--ok)}
-
-.empty{display:flex;align-items:center;justify-content:center;height:66vh;color:#2b2b2b;font-size:12px;letter-spacing:.34em}
-.hide{display:none}
+.sum .w{color:var(--bad)}
+.empty{display:flex;align-items:center;justify-content:center;height:60vh;color:#262626;font-size:12px;letter-spacing:.34em}
 </style>
 </head>
 <body>
 <header>
   <div class="brand">IDR ANALYZER</div>
-  <div class="meta" id="meta"></div>
-  <input class="f hide" id="q" type="search" placeholder="filter" spellcheck="false">
-  <button id="csv" class="hide">CSV</button>
-  <button id="clr" class="hide">CLR</button>
   <button id="go" class="hot">JSON EINF&Uuml;GEN</button>
 </header>
 <textarea id="sink" tabindex="-1" aria-hidden="true"></textarea>
-<main><div class="wrap" id="out"><div class="empty">STRG + V</div></div></main>
+<main><div id="out"><div class="empty">STRG + V</div></div></main>
 <script>
 (function(){
 "use strict";
@@ -416,505 +328,237 @@ function mkEvd(o,i){
   v.blob=[v.host,v.user,v.proc,v.cmd,v.exe,v.par,v.pcmd,v.rep,v.thr,v.fam,v.cls,v.sha,v.md5,v.sha1,v.file,v.sip,v.dip,v.os,v.id,v.rrn].join(" ").toLowerCase();
   return v;
 }
-var RX={
-  ip:/\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
-  h256:/\b[a-fA-F0-9]{64}\b/g,h1:/\b[a-fA-F0-9]{40}\b/g,md5:/\b[a-fA-F0-9]{32}\b/g,
-  mail:/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}\b/g,
-  url:/\bhttps?:\/\/[^\s"'<>\\)]+/g,
-  dom:/\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,18}\b/g
-};
-var SKIP=/\.(exe|dll|dat|log|json|txt|xml|csv|zip|ps1|bat|cmd|sys|tmp|msi|png|jpg|js|html|conf|ini|so|sh|py)$/i;
 function priv(ip){var p=ip.split(".").map(Number);
   if(p.some(function(n){return isNaN(n)||n>255}))return null;
   if(p[0]===10||p[0]===127||(p[0]===192&&p[1]===168)||(p[0]===172&&p[1]>=16&&p[1]<=31)||(p[0]===169&&p[1]===254)||p[0]===0||p[0]>=224)return true;
   return false;
 }
-function iocs(txt){
-  var o={ip:{},pip:{},dom:{},mail:{},url:{},hash:{}},i,rest=txt;
-  var ips=txt.match(RX.ip)||[];
-  for(i=0;i<ips.length;i++){var pv=priv(ips[i]);if(pv===null)continue;var t=pv?o.pip:o.ip;t[ips[i]]=(t[ips[i]]||0)+1}
-  var us=txt.match(RX.url)||[],hosts=[];
-  for(i=0;i<us.length;i++){var u=us[i].replace(/[.,;]+$/,"");o.url[u]=(o.url[u]||0)+1;
-    var hm=/^https?:\/\/(?:[^@/\s]*@)?([^/:?#\s]+)/i.exec(u);if(hm)hosts.push(hm[1].toLowerCase())}
-  var ms=txt.match(RX.mail)||[];
-  for(i=0;i<ms.length;i++)o.mail[ms[i]]=(o.mail[ms[i]]||0)+1;
-  ["h256","h1","md5"].forEach(function(k){var hs=txt.match(RX[k])||[];for(var j=0;j<hs.length;j++){var v=hs[j].toLowerCase();if(/^\d+$/.test(v))continue;o.hash[v]=(o.hash[v]||0)+1}});
-  rest=rest.replace(RX.url," ").replace(RX.mail," ").replace(RX.ip," ");
-  var ds=(rest.match(RX.dom)||[]).concat(hosts);
-  for(i=0;i<ds.length;i++){var d=ds[i].toLowerCase();
-    if(SKIP.test(d))continue;
-    if(!/\.[a-z]{2,}$/.test(d))continue;
-    o.dom[d]=(o.dom[d]||0)+1}
-  return o;
-}
-
 function ingest(txt){
   var root;
   try{root=parse(txt)}catch(e){return fail()}
-  var c=collect(root),bag=c.bag,k;
-  for(k in bag)if(bag[k].length)break;
-  if(!bag.inv.length&&!bag.alr.length&&!bag.ev.length&&!bag.com.length&&!bag.raw.length&&!bag.att.length&&!bag.evd.length)return empty(c.pg,txt.length);
+  var c=collect(root),bag=c.bag;
+  if(!bag.inv.length&&!bag.alr.length&&!bag.ev.length&&!bag.com.length&&!bag.raw.length&&!bag.att.length&&!bag.evd.length)return empty();
   var invs=bag.inv.map(mkInv),alrs=[],nested=new Set(),i,j;
   for(i=0;i<invs.length;i++)for(j=0;j<invs[i].alerts.length;j++){alrs.push(invs[i].alerts[j]);nested.add(invs[i].alerts[j].raw)}
   for(i=0;i<bag.alr.length;i++)if(!nested.has(bag.alr[i]))alrs.push(mkAlert(bag.alr[i],null));
-  var evds=bag.evd.map(mkEvd),io=iocs(txt);
-  for(i=0;i<bag.evd.length;i++){var em=nmap(bag.evd[i]);
-    [em.r7hostid,em.endpointid,em.hostid].forEach(function(x){var s=S(x).toLowerCase();if(s&&io.hash[s])delete io.hash[s]})}
-  for(i=0;i<evds.length;i++)if(evds[i].id)delete io.hash[S(evds[i].id).toLowerCase()];
-  DB={inv:invs,alr:alrs,evd:evds,ev:bag.ev,com:bag.com,att:bag.att,raw:bag.raw,pg:c.pg,ioc:io,n:txt.length,fix:FIX,lost:LOST};
-  F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{},rep:{},thr:{},host:{},user:{},proc:{},os:{},fam:{},pc:{}};OPEN={};Q="";qin.value="";
-  SORT={k:"created",a:false};SORTE={k:"time",a:false};
-  idle();
-  ["#q","#csv","#clr"].forEach(function(s){$(s).classList.remove("hide")});
-  render();window.scrollTo(0,0);
+  DB={inv:invs,alr:alrs,evd:bag.evd.map(mkEvd),ev:bag.ev,com:bag.com,att:bag.att,raw:bag.raw,pg:c.pg,fix:FIX,lost:LOST};
+  idle();render();window.scrollTo(0,0);
 }
 function idle(){if(READ){go.textContent="JSON EINFÜGEN";go.className="hot"}else{go.textContent="STRG + V";go.className="arm"}}
 function fail(){go.textContent="× PARSE";go.className="err";setTimeout(idle,1800)}
-function empty(pg,n){
-  DB={inv:[],alr:[],evd:[],ev:[],com:[],att:[],raw:[],pg:pg,ioc:{ip:{},pip:{},dom:{},mail:{},url:{},hash:{}},n:n||0,fix:FIX,lost:LOST};
-  F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{}};OPEN={};Q="";qin.value="";
-  render();go.textContent="× LEER";go.className="err";setTimeout(idle,1800);
-}
-
-function match(v,skip){
-  if(Q&&v.blob.indexOf(Q)<0)return false;
-  var dims=[["prio",v.prio],["status",v.status],["disp",v.disp],["src",v.src],["asg",v.asg]];
-  for(var i=0;i<dims.length;i++){var d=dims[i][0];if(d===skip)continue;
-    var ks=Object.keys(F[d]);if(!ks.length)continue;
-    if(ks.indexOf(dims[i][1]||"—")<0)return false}
-  if(skip!=="tag"){var tk=Object.keys(F.tag);if(tk.length){var hit=false;for(var t=0;t<v.tags.length;t++)if(tk.indexOf(v.tags[t])>=0)hit=true;if(!hit)return false}}
-  var ak=Object.keys(F.atype),sk=Object.keys(F.asrc);
-  if(skip!=="atype"&&ak.length){if(!v.alerts.some(function(a){return ak.indexOf(a.type||"—")>=0}))return false}
-  if(skip!=="asrc"&&sk.length){if(!v.alerts.some(function(a){return sk.indexOf(a.src||"—")>=0}))return false}
-  return true;
-}
-function sel(skip){return DB.inv.filter(function(v){return match(v,skip)})}
-function nal(a){var n=0;for(var i=0;i<a.length;i++)n+=a[i].alerts.length;return n}
-function matchE(e,skip){
-  if(Q&&e.blob.indexOf(Q)<0)return false;
-  for(var i=0;i<EDIM.length;i++){var d=EDIM[i][0];if(d===skip)continue;
-    var ks=Object.keys(F[d]);if(!ks.length)continue;
-    if(ks.indexOf(e[EDIM[i][1]]||"—")<0)return false}
-  return true;
-}
-function selE(skip){return DB.evd.filter(function(e){return matchE(e,skip)})}
-function nfilt(){var n=0;for(var k in F)n+=Object.keys(F[k]).length;return n+(Q?1:0)}
+function empty(){DB=null;out.innerHTML='<div class="empty">STRG + V</div>';go.textContent="× LEER";go.className="err";setTimeout(idle,1800)}
 
 function tally(arr,fn){
   var m={},i,v;
   for(i=0;i<arr.length;i++){var ks=fn(arr[i]);if(!Array.isArray(ks))ks=[ks];
-    for(var j=0;j<ks.length;j++){v=ks[j]||"—";m[v]=(m[v]||0)+1}}
+    for(var j=0;j<ks.length;j++){v=ks[j];if(v)m[v]=(m[v]||0)+1}}
   return Object.keys(m).map(function(k){return{k:k,n:m[k]}}).sort(function(a,b){return b.n-a.n||(a.k<b.k?-1:1)});
 }
-var ORD={prio:["CRITICAL","HIGH","MEDIUM","LOW","UNSPECIFIED"],status:["OPEN","INVESTIGATING","WAITING","CLOSED"],disp:["MALICIOUS","UNDECIDED","BENIGN","NOT_APPLICABLE"]};
-var ASC={title:1,src:1,asg:1,rrn:1,prio:1,status:1,disp:1};
-function order(rows,key){var o=ORD[key];if(!o)return rows;
-  return rows.slice().sort(function(a,b){var x=o.indexOf(a.k),y=o.indexOf(b.k);return (x<0?99:x)-(y<0?99:y)||b.n-a.n})}
+var ORD={prio:["CRITICAL","HIGH","MEDIUM","LOW","UNSPECIFIED"]};
+var NUM=["null","ein","zwei","drei","vier","fünf","sechs","sieben","acht","neun","zehn","elf","zwölf"];
+function nw(n,f){return n<NUM.length?(n===1&&f?"eine":NUM[n]):String(n)}
+function nn(n,one,many,f){return n===1?(f?"eine ":"ein ")+one:nw(n,f)+" "+many}
+function az(n,s1,pl){return n===1?s1:nw(n)+" "+pl}
+var OSN={DARWIN:"macOS",MAC_OS:"macOS",MACOS:"macOS",WINDOWS:"Windows",WIN:"Windows",LINUX:"Linux"};
+function P2(n){return String(n).padStart(2,"0")}
+function dstr(d){return d?P2(d.getDate())+"."+P2(d.getMonth()+1)+"."+d.getFullYear():""}
+function tstr(d){return d?P2(d.getHours())+":"+P2(d.getMinutes()):""}
+function when(d){return d?"am "+dstr(d)+" um "+tstr(d)+" Uhr":""}
+function seit(ms){
+  if(ms==null||!isFinite(ms)||ms<0)return "";
+  var m=Math.round(ms/6e4);
+  if(m<60)return "seit "+nn(m,"Minute","Minuten",true);
+  var h=Math.round(m/60);
+  if(h<36)return "seit "+nn(h,"Stunde","Stunden",true);
+  var d=Math.round(h/24);
+  return "seit "+nn(d,"Tag","Tagen");
+}
+function liste(a,und){
+  if(!a.length)return "";
+  if(a.length===1)return a[0];
+  return a.slice(0,-1).join(", ")+" "+(und||"und")+" "+a[a.length-1];
+}
+function q(s){return "\u201e"+s+"\u201c"}
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
+var STN={OPEN:"offen",INVESTIGATING:"in Bearbeitung",WAITING:"wartend",CLOSED:"abgeschlossen"};
+function pp(t){return "<p>"+t+"</p>"}
 
-function counts(title,dim,rows,lim){
-  if(!rows.length)return "";
-  var more=lim&&rows.length>lim?rows.length-lim:0,fs=F[dim]||{},i;
-  if(lim)rows=rows.slice(0,lim);
-  var h='<div class="cg"><span class="cl">'+esc(title)+'</span><span class="cv">';
-  for(i=0;i<rows.length;i++)h+='<span class="c'+(fs[rows[i].k]?" on":"")+'" data-dim="'+dim+'" data-v="'+esc(rows[i].k)+'" title="'+esc(rows[i].k)+'"><i class="dot '+esc(rows[i].k.replace(/[^A-Z_]/g,""))+'"></i>'+esc(rows[i].k)+'<b>'+rows[i].n+'</b></span>';
-  if(more)h+='<span class="cm">+'+more+'</span>';
-  return h+'</span></div>';
-}
-var ECOLS=[{k:"time",t:"ZEIT"},{k:"host",t:"ASSET"},{k:"user",t:"USER"},{k:"proc",t:"PROZESS"},{k:"pid",t:"PID"},
- {k:"par",t:"PARENT"},{k:"cmd",t:"CMD"},{k:"rep",t:"REPUTATION"},{k:"fam",t:"KLASSIFIKATION"},{k:"exe",t:"PFAD"},{k:"sha",t:"SHA256"}];
-var EASC={host:1,user:1,proc:1,par:1,cmd:1,exe:1,sha:1,rep:1,fam:1};
-var REP={MALICIOUS:"crit",SUSPICIOUS:"high",UNKNOWN:"dim",BENIGN:"low",GOOD:"low"};
-function ecell(e,k){
-  switch(k){
-    case "time":return '<span class="mut">'+esc(fdt(e.time))+'</span>';
-    case "host":return esc(nz(e.host));
-    case "user":return e.user?esc(e.user):'<span class="dimc">—</span>';
-    case "proc":return e.proc?'<span>'+esc(e.proc)+'</span>':'<span class="dimc">—</span>';
-    case "pid":return '<span class="dimc">'+esc(nz(e.pid))+'</span>';
-    case "par":return e.par?'<span class="mut">'+esc(e.par)+'</span>':'<span class="dimc">—</span>';
-    case "cmd":return e.cmd?'<span class="mut">'+esc(e.cmd)+'</span>':'<span class="dimc">—</span>';
-    case "rep":return e.rep?'<span class="r-'+esc(REP[e.rep]||"dim")+'">'+esc(e.rep)+(e.thr?" / "+esc(e.thr):"")+(e.eng?' <em class="dimc">'+esc(e.eng)+'</em>':"")+'</span>':'<span class="dimc">—</span>';
-    case "fam":return e.fam||e.cls?'<span class="mut">'+esc([e.fam,e.cls,e.plat].filter(Boolean).join(" / "))+'</span>':'<span class="dimc">—</span>';
-    case "exe":return '<span class="dimc">'+esc(nz(e.exe||e.file))+'</span>';
-    case "sha":return e.sha||e.md5?'<span class="dimc" data-cp="'+esc(e.sha||e.md5)+'">'+esc((e.sha||e.md5).slice(0,16))+'</span>':'<span class="dimc">—</span>';
-  }
-  return "";
-}
-function sortValE(e,k){
-  if(k==="time")return e.time?+e.time:0;
-  if(k==="pid")return parseInt(e.pid,10)||0;
-  if(k==="rep")return ["MALICIOUS","SUSPICIOUS","UNKNOWN","BENIGN"].indexOf(e.rep)<0?9:["MALICIOUS","SUSPICIOUS","UNKNOWN","BENIGN"].indexOf(e.rep);
-  return S(e[k]).toLowerCase();
-}
-function sortRowsE(rows){
-  var k=SORTE.k,a=SORTE.a?1:-1;
-  return rows.slice().sort(function(x,y){var p=sortValE(x,k),q=sortValE(y,k);if(p<q)return -1*a;if(p>q)return 1*a;return 0});
-}
-function procTbl(e){
-  if(!e.proc&&!e.par)return "";
-  var row=function(lab,n,pid,cmd,exe,sha){
-    return '<tr><td class="dimc">'+lab+'</td><td>'+esc(nz(n))+'</td><td class="dimc">'+esc(nz(pid))+'</td><td>'+esc(nz(cmd))+'</td><td class="dimc">'+esc(nz(exe))+'</td><td class="dimc">'+esc(sha?sha.slice(0,24):"—")+'</td></tr>'};
-  return '<div class="sub"><table><tr><th></th><th>NAME</th><th>PID</th><th>CMD</th><th>PFAD</th><th>SHA256</th></tr>'+
-    (e.par?row("PARENT",e.par,e.ppid,e.pcmd,e.pexe,e.psha):"")+
-    (e.proc?row("CHILD",e.proc,e.pid,e.cmd,e.exe,e.sha):"")+"</table></div>";
-}
-var COLS=[
- {k:"title",t:"TITEL"},{k:"prio",t:"PRIO"},{k:"status",t:"STATUS"},{k:"disp",t:"DISPOSITION"},
- {k:"src",t:"QUELLE"},{k:"asg",t:"ASSIGNEE"},{k:"na",t:"ALERTS"},{k:"created",t:"ERSTELLT"},
- {k:"la",t:"LETZTER ALERT"},{k:"dwell",t:"DAUER"},{k:"rrn",t:"RRN"}];
-function cell(v,k){
-  switch(k){
-    case "title":return "<span>"+esc(nz(v.title))+"</span>";
-    case "prio":case "status":case "disp":return '<span class="t-'+esc(v[k])+'">'+esc(nz(v[k]))+"</span>";
-    case "src":return '<span class="mut">'+esc(nz(v.src))+"</span>";
-    case "asg":return v.asg?esc(v.asg):'<span class="dimc">—</span>';
-    case "na":return v.alerts.length?"<span>"+v.alerts.length+"</span>":'<span class="dimc">0</span>';
-    case "created":return '<span class="mut">'+esc(fdt(v.created))+"</span>";
-    case "la":return '<span class="mut">'+esc(fdt(v.la||v.fa))+"</span>";
-    case "dwell":return '<span class="mut">'+esc(v.status==="CLOSED"?dur(v.dwell):dur(v.age))+"</span>";
-    case "rrn":return '<span class="dimc">'+esc(tail(v.rrn))+"</span>";
-  }
-  return "";
-}
-function sortVal(v,k){
-  if(k==="na")return v.alerts.length;
-  if(k==="created")return v.created?+v.created:0;
-  if(k==="la")return v.la?+v.la:(v.fa?+v.fa:0);
-  if(k==="dwell")return v.status==="CLOSED"?(v.dwell||0):(v.age||0);
-  if(k==="prio")return ORD.prio.indexOf(v.prio)<0?9:ORD.prio.indexOf(v.prio);
-  if(k==="status")return ORD.status.indexOf(v.status)<0?9:ORD.status.indexOf(v.status);
-  if(k==="disp")return ORD.disp.indexOf(v.disp)<0?9:ORD.disp.indexOf(v.disp);
-  return S(v[k]).toLowerCase();
-}
-function sortRows(rows){
-  var k=SORT.k,a=SORT.a?1:-1;
-  return rows.slice().sort(function(x,y){var p=sortVal(x,k),q=sortVal(y,k);if(p<q)return -1*a;if(p>q)return 1*a;return 0});
-}
-function kvlist(o){
-  var rows=[];
-  (function flat(n,pre,dp){
-    if(dp>4)return;
-    var ks=Object.keys(n);
-    for(var i=0;i<ks.length&&rows.length<260;i++){var k=pre?pre+"."+ks[i]:ks[i],v=n[ks[i]];
-      if(ob(v)){flat(v,k,dp+1);continue}
-      if(Array.isArray(v)){
-        if(v.length&&ob(v[0])){for(var j=0;j<v.length&&j<12;j++)flat(v[j],k+"["+j+"]",dp+1);continue}
-        rows.push([k,v.join(", ")]);continue}
-      rows.push([k,v==null?"":S(v)||String(v)])}
-  })(o,"",0);
-  var h='<div class="kv">';
-  for(var i=0;i<rows.length;i++)h+="<div><span>"+esc(rows[i][0])+"</span><span>"+esc(rows[i][1]||"—")+"</span></div>";
-  return h+"</div>";
-}
-function alertTbl(as){
-  if(!as.length)return "";
-  var h='<div class="sub"><table><tr><th>TITEL</th><th>TYP</th><th>QUELLE</th><th>REGEL</th><th>FIRST EVENT</th><th>LAST EVENT</th><th>ERSTELLT</th><th>AKTION</th></tr>';
-  for(var i=0;i<as.length;i++){var a=as[i];
-    h+="<tr><td>"+esc(nz(a.title))+"</td><td>"+esc(nz(a.type))+"</td><td>"+esc(nz(a.src))+"</td><td>"+esc(nz(tail(a.rule)))+"</td><td>"+esc(fdt(a.first))+"</td><td>"+esc(fdt(a.last))+"</td><td>"+esc(fdt(a.created))+"</td><td>"+esc(nz(a.action))+"</td></tr>"}
-  return h+"</table></div>";
-}
-function iocBlock(m,cls,max){
-  var ks=Object.keys(m).sort(function(a,b){return m[b]-m[a]||(a<b?-1:1)});
-  if(!ks.length)return "";
-  var more=ks.length>max?ks.length-max:0;ks=ks.slice(0,max);
-  var h="";for(var i=0;i<ks.length;i++)h+='<span class="'+cls+'" data-cp="'+esc(ks[i])+'" title="'+esc(ks[i])+'">'+esc(ks[i])+"<em>"+m[ks[i]]+"</em></span>";
-  return h+(more?'<span class="cm">+'+more+"</span>":"");
-}
 var TOOL=[
- [/^(ngrok|cloudflared|frpc|frps|chisel|localtunnel|pagekite|zrok)(\.exe)?$/i,"Tunnel-Werkzeug, macht interne Dienste von außen erreichbar"],
- [/^(teamviewer|anydesk|rustdesk|screenconnect|splashtop|logmein|atera|ultravnc|vncserver)/i,"Fernwartungs-Software"],
- [/^(mimikatz|lazagne|procdump|secretsdump|pwdump)/i,"Werkzeug zum Abgreifen von Zugangsdaten"],
- [/^(certutil|bitsadmin|mshta|regsvr32|rundll32|wmic|msbuild|installutil|cscript|wscript)(\.exe)?$/i,"wird häufig zum Nachladen und Ausführen von Code missbraucht"],
- [/^(nc|ncat|netcat|socat)(\.exe)?$/i,"Netzwerk-Werkzeug, oft für Reverse Shells"],
- [/^(psexec|paexec|psexesvc)(\.exe)?$/i,"führt Befehle auf anderen Rechnern aus"]
+ [/^(ngrok|cloudflared|frpc|frps|chisel|localtunnel|pagekite|zrok)(\.exe)?$/i,
+  "baut einen Tunnel ins Internet auf, über den Dienste dieses Rechners von außen erreichbar werden. Das umgeht die Firewall."],
+ [/^(teamviewer|anydesk|rustdesk|screenconnect|splashtop|logmein|atera|ultravnc|vncserver)/i,
+  "ist eine Fernwartungs-Software. Damit kann jemand von außen den Rechner bedienen."],
+ [/^(mimikatz|lazagne|procdump|secretsdump|pwdump)/i,
+  "dient dazu, Passwörter und Anmeldedaten aus dem Rechner auszulesen. Dafür gibt es im Normalbetrieb keinen Grund."],
+ [/^(certutil|bitsadmin|mshta|regsvr32|rundll32|wmic|msbuild|installutil|cscript|wscript)(\.exe)?$/i,
+  "ist zwar ein Windows-Bordmittel, wird aber häufig zweckentfremdet, um Schadcode nachzuladen und auszuführen."],
+ [/^(nc|ncat|netcat|socat)(\.exe)?$/i,
+  "ist ein Netzwerk-Werkzeug, mit dem sich auch Fernsteuerungs-Verbindungen nach außen aufbauen lassen."],
+ [/^(psexec|paexec|psexesvc)(\.exe)?$/i,
+  "führt Befehle auf anderen Rechnern im Netz aus und wird häufig zur Ausbreitung genutzt."]
 ];
 var CMDF=[
- [/-enc(odedcommand)?\s|frombase64string|::frombase64/i,"kodierte Kommandozeile"],
- [/-w(indowstyle)?\s+hidden|-nop\b|-noprofile/i,"versteckte Ausführung"],
- [/iex\s|invoke-expression|downloadstring/i,"lädt Code nach und führt ihn direkt aus"],
- [/(curl|wget)\s[^|]*\|\s*(ba)?sh/i,"lädt ein Skript und führt es direkt aus"],
- [/\/dev\/tcp\//i,"Reverse-Shell-Muster"]
+ [/-enc(odedcommand)?\s|frombase64string|::frombase64/i,"Die Kommandozeile ist kodiert, der eigentliche Befehl also absichtlich unlesbar gemacht."],
+ [/-w(indowstyle)?\s+hidden|-nop\b|-noprofile/i,"Der Aufruf ist so gebaut, dass kein Fenster erscheint."],
+ [/iex\s|invoke-expression|downloadstring/i,"Der Befehl lädt Code aus dem Netz und führt ihn sofort aus, ohne ihn zu speichern."],
+ [/(curl|wget)\s[^|]*\|\s*(ba)?sh/i,"Der Befehl lädt ein Skript aus dem Netz und führt es sofort aus."],
+ [/\/dev\/tcp\//i,"Der Befehl enthält ein typisches Muster für eine Rückwärts-Verbindung zu einem fremden Rechner."]
 ];
 var TMPP=/(^|[\/\\])(tmp|temp|downloads|public|programdata)([\/\\]|$)/i;
 var PERS=/launchagents|launchdaemons|[\/\\]cron|\\run\\|\\runonce\\|startup/i;
-function fmde(d){return d?P(d.getDate())+"."+P(d.getMonth()+1)+"."+d.getFullYear()+" "+P(d.getHours())+":"+P(d.getMinutes()):"—"}
-function fmd(d){return d?P(d.getDate())+"."+P(d.getMonth()+1)+"."+d.getFullYear():"—"}
-function rng(ds){
-  ds=ds.filter(Boolean);if(!ds.length)return "";
-  var mn=new Date(Math.min.apply(null,ds)),mx=new Date(Math.max.apply(null,ds));
-  return +mn===+mx?fmde(mn):fmd(mn)===fmd(mx)?fmde(mn)+" – "+P(mx.getHours())+":"+P(mx.getMinutes()):fmde(mn)+" – "+fmde(mx);
-}
-function top(rows,n,fn){
-  var o=[];for(var i=0;i<rows.length&&i<n;i++)o.push((fn?fn(rows[i].k):rows[i].k)+" ("+rows[i].n+")");
-  return o.join(", ")+(rows.length>n?", …":"");
-}
-function flagsE(e){
+
+function befund(e){
   var o=[],i,pn=S(e.proc),cm=S(e.cmd);
-  if(e.rep==="MALICIOUS"||e.rep==="SUSPICIOUS"){
-    var m=/^(\d+)\/(\d+)$/.exec(e.eng),ratio=m?+m[1]/+m[2]:null;
-    var t="Reputation "+e.rep+(e.thr?", Threat Level "+e.thr:"")+(e.eng?", "+e.eng+" Engines":"")+(e.famx?", "+e.famx:"");
-    if((ratio!=null&&ratio<0.35)||e.rel==="LOW")t+=" — schwach belegt"+(e.rel==="LOW"?", Reliability LOW":"")+", Fehlalarm möglich";
-    o.push({t:t,w:!(ratio!=null&&ratio<0.35)});
-  }
-  for(i=0;i<TOOL.length;i++)if(TOOL[i][0].test(pn)){o.push({t:pn+": "+TOOL[i][1],w:true});break}
-  for(i=0;i<CMDF.length;i++)if(CMDF[i][0].test(cm)){o.push({t:CMDF[i][1]+": "+cm.slice(0,120),w:true,ex:true})}
-  if(e.exe&&TMPP.test(e.exe))o.push({t:"Programm liegt in einem temporären oder Download-Verzeichnis: "+e.exe,w:true,ex:true});
-  if(e.file&&PERS.test(e.file))o.push({t:"Schreibt in einen Autostart-Pfad: "+e.file,w:true,ex:true});
-  if(/^(root|system|nt-autoritaet)$/i.test(S(e.user)))o.push({t:"läuft mit Systemrechten ("+e.user+")",w:true});
-  if(e.dip&&priv(e.dip)===false)o.push({t:"Verbindung nach außen zu "+e.dip+(e.dport?":"+e.dport:""),w:true});
+  for(i=0;i<TOOL.length;i++)if(TOOL[i][0].test(pn)){o.push({k:"tool",t:pn+" "+TOOL[i][1],w:1});break}
+  for(i=0;i<CMDF.length;i++)if(CMDF[i][0].test(cm)){o.push({k:"cmd"+i,t:CMDF[i][1],w:1});break}
+  if(e.exe&&TMPP.test(e.exe))o.push({k:"tmp",t:"Das Programm liegt in einem temporären oder Download-Verzeichnis statt dort, wo installierte Software normalerweise liegt.",w:1});
+  if(e.file&&PERS.test(e.file))o.push({k:"pers",t:"Es wird in einen Autostart-Pfad geschrieben. Das sorgt dafür, dass etwas nach einem Neustart wieder anläuft.",w:1});
+  if(/^(root|system)$/i.test(S(e.user)))o.push({k:"root",t:"Der Vorgang lief mit vollen Systemrechten.",w:1});
+  if(e.dip&&priv(e.dip)===false)o.push({k:"net",t:"Es ging eine Verbindung nach außen zu "+e.dip+(e.dport?", Port "+e.dport:"")+".",w:1});
   return o;
 }
-function flagBlock(items){
-  if(!items.length)return "";
-  var h='<p class="hl">Auffällig</p><ul>';
-  for(var i=0;i<items.length;i++)h+='<li'+(items[i].w?' class="w"':"")+'>'+esc(items[i].t)+'</li>';
-  return h+"</ul>";
+function repSatz(e){
+  if(!e.rep)return "";
+  var m=/^(\d+)\/(\d+)$/.exec(e.eng),hit=m?+m[1]:null,all=m?+m[2]:null,schwach=(hit!=null&&all&&hit/all<0.35)||e.rel==="LOW";
+  var was=e.rep==="MALICIOUS"?"als schädlich":e.rep==="SUSPICIOUS"?"als verdächtig":e.rep==="BENIGN"?"als unbedenklich":"als unbekannt";
+  if(e.rep==="BENIGN"||e.rep==="UNKNOWN"||e.rep==="GOOD")return "Die Datei ist "+was+" eingestuft.";
+  var t="Rapid7 stuft die Datei "+was+" ein";
+  if(e.fam||e.cls)t+=" und ordnet sie "+(e.cls?e.cls.toLowerCase().indexOf("trojan")===0?"dem Trojaner":"der Kategorie "+e.cls:"der Familie")+" "+(e.fam||e.cls)+" zu";
+  t+=".";
+  if(hit!=null&&all)t+=" Von "+all+" Prüf-Engines schlagen allerdings nur "+hit+" an";
+  if(schwach){
+    t+=(hit!=null&&all?", und ":" Allerdings ");
+    t+="Rapid7 bewertet die eigene Einschätzung selbst als wenig verlässlich. Ein Fehlalarm ist gut möglich.";
+  }else if(hit!=null&&all)t+=".";
+  return t;
 }
-function sumEvd(l){
+function fragen(e,fl){
+  var f=[],has=function(k){for(var i=0;i<fl.length;i++)if(fl[i].k===k)return true;return false};
+  if(has("tool"))f.push("ob "+e.proc+" für "+(e.user||"diesen Nutzer")+" freigegeben ist und ob die Verbindung noch läuft");
+  if(has("tmp"))f.push("woher die Datei stammt");
+  if(has("pers"))f.push("ob der Autostart-Eintrag gewollt ist");
+  if(has("root"))f.push("wer den Vorgang mit Systemrechten ausgelöst hat");
+  if(has("net"))f.push("wohin die Verbindung ging");
+  if(!f.length&&e.rep==="MALICIOUS")f.push("ob die Datei auf weiteren Rechnern liegt");
+  return f.length?"Zu klären ist, "+liste(f,"sowie")+".":"";
+}
+
+function textEvd(l){
   if(!l.length)return "";
-  var h="",i,e;
+  var h="",i;
   if(l.length===1){
-    e=l[0];
-    h+='<p class="hd">'+esc([e.host,e.os,e.user,fmde(e.time)].filter(Boolean).join("  ·  "))+'</p>';
-    var ln="";
-    if(e.proc)ln="<b>"+esc(e.proc)+"</b>"+(e.pid?" (PID "+esc(e.pid)+")":"");
-    if(e.par)ln+=(ln?" gestartet von ":"Gestartet von ")+esc(e.par)+(e.ppid?" (PID "+esc(e.ppid)+")":"");
-    if(e.sip||e.dip)ln+=(ln?", ":"")+"Verbindung "+esc(e.sip||"?")+" → "+esc(e.dip||"?")+(e.dport?":"+esc(e.dport):"");
-    if(ln)h+="<p>"+ln+"</p>";
-    if(e.cmd)h+='<p><code>'+esc(e.cmd)+'</code></p>';
-    var d=[];
-    if(e.exe)d.push("Pfad "+e.exe); if(e.file)d.push("Datei "+e.file);
-    if(e.cwd)d.push("Verzeichnis "+e.cwd); if(e.sha)d.push("SHA256 "+e.sha); else if(e.md5)d.push("MD5 "+e.md5);
-    if(d.length)h+='<p class="mt">'+esc(d.join("   ·   "))+"</p>";
-    return h+flagBlock(flagsE(e));
+    var e=l[0],s="";
+    s="Auf dem Rechner <b>"+esc(e.host||"(ohne Namen)")+"</b>"+(OSN[e.os]?" ("+OSN[e.os]+")":"");
+    if(e.user)s+=" hat der Nutzer <b>"+esc(e.user)+"</b>";
+    else s+=" wurde";
+    if(e.time)s+=" "+esc(when(e.time));
+    if(e.proc)s+=(e.user?" das Programm <b>":" das Programm <b>")+esc(e.proc)+"</b>"+(e.user?" gestartet":" gestartet");
+    else s+=" ein Ereignis ausgelöst";
+    if(e.par)s+=", aufgerufen aus "+esc(e.par);
+    s+=".";
+    if(e.cmd)s+=" Der Befehl lautete "+esc(q(e.cmd))+".";
+    h+=pp(s);
+    var fl=befund(e),tool=fl.filter(function(x){return x.k==="tool"}),rest=fl.filter(function(x){return x.k!=="tool"});
+    if(tool.length)h+=pp(esc(tool[0].t));
+    var rs=repSatz(e);
+    if(rs)h+=pp(esc(rs));
+    if(rest.length)h+=pp(esc(rest.map(function(x){return x.t}).join(" ")));
+    if(!tool.length&&!rs&&!rest.length)h+=pp("Auffälligkeiten sind aus den Daten nicht erkennbar.");
+    var fr=fragen(e,fl);
+    if(fr)h+=pp("<b>"+esc(fr)+"</b>");
+    return h;
   }
-  var uq=function(k){var s={};for(var j=0;j<l.length;j++)if(l[j][k])s[l[j][k]]=1;return Object.keys(s).length};
-  var bad=l.filter(function(x){return x.rep==="MALICIOUS"||x.rep==="SUSPICIOUS"});
-  h+='<p class="hd">'+l.length+" Endpoint-Events  ·  "+uq("host")+" Assets  ·  "+uq("user")+" User  ·  "+uq("proc")+" Prozesse  ·  "+esc(rng(l.map(function(x){return x.time})))+"</p>";
-  if(bad.length)h+="<p><b>"+bad.length+" von "+l.length+"</b> Events mit Reputation MALICIOUS oder SUSPICIOUS, auf "+(function(){var s={};bad.forEach(function(x){if(x.host)s[x.host]=1});return Object.keys(s).length})()+" Assets.</p>";
-  var tp=tally(l,function(x){return x.proc?x.proc:[]}),ta=tally(l,function(x){return x.host?x.host:[]}),tu=tally(l,function(x){return x.user?x.user:[]});
-  if(tp.length)h+='<p class="mt">Prozesse: '+esc(top(tp,6))+"</p>";
-  if(ta.length>1)h+='<p class="mt">Assets: '+esc(top(ta,6))+"</p>";
-  if(tu.length>1)h+='<p class="mt">User: '+esc(top(tu,6))+"</p>";
-  var agg={},order=[];
-  for(i=0;i<l.length;i++){var fs=flagsE(l[i]);
-    for(var j=0;j<fs.length;j++){var key=fs[j].t.replace(/:.*$/,"");
-      if(!agg[key]){agg[key]={t:fs[j].t,w:fs[j].w,ex:fs[j].ex,n:0,who:{}};order.push(key)}
-      agg[key].n++;if(l[i].host)agg[key].who[l[i].host]=1}}
-  var items=order.map(function(k){var a=agg[k],w=Object.keys(a.who),t=a.t;
-    if(a.n>1&&a.ex&&t.indexOf(": ")>0)t=t.replace(": ",", z. B. ");
-    return {t:t+(a.n>1?"  ["+a.n+" Events"+(w.length>1?", "+w.length+" Assets":"")+"]":""),w:a.w}});
-  items.sort(function(x,y){return (y.w?1:0)-(x.w?1:0)});
-  return h+flagBlock(items.slice(0,12));
+  var uq=function(k){var s={};for(var j=0;j<l.length;j++)if(l[j][k])s[l[j][k]]=1;return Object.keys(s).length},
+      ds=l.map(function(x){return x.time}).filter(Boolean),
+      mn=ds.length?new Date(Math.min.apply(null,ds)):null,mx=ds.length?new Date(Math.max.apply(null,ds)):null,
+      bad=l.filter(function(x){return x.rep==="MALICIOUS"||x.rep==="SUSPICIOUS"}),
+      na=uq("host"),nu=uq("user");
+  var s1="Die Daten enthalten "+az(l.length,"einen Vorgang","Vorgänge")+" von "+az(na,"einem Rechner","Rechnern");
+  if(nu)s1+=" und "+az(nu,"einem Benutzerkonto","Benutzerkonten");
+  if(mn&&mx)s1+=", "+(dstr(mn)===dstr(mx)?"alle am "+dstr(mn)+" zwischen "+tstr(mn)+" und "+tstr(mx)+" Uhr":"vom "+dstr(mn)+" bis "+dstr(mx));
+  h+=pp(esc(s1)+".");
+  if(bad.length){
+    var bh={};bad.forEach(function(x){if(x.host)bh[x.host]=1});
+    h+=pp("Bei "+nw(bad.length)+" davon stuft Rapid7 die beteiligte Datei als schädlich oder verdächtig ein"+
+      (Object.keys(bh).length>1?", verteilt auf "+nw(Object.keys(bh).length)+" Rechner":"")+".");
+  }
+  var agg={},ord=[];
+  for(i=0;i<l.length;i++){var fs=befund(l[i]);
+    for(var j=0;j<fs.length;j++){var k=fs[j].k;
+      if(!agg[k]){agg[k]={t:fs[j].t,n:0,who:{},proc:{}};ord.push(k)}
+      agg[k].n++;if(l[i].host)agg[k].who[l[i].host]=1;if(l[i].proc)agg[k].proc[l[i].proc]=1}}
+  if(ord.length){
+    for(i=0;i<ord.length&&i<6;i++){var a=agg[ord[i]],wq=Object.keys(a.who).length;
+      h+=pp(esc(a.t+" Das betrifft "+az(a.n,"einen Vorgang","Vorgänge")+(wq>1?" auf "+nw(wq)+" Rechnern":"")+"."))}
+  }else h+=pp("Auffälligkeiten sind aus den Daten nicht erkennbar.");
+  var tp=tally(l,function(x){return x.proc?x.proc:[]});
+  if(tp.length>1)h+=pp("Am häufigsten kommen die Programme "+esc(liste(tp.slice(0,4).map(function(x){return x.k}),"sowie"))+" vor.");
+  return h;
 }
-function sumInv(l,al){
+
+function textInv(l,al){
   if(!l.length)return "";
   var h="",i,open=l.filter(function(v){return v.status&&v.status!=="CLOSED"}),
       closed=l.filter(function(v){return v.status==="CLOSED"}),
       un=l.filter(function(v){return !v.asg}),
-      mal=l.filter(function(v){return v.disp==="MALICIOUS"});
-  h+='<p class="hd">'+l.length+" Investigations  ·  "+open.length+" offen  ·  "+closed.length+" geschlossen"+
-     (al.length?"  ·  "+al.length+" Alerts":"")+"  ·  "+esc(rng(l.map(function(v){return v.created})))+"</p>";
+      mal=l.filter(function(v){return v.disp==="MALICIOUS"}),
+      ds=l.map(function(v){return v.created}).filter(Boolean),
+      mn=ds.length?new Date(Math.min.apply(null,ds)):null,mx=ds.length?new Date(Math.max.apply(null,ds)):null;
+  var s1="Die Daten enthalten "+nn(l.length,"Investigation","Investigations",true);
+  if(mn&&mx&&dstr(mn)!==dstr(mx))s1+=" aus dem Zeitraum "+dstr(mn)+" bis "+dstr(mx);
+  else if(mn)s1+=" vom "+dstr(mn);
+  s1+=". "+(open.length?nw(open.length,true).charAt(0).toUpperCase()+nw(open.length,true).slice(1)+" davon "+(open.length===1?"ist":"sind")+" noch offen":"Alle sind abgeschlossen");
+  if(closed.length&&open.length)s1+=", "+nw(closed.length)+" "+(closed.length===1?"ist":"sind")+" abgeschlossen";
+  h+=pp(esc(s1)+".");
   var hot=open.filter(function(v){return v.prio==="CRITICAL"||v.prio==="HIGH"})
-    .sort(function(a,b){var x=ORD.prio.indexOf(a.prio),y=ORD.prio.indexOf(b.prio);
-      return (x<0?9:x)-(y<0?9:y)||(b.age||0)-(a.age||0)});
+    .sort(function(a,b){var x=ORD.prio.indexOf(a.prio),y=ORD.prio.indexOf(b.prio);return (x<0?9:x)-(y<0?9:y)||(b.age||0)-(a.age||0)});
   if(hot.length){
-    h+='<p class="hl">Offen und dringend</p><ul>';
-    for(i=0;i<hot.length&&i<8;i++){var v=hot[i];
-      h+='<li class="w"><b>'+esc(v.prio)+"</b> seit "+esc(dur(v.age))+
-         (v.status!=="OPEN"?" ("+esc(v.status)+")":"")+
-         (v.asg?", "+esc(v.asg):", ohne Zuweisung")+
-         " — "+esc(v.title||tail(v.rrn))+"</li>"}
-    h+="</ul>"+(hot.length>8?'<p class="mt">… '+(hot.length-8)+" weitere</p>":"");
-  }
-  var notes=[];
-  if(mal.length)notes.push({t:mal.length+" als MALICIOUS bewertet"+(mal.length<=3?": "+mal.map(function(v){return v.title||tail(v.rrn)}).join(", "):""),w:true});
-  if(un.length)notes.push({t:un.length+" von "+l.length+" ohne Zuweisung",w:un.length>0&&open.length>0});
+    for(i=0;i<hot.length&&i<4;i++){var v=hot[i],z=[];
+      if(v.age!=null)z.push(seit(v.age)+" offen");
+      if(v.status&&v.status!=="OPEN")z.push("Status "+(STN[v.status]||v.status.toLowerCase()));
+      z.push(v.asg?"bearbeitet von "+v.asg:"niemandem zugewiesen");
+      h+=pp((i===0?"<b>Am dringendsten</b> ist ":"Dazu kommt ")+
+        (v.prio==="CRITICAL"?"ein als kritisch eingestufter Fall":"ein als hoch eingestufter Fall")+": "+
+        esc(q(v.title||tail(v.rrn)))+" — "+esc(liste(z))+".")}
+    if(hot.length>4)h+=pp(esc(hot.length-4===1?"Dazu kommt ein weiterer Fall mit hoher oder kritischer Einstufung.":"Dazu kommen "+nw(hot.length-4)+" weitere Fälle mit hoher oder kritischer Einstufung."));
+  }else if(open.length)h+=pp("Keiner der offenen Fälle ist als hoch oder kritisch eingestuft.");
+  var w=[];
+  if(un.length&&open.length)w.push(nw(un.length)+" von "+nw(l.length)+" Fällen "+(un.length===1?"hat":"haben")+" keinen Bearbeiter");
   var stale=open.filter(function(v){return v.acc&&Date.now()-v.acc>6048e5});
-  if(stale.length)notes.push({t:stale.length+" offen und seit über 7 Tagen nicht angefasst",w:true});
-  var noal=l.filter(function(v){return !v.alerts.length});
-  if(noal.length&&noal.length<l.length)notes.push({t:noal.length+" ohne zugeordnete Alerts",w:false});
-  if(DB.pg&&DB.pg.totaldata!=null&&DB.pg.totaldata>DB.inv.length)
-    notes.push({t:"Die API meldet "+DB.pg.totaldata+" Datensätze, hier liegen "+DB.inv.length+" — nur ein Auszug"+(DB.pg.totalpages?" (Seite "+((DB.pg.index||0)+1)+" von "+DB.pg.totalpages+")":""),w:true});
-  if(DB.lost)notes.push({t:DB.lost+" Datensätze im JSON waren nicht lesbar",w:true});
-  if(notes.length)h+=flagBlock(notes);
+  if(stale.length)w.push(nn(stale.length,"offener Fall","offene Fälle")+" "+(stale.length===1?"wurde":"wurden")+" seit über einer Woche nicht mehr angefasst");
+  if(mal.length)w.push(nn(mal.length,"Fall","Fälle")+" "+(mal.length===1?"wurde":"wurden")+" als bösartig bewertet"+(mal.length<=2?": "+mal.map(function(v){return q(v.title||tail(v.rrn))}).join(", "):""));
+  if(w.length)h+=pp(esc(cap(liste(w))+"."));
   return h;
 }
-function sumOther(){
+
+function textRest(){
   var p=[];
-  if(DB.ev.length)p.push(DB.ev.length+" Evidence-Einträge");
-  if(DB.com.length)p.push(DB.com.length+" Kommentare");
-  if(DB.raw.length)p.push(DB.raw.length+" Log-Zeilen");
-  if(DB.att.length)p.push(DB.att.length+" Anhänge");
+  if(DB.ev.length)p.push(az(DB.ev.length,"einen Beweismittel-Eintrag","Beweismittel-Einträge"));
+  if(DB.com.length)p.push(az(DB.com.length,"einen Kommentar","Kommentare"));
+  if(DB.raw.length)p.push(az(DB.raw.length,"eine Log-Zeile","Log-Zeilen"));
+  if(DB.att.length)p.push(az(DB.att.length,"einen Anhang","Anhänge"));
   if(!p.length)return "";
-  if(DB.inv.length||DB.evd.length)return '<p class="mt">Dazu: '+esc(p.join(", "))+"</p>";
-  return '<p class="hd">'+esc(p.join("  ·  "))+"</p>";
+  var h=pp((DB.inv.length||DB.evd.length?"Mitgeliefert sind außerdem ":"Die Daten enthalten ")+esc(liste(p))+".");
+  if(!DB.inv.length&&!DB.evd.length&&DB.com.length){
+    for(var i=0;i<DB.com.length&&i<6;i++){var c=nmap(DB.com[i]),cr=sub(c.creator),b=S(c.body);
+      if(b)h+=pp(esc((S(cr.name)?S(cr.name)+" schrieb":"Notiz")+(D(c.createdtime)?" "+when(D(c.createdtime)):"")+": "+q(b)))}}
+  return h;
 }
+function textWarn(){
+  var w=[];
+  if(DB.pg&&DB.pg.totaldata!=null&&DB.inv.length&&DB.pg.totaldata>DB.inv.length)
+    w.push("Achtung: die Schnittstelle meldet insgesamt "+DB.pg.totaldata+" Datensätze, hier liegen nur "+DB.inv.length+" davon vor. Das ist ein Auszug, kein vollständiges Bild.");
+  if(DB.lost)w.push(DB.lost===1?"Achtung: ein Abschnitt im eingefügten JSON war beschädigt und konnte nicht gelesen werden.":"Achtung: "+nw(DB.lost)+" Abschnitte im eingefügten JSON waren beschädigt und konnten nicht gelesen werden.");
+  if(DB.fix)w.push("Das JSON war fehlerhaft und wurde vor der Auswertung repariert.");
+  return w.length?pp('<span class="w">'+esc(w.join(" "))+"</span>"):"";
+}
+
 function render(){
   if(!DB)return;
-  var inv=DB.inv,f=sel(null),fe=DB.evd.length?selE(null):[],H="",i;
-  var fal=DB.alr.filter(function(a){return a.pi==null||match(inv[a.pi],null)});
-
-  var mh=[];
-  if(inv.length)mh.push("<b>INV</b> "+f.length+(f.length!==inv.length?"/"+inv.length:""));
-  if(DB.alr.length)mh.push("<b>ALR</b> "+fal.length+(fal.length!==DB.alr.length?"/"+DB.alr.length:""));
-  if(DB.evd.length)mh.push("<b>EVT</b> "+fe.length+(fe.length!==DB.evd.length?"/"+DB.evd.length:""));
-  if(DB.ev.length)mh.push("<b>EVD</b> "+DB.ev.length);
-  if(DB.com.length)mh.push("<b>CMT</b> "+DB.com.length);
-  if(DB.raw.length)mh.push("<b>LOG</b> "+DB.raw.length);
-  if(DB.pg&&DB.pg.totaldata!=null)mh.push("<b>API</b> "+esc(String(DB.pg.totaldata)));
-  mh.push("<b>KB</b> "+Math.round(DB.n/1024));
-  if(DB.fix)mh.push('<b class="wfix">FIX</b> '+DB.fix);
-  if(DB.lost)mh.push('<b class="wlost">LOST</b> '+DB.lost);
-  meta.innerHTML="<span>"+mh.join("</span><span>")+"</span>";
-
-  var sm=sumInv(f,fal)+sumEvd(fe)+sumOther();
-  if(sm)H+='<section><div class="sum">'+sm+"</div></section>";
-
-  var ch=chipbar();
-  if(ch)H+="<section>"+ch+"</section>";
-
-  var cg="";
-  if(inv.length>1){
-    cg+=counts("PRIORITÄT","prio",order(tally(sel("prio"),function(v){return v.prio}),"prio"),8);
-    cg+=counts("STATUS","status",order(tally(sel("status"),function(v){return v.status}),"status"),8);
-    cg+=counts("DISPOSITION","disp",order(tally(sel("disp"),function(v){return v.disp}),"disp"),8);
-    cg+=counts("QUELLE","src",tally(sel("src"),function(v){return v.src}),8);
-    cg+=counts("ASSIGNEE","asg",tally(sel("asg"),function(v){return v.asg}),10);
-    cg+=counts("TAG","tag",tally(sel("tag"),function(v){return v.tags.length?v.tags:[]}),10);
-    cg+=counts("ALERT-TYP","atype",tally(sel("atype"),function(v){return v.alerts.map(function(a){return a.type||"—"})}),8);
-  }
-  if(DB.evd.length>1){
-    cg+=counts("REPUTATION","rep",tally(selE("rep"),function(e){return e.rep?e.rep:[]}),8);
-    cg+=counts("THREAT","thr",tally(selE("thr"),function(e){return e.thr?e.thr:[]}),8);
-    cg+=counts("ASSET","host",tally(selE("host"),function(e){return e.host?e.host:[]}),12);
-    cg+=counts("USER","user",tally(selE("user"),function(e){return e.user?e.user:[]}),12);
-    cg+=counts("PROZESS","proc",tally(selE("proc"),function(e){return e.proc?e.proc:[]}),12);
-    cg+=counts("PARENT → CHILD","pc",tally(selE("pc"),function(e){return e.pcx?e.pcx:[]}),8);
-  }
-  if(cg)H+='<section><div class="cgs">'+cg+"</div></section>";
-
-  if(inv.length){
-    var rows=sortRows(f);
-    H+='<section><h2>Investigations</h2><div class="tw"><table class="tbl"><thead><tr>';
-    for(var c=0;c<COLS.length;c++)H+='<th data-k="'+COLS[c].k+'" class="'+(SORT.k===COLS[c].k?"s"+(SORT.a?" a":""):"")+'">'+COLS[c].t+"</th>";
-    H+="</tr></thead><tbody>";
-    for(i=0;i<rows.length;i++){var v=rows[i],op=OPEN["i"+v.idx];
-      H+='<tr class="d'+(op?" op":"")+'" data-i="'+v.idx+'">';
-      for(c=0;c<COLS.length;c++)H+="<td>"+cell(v,COLS[c].k)+"</td>";
-      H+="</tr>";
-      if(op)H+='<tr class="det"><td colspan="'+COLS.length+'"><div class="detin">'+kvlist(v.raw)+alertTbl(v.alerts)+"<pre>"+esc(JSON.stringify(v.raw,null,2))+"</pre></div></td></tr>"}
-    H+="</tbody></table></div></section>";
-  }
-
-  if(fal.length&&inv.length){
-    var ag=tally(fal,function(a){return a.type||"—"}),grp={};
-    for(i=0;i<fal.length;i++){var al=fal[i],kk=al.type||"—";
-      if(!grp[kk])grp[kk]={n:0,src:{},rule:{},f:null,l:null};
-      var g=grp[kk];g.n++;if(al.src)g.src[al.src]=1;if(al.rule)g.rule[tail(al.rule)]=1;
-      var fx=al.first||al.created,lx=al.last||al.created;
-      if(fx&&(!g.f||fx<g.f))g.f=fx;if(lx&&(!g.l||lx>g.l))g.l=lx}
-    H+='<section><h2>Alerts</h2><div class="tw"><table class="tbl"><thead><tr><th>TYP</th><th>N</th><th>QUELLE</th><th>REGEL</th><th>FIRST</th><th>LAST</th></tr></thead><tbody>';
-    for(i=0;i<ag.length;i++){var gg=grp[ag[i].k];
-      H+="<tr><td>"+esc(ag[i].k)+"</td><td>"+gg.n+'</td><td class="mut">'+esc(Object.keys(gg.src).join(", ")||"—")+'</td><td class="dimc">'+esc(Object.keys(gg.rule).slice(0,3).join(", ")||"—")+'</td><td class="mut">'+esc(fdt(gg.f))+'</td><td class="mut">'+esc(fdt(gg.l))+"</td></tr>"}
-    H+="</tbody></table></div></section>";
-  }
-
-  if(DB.evd.length){
-    var er=sortRowsE(fe);
-    H+='<section><h2>Endpoint-Events</h2><div class="tw"><table class="tbl"><thead><tr>';
-    for(var ec=0;ec<ECOLS.length;ec++)H+='<th data-ek="'+ECOLS[ec].k+'" class="'+(SORTE.k===ECOLS[ec].k?"s"+(SORTE.a?" a":""):"")+'">'+ECOLS[ec].t+"</th>";
-    H+="</tr></thead><tbody>";
-    for(i=0;i<er.length;i++){var ev2=er[i],eo=OPEN["v"+ev2.idx];
-      H+='<tr class="d'+(eo?" op":"")+'" data-ev="'+ev2.idx+'">';
-      for(ec=0;ec<ECOLS.length;ec++)H+="<td>"+ecell(ev2,ECOLS[ec].k)+"</td>";
-      H+="</tr>";
-      if(eo)H+='<tr class="det"><td colspan="'+ECOLS.length+'"><div class="detin">'+procTbl(ev2)+kvlist(ev2.raw)+"<pre>"+esc(JSON.stringify(ev2.raw,null,2))+"</pre></div></td></tr>"}
-    H+="</tbody></table></div></section>";
-  }
-
-  if(DB.ev.length){
-    H+='<section><h2>Evidence</h2><div class="tw"><table class="tbl"><thead><tr><th>ZEIT</th><th>QUELLE</th><th>TYP</th><th>DATEN</th></tr></thead><tbody>';
-    for(i=0;i<DB.ev.length;i++){var ev=DB.ev[i],em=nmap(ev),dt=D(pick(em,"eventedat","createdat","timestamp")),op2=OPEN["e"+i],dd=em.data;
-      var flat=typeof dd==="string"?dd:JSON.stringify(dd||ev);
-      H+='<tr class="d'+(op2?" op":"")+'" data-e="'+i+'"><td class="mut">'+esc(fdt(dt))+"</td><td>"+esc(nz(S(em.externalsource)))+'</td><td class="mut">'+esc(nz(S(em.eventtype)))+'</td><td class="dimc">'+esc(flat.slice(0,180))+"</td></tr>";
-      if(op2){var pd=dd;if(typeof dd==="string"){var pr=tryParse(dd);if(pr)pd=pr.v}
-        H+='<tr class="det"><td colspan="4"><div class="detin">'+(ob(pd)?kvlist(pd):"")+"<pre>"+esc(JSON.stringify(ob(pd)?pd:ev,null,2))+"</pre></div></td></tr>"}}
-    H+="</tbody></table></div></section>";
-  }
-
-  if(DB.com.length){
-    H+='<section><h2>Kommentare</h2><div class="tw"><table class="tbl"><thead><tr><th>ZEIT</th><th>AUTOR</th><th>SICHTBARKEIT</th><th>TEXT</th></tr></thead><tbody>';
-    for(i=0;i<DB.com.length;i++){var cm=nmap(DB.com[i]),cr=sub(cm.creator);
-      H+='<tr><td class="mut">'+esc(fdt(D(cm.createdtime)))+"</td><td>"+esc(nz(S(cr.name)))+'</td><td class="dimc">'+esc(nz(S(cm.visibility)))+'</td><td style="white-space:normal">'+esc(S(cm.body))+"</td></tr>"}
-    H+="</tbody></table></div></section>";
-  }
-
-  if(DB.raw.length){
-    H+='<section><h2>Log Events</h2><div class="tw"><table class="tbl"><thead><tr><th>ZEIT</th><th>HOST</th><th>APP</th><th>ZEILE</th></tr></thead><tbody>';
-    for(i=0;i<DB.raw.length&&i<500;i++){var rw=nmap(DB.raw[i]);
-      H+='<tr><td class="mut">'+esc(fdt(D(pick(rw,"timestamp","time"))))+"</td><td>"+esc(nz(S(pick(rw,"hostname","host"))))+'</td><td class="mut">'+esc(nz(S(pick(rw,"appname","app"))))+'</td><td class="dimc">'+esc(S(pick(rw,"sourcedata","message")||JSON.stringify(DB.raw[i])).slice(0,220))+"</td></tr>"}
-    H+="</tbody></table></div></section>";
-  }
-
-  var ic=DB.ioc,ipx="";
-  [["EXTERN","ip",24,"pub"],["INTERN","pip",18,""],["DOMAINS","dom",24,"pub"],["URLS","url",8,""],["ACCOUNTS","mail",16,""],["HASHES","hash",10,"pub"]].forEach(function(x){
-    var blk=iocBlock(ic[x[1]],x[3],x[2]);
-    if(blk)ipx+='<div class="cg"><span class="cl">'+x[0]+'</span><span class="cv ioc">'+blk+"</span></div>"});
-  if(ipx)H+='<section><h2>Indikatoren</h2><div class="cgs">'+ipx+"</div></section>";
-
-  out.innerHTML=H||'<div class="empty">STRG + V</div>';
-}
-function pct(n,t){return t?Math.round(n/t*100)+"%":""}
-function chipbar(){
-  var h="",any=false,names={prio:"prio",status:"status",disp:"disp",src:"src",asg:"asg",tag:"tag",atype:"alert",asrc:"src",
-    rep:"rep",thr:"threat",host:"asset",user:"user",proc:"proc",os:"os"};
-  for(var d in F)for(var v in F[d]){any=true;
-    h+='<span class="chip" data-x="'+d+'" data-v="'+esc(v)+'"><em>'+names[d]+'</em>'+esc(v)+'<s>×</s></span>'}
-  if(Q){any=true;h+='<span class="chip" data-x="q"><em>text</em>'+esc(Q)+'<s>×</s></span>'}
-  return any?'<div class="chips">'+h+"</div>":"";
+  var t=textInv(DB.inv,DB.alr)+textEvd(DB.evd)+textRest()+textWarn();
+  out.innerHTML=t?'<div class="sum">'+t+"</div>":'<div class="empty">STRG + V</div>';
 }
 
-document.addEventListener("click",function(e){
-  if(!e.target||!e.target.closest)return;
-  var r=e.target.closest("[data-dim]");
-  if(r){var d=r.dataset.dim,v=r.dataset.v;if(!F[d])F[d]={};if(F[d][v])delete F[d][v];else F[d][v]=1;render();return}
-  var c=e.target.closest(".chip");
-  if(c){if(c.dataset.x==="q"){Q="";qin.value=""}else delete F[c.dataset.x][c.dataset.v];render();return}
-  var th=e.target.closest("th[data-k]");
-  if(th){var k=th.dataset.k;if(SORT.k===k)SORT.a=!SORT.a;else{SORT.k=k;SORT.a=!!ASC[k]}render();return}
-  var te=e.target.closest("th[data-ek]");
-  if(te){var ek=te.dataset.ek;if(SORTE.k===ek)SORTE.a=!SORTE.a;else{SORTE.k=ek;SORTE.a=!!EASC[ek]}render();return}
-  var tr=e.target.closest("tr.d");
-  if(tr&&!e.target.closest("[data-cp]")){
-    var key=tr.dataset.i!=null?"i"+tr.dataset.i:tr.dataset.ev!=null?"v"+tr.dataset.ev:"e"+tr.dataset.e;
-    if(OPEN[key])delete OPEN[key];else OPEN[key]=1;render();return}
-  var ip=e.target.closest("[data-cp]");
-  if(ip){var t=ip.dataset.cp;
-    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t);
-    ip.classList.add("cp");setTimeout(function(){ip.classList.remove("cp")},700)}
-});
-var qt;
-function reQ(){clearTimeout(qt);qt=setTimeout(function(){var v=qin.value.trim().toLowerCase();if(v!==Q){Q=v;render()}},160)}
-qin.addEventListener("input",reQ);
-qin.addEventListener("search",reQ);
-qin.addEventListener("keydown",function(e){if(e.key==="Escape"){qin.value="";reQ()}});
-$("#clr").addEventListener("click",function(){F={prio:{},status:{},disp:{},src:{},asg:{},tag:{},atype:{},asrc:{},rep:{},thr:{},host:{},user:{},proc:{},os:{},fam:{},pc:{}};Q="";qin.value="";OPEN={};render()});
-function csv(name,hd,rows){
-  var L=[hd.join(";")],i;
-  for(i=0;i<rows.length;i++)L.push(rows[i].map(function(x){x=S(x)||String(x==null?"":x);return /[";\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(";"));
-  var b=new Blob(["﻿"+L.join("\r\n")],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(b),a=document.createElement("a");
-  a.href=u;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(u)},2000);
-}
-$("#csv").addEventListener("click",function(){
-  if(!DB)return;
-  if(DB.inv.length){
-    csv("investigations.csv",["title","priority","status","disposition","source","assignee","email","alerts","created_time","first_alert_time","latest_alert_time","last_accessed","duration","tags","rrn"],
-      sortRows(sel(null)).map(function(v){return [v.title,v.prio,v.status,v.disp,v.src,v.asg,v.email,v.alerts.length,fdt(v.created),fdt(v.fa),fdt(v.la),fdt(v.acc),v.status==="CLOSED"?dur(v.dwell):dur(v.age),v.tags.join(","),v.rrn]}));
-    if(!DB.evd.length)return}
-  if(DB.evd.length)csv("endpoint_events.csv",["time","asset","os","user","process","pid","parent","ppid","cmd_line","parent_cmd_line","exe_path","working_dir","reputation","threat_level","engines","family","type","platform","sha256","sha1","md5","source_ip","dest_ip","dest_port","asset_rrn","entry_id"],
-    sortRowsE(selE(null)).map(function(e){return [fdt(e.time),e.host,e.os,e.user,e.proc,e.pid,e.par,e.ppid,e.cmd,e.pcmd,e.exe,e.cwd,e.rep,e.thr,e.eng,e.fam,e.cls,e.plat,e.sha,e.sha1,e.md5,e.sip,e.dip,e.dport,e.rrn,e.id]}));
-});
 var SEQ=0,FILE=location.protocol==="file:",READ=!FILE;
 function canRead(){
   if(!(navigator.clipboard&&navigator.clipboard.readText))return Promise.resolve(false);
@@ -940,7 +584,6 @@ function arm(){go.textContent="STRG + V";go.className="arm";sink.value="";sink.f
 document.addEventListener("paste",function(e){
   var t=(e.clipboardData||window.clipboardData);if(!t)return;
   var v=t.getData("text");if(!v||!v.trim())return;
-  if(document.activeElement===qin)return;
   e.preventDefault();SEQ++;sink.value="";ingest(v);
 });
 canRead().then(function(ok){READ=ok;if(!DB)idle()});
