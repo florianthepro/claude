@@ -283,3 +283,12 @@ def test_markennamen_haben_keine_vokalhaufen_an_der_fuge():
     # Und der Stamm muss erkennbar bleiben: gasket -> gask -> gaskio war zu viel.
     assert "gaskio" not in alle
     assert "granita" in alle and "pfada" in alle
+
+
+def test_serioese_namen_bleiben_einsprachig():
+    """nodekontor mischt Englisch und Deutsch und klingt deshalb schief."""
+    from domainfinder.gen import serioes
+    alle = {lab for lab, _ in serioes.generate()}
+    for gemischt in ("nodekontor", "gridkontor", "linktresor", "datafundus"):
+        assert gemischt not in alle, f"{gemischt} mischt zwei Sprachen"
+    assert "logkontor" in alle and "kerndepot" in alle and "datenakte" in alle
