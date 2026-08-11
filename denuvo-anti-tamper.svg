@@ -1,0 +1,601 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 4010" width="1760" height="4010" role="img" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title>Denuvo Anti-Tamper: Wie Spieldaten aufs Geraet kommen und wie sie benutzt werden</title>
+<desc>Uebersichtsgrafik in fuenf Phasen: Build-Time beim Publisher, Vertrieb und Installation, Erststart mit Online-Aktivierung, Laufzeit im Spiel mit Trigger-Zyklus, sowie Angriffsflaeche und Hypervisor-Bypass.</desc>
+
+<defs>
+  <style>
+    .h1   { font-size:36px; font-weight:700; fill:#131C26; }
+    .h2   { font-size:17px; fill:#4A5763; }
+    .meta { font-size:13px; fill:#78858F; }
+    .bh   { font-size:20px; font-weight:700; fill:#FFFFFF; }
+    .bhs  { font-size:13.5px; fill:#FFFFFF; fill-opacity:0.86; }
+    .ct   { font-size:16px; font-weight:700; fill:#131C26; }
+    .ctw  { font-size:16px; font-weight:700; fill:#FFFFFF; }
+    .cs   { font-size:12.5px; fill:#5A6874; }
+    .csw  { font-size:12.5px; fill:#FFFFFF; fill-opacity:0.9; }
+    .bd   { font-size:13px; fill:#2C3B48; }
+    .bds  { font-size:12.5px; fill:#2C3B48; }
+    .sm   { font-size:11.5px; fill:#5A6874; }
+    .xs   { font-size:10.5px; fill:#6B7883; }
+    .mono { font-family:ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', monospace; font-size:12px; }
+    .lbl  { font-size:11px; font-weight:700; letter-spacing:1.1px; }
+    .num  { font-size:12.5px; font-weight:700; fill:#FFFFFF; }
+    .b    { font-weight:700; }
+  </style>
+
+  <marker id="av" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6D4AAF"/></marker>
+  <marker id="ab" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1B7FBF"/></marker>
+  <marker id="ao" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C96F16"/></marker>
+  <marker id="ag" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#14875C"/></marker>
+  <marker id="ar" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#BE4238"/></marker>
+  <marker id="ak" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8A97A4"/></marker>
+</defs>
+
+<rect x="0" y="0" width="1760" height="4010" fill="#F4F6F8"/>
+
+<!-- ===================== HEADER ===================== -->
+<text class="h1" x="40" y="60">Denuvo Anti-Tamper</text>
+<text class="h2" x="40" y="92">Wie die Spieldaten aufs Gerät kommen — und wie sie dort benutzt werden</text>
+<text class="meta" x="40" y="118">Vereinfachte Gesamtdarstellung. Denuvo ist Closed Source; die Details stammen aus öffentlichen Reverse-Engineering-Analysen und unterscheiden sich je nach Denuvo-Version und Spiel.</text>
+
+<g>
+  <rect x="1268" y="24" width="13" height="13" rx="3" fill="#6D4AAF"/><text class="sm" x="1292" y="35">1 · Build-Time beim Publisher</text>
+  <rect x="1268" y="46" width="13" height="13" rx="3" fill="#1B7FBF"/><text class="sm" x="1292" y="57">2 · Vertrieb &amp; Installation</text>
+  <rect x="1268" y="68" width="13" height="13" rx="3" fill="#C96F16"/><text class="sm" x="1292" y="79">3 · Erststart &amp; Aktivierung (online)</text>
+  <rect x="1268" y="90" width="13" height="13" rx="3" fill="#14875C"/><text class="sm" x="1292" y="101">4 · Laufzeit im Spiel (offline)</text>
+  <rect x="1268" y="112" width="13" height="13" rx="3" fill="#BE4238"/><text class="sm" x="1292" y="123">5 · Angriffsfläche &amp; Bypass</text>
+</g>
+<line x1="40" y1="146" x2="1720" y2="146" stroke="#D9E0E7" stroke-width="1.5"/>
+
+<!-- ===================== BAND 1 — BUILD-TIME ===================== -->
+<g transform="translate(0,170)">
+  <rect x="40" y="0" width="1680" height="518" rx="16" fill="#FFFFFF" stroke="#DCD3EE" stroke-width="1.5"/>
+  <rect x="40" y="0" width="1680" height="54" rx="16" fill="#6D4AAF"/>
+  <rect x="40" y="38" width="1680" height="16" fill="#6D4AAF"/>
+  <text class="bh" x="68" y="27">PHASE 1 · BUILD-TIME</text>
+  <text class="bhs" x="68" y="45">Beim Publisher, lange vor dem Release — hier entsteht der Schutz</text>
+  <text class="bhs" x="1692" y="35" text-anchor="end">Das Spiel wird absichtlich unvollständig ausgeliefert</text>
+
+  <!-- pipeline -->
+  <rect x="68" y="86" width="280" height="78" rx="10" fill="#FBFAFE" stroke="#DCD3EE"/>
+  <text class="ct" x="208" y="116" text-anchor="middle">Spiel-Quellcode</text>
+  <text class="cs" x="208" y="137" text-anchor="middle">Engine + Gameplay, vom Studio</text>
+  <text class="cs" x="208" y="153" text-anchor="middle">Denuvo sieht ihn nie</text>
+
+  <rect x="404" y="86" width="280" height="78" rx="10" fill="#FBFAFE" stroke="#DCD3EE"/>
+  <text class="ct" x="544" y="116" text-anchor="middle">Compiler + Linker</text>
+  <text class="cs" x="544" y="137" text-anchor="middle">ganz normaler Build,</text>
+  <text class="cs" x="544" y="153" text-anchor="middle">keine Code-Änderung nötig</text>
+
+  <rect x="740" y="86" width="280" height="78" rx="10" fill="#FBFAFE" stroke="#DCD3EE"/>
+  <text class="ct" x="880" y="116" text-anchor="middle">game.exe — ungeschützt</text>
+  <text class="cs" x="880" y="137" text-anchor="middle">vollständig, lauffähig,</text>
+  <text class="cs" x="880" y="153" text-anchor="middle">verlässt das Studio so nie</text>
+
+  <rect x="1076" y="86" width="280" height="78" rx="10" fill="#6D4AAF"/>
+  <text class="ctw" x="1216" y="116" text-anchor="middle">DENUVO PROTECTOR</text>
+  <text class="csw" x="1216" y="137" text-anchor="middle">arbeitet auf Binärebene</text>
+  <text class="csw" x="1216" y="153" text-anchor="middle">Integration in die Pipeline: &lt; 1 Tag</text>
+
+  <rect x="1412" y="86" width="280" height="78" rx="10" fill="#F3EFFB" stroke="#C4B4E4" stroke-width="1.5"/>
+  <text class="ct" x="1552" y="116" text-anchor="middle">game.exe — geschützt</text>
+  <text class="cs" x="1552" y="137" text-anchor="middle">deutlich größer, mit neuer</text>
+  <text class="cs" x="1552" y="153" text-anchor="middle">PE-Sektion <tspan class="mono b">.vm</tspan></text>
+
+  <line x1="356" y1="125" x2="396" y2="125" stroke="#6D4AAF" stroke-width="2.4" marker-end="url(#av)"/>
+  <line x1="692" y1="125" x2="732" y2="125" stroke="#6D4AAF" stroke-width="2.4" marker-end="url(#av)"/>
+  <line x1="1028" y1="125" x2="1068" y2="125" stroke="#6D4AAF" stroke-width="2.4" marker-end="url(#av)"/>
+  <line x1="1364" y1="125" x2="1404" y2="125" stroke="#6D4AAF" stroke-width="2.4" marker-end="url(#av)"/>
+
+  <!-- left detail panel -->
+  <rect x="68" y="190" width="1050" height="300" rx="12" fill="#FCFBFE" stroke="#E3E8EE"/>
+  <text class="lbl" x="90" y="220" fill="#6D4AAF">WAS DER PROTECTOR MIT DEM BINARY MACHT</text>
+
+  <circle cx="96" cy="245" r="3" fill="#6D4AAF"/>
+  <text class="bd" x="110" y="249">Ausgewählte Funktionen werden in Bytecode übersetzt, den <tspan class="b">nur Denuvos eigene virtuelle Maschine</tspan> ausführen kann.</text>
+
+  <circle cx="96" cy="273" r="3" fill="#6D4AAF"/>
+  <text class="bd" x="110" y="277">Einzelne x86-Instruktionen werden zerlegt: ihre Konstanten (Werte, Offsets, Sprungziele) werden aus der Datei</text>
+  <text class="bd" x="110" y="296"><tspan class="b">komplett entfernt</tspan> — in der Szene „stolen constants“ genannt.</text>
+
+  <circle cx="96" cy="320" r="3" fill="#6D4AAF"/>
+  <text class="bd" x="110" y="324">Diese Original-Konstanten bleiben <tspan class="b">auf dem Denuvo-Lizenzserver</tspan>. Ohne sie ist der Code unvollständig und nicht rekonstruierbar.</text>
+
+  <circle cx="96" cy="348" r="3" fill="#6D4AAF"/>
+  <text class="bd" x="110" y="352">In die neue PE-Sektion <tspan class="mono b">.vm</tspan> kommen stattdessen verschlüsselte Ersatzwerte, die sogenannten <tspan class="b">License-DWORDs</tspan> —</text>
+  <text class="bd" x="110" y="371">über die ganze Sektion verstreut, nicht zusammenhängend abgelegt.</text>
+
+  <circle cx="96" cy="395" r="3" fill="#6D4AAF"/>
+  <text class="bd" x="110" y="399"><tspan class="b">MBA-Obfuskation</tspan> (Mixed Boolean Arithmetic): Instruktionen werden als Misch-Ausdrücke aus Logik und Arithmetik</text>
+  <text class="bd" x="110" y="418">umgeschrieben, z. B. <tspan class="mono">x + y  =  (x &amp; y) + (x | y)</tspan> — und das mehrfach ineinander verschachtelt.</text>
+
+  <circle cx="96" cy="442" r="3" fill="#6D4AAF"/>
+  <text class="bd" x="110" y="446">Tausende <tspan class="b">„Trigger“</tspan> werden über den Spielcode verteilt: kleine Einsprünge in die Denuvo-Laufzeit (siehe Phase 4).</text>
+
+  <circle cx="96" cy="470" r="3" fill="#6D4AAF"/>
+  <text class="bd" x="110" y="474">Folge: das Binary wächst massiv — Analysen sprechen von über 10 Millionen zusätzlichen x86-Instruktionen.</text>
+
+  <!-- right server panel -->
+  <rect x="1146" y="190" width="546" height="300" rx="12" fill="#F3EFFB" stroke="#C4B4E4" stroke-width="1.5"/>
+  <text class="lbl" x="1168" y="220" fill="#5B3D99">DENUVO- / IRDETO-LIZENZSERVER</text>
+
+  <rect x="1168" y="236" width="502" height="88" rx="9" fill="#FFFFFF" stroke="#C4B4E4"/>
+  <rect x="1186" y="254" width="34" height="16" rx="3" fill="#6D4AAF"/>
+  <rect x="1186" y="276" width="34" height="16" rx="3" fill="#6D4AAF"/>
+  <rect x="1186" y="298" width="34" height="12" rx="3" fill="#A78FD4"/>
+  <text class="ct" x="1236" y="266">Tresor der entfernten Werte</text>
+  <text class="cs" x="1236" y="286">Original-Konstanten pro Build,</text>
+  <text class="cs" x="1236" y="304">verknüpft mit Spiel und Store-AppID</text>
+
+  <text class="bd" x="1168" y="348">Der Server ist der <tspan class="b">einzige Ort</tspan>, an dem die</text>
+  <text class="bd" x="1168" y="366">vollständige Information existiert.</text>
+  <text class="bd" x="1168" y="392">Deshalb ist ein <tspan class="b">Erststart ohne Internet</tspan></text>
+  <text class="bd" x="1168" y="410">grundsätzlich nicht möglich — auch nicht bei</text>
+  <text class="bd" x="1168" y="428">einem legal gekauften Spiel.</text>
+  <line x1="1168" y1="444" x2="1670" y2="444" stroke="#C4B4E4"/>
+  <text class="sm" x="1168" y="464">Kernunterschied zum klassischen Kopierschutz:</text>
+  <text class="sm" x="1168" y="480">Es fehlt ein Teil des Programms, nicht nur ein Schlüssel.</text>
+</g>
+
+<!-- ===================== BAND 2 — VERTRIEB ===================== -->
+<g transform="translate(0,722)">
+  <rect x="40" y="0" width="1680" height="518" rx="16" fill="#FFFFFF" stroke="#C9E0F0" stroke-width="1.5"/>
+  <rect x="40" y="0" width="1680" height="54" rx="16" fill="#1B7FBF"/>
+  <rect x="40" y="38" width="1680" height="16" fill="#1B7FBF"/>
+  <text class="bh" x="68" y="27">PHASE 2 · VERTRIEB &amp; INSTALLATION</text>
+  <text class="bhs" x="68" y="45">So kommen die Daten physisch auf die Platte des Spielers</text>
+  <text class="bhs" x="1692" y="35" text-anchor="end">Bis hierhin ist noch keine einzige Lizenzinformation auf dem Gerät</text>
+
+  <rect x="68" y="86" width="370" height="84" rx="10" fill="#F7FBFD" stroke="#C9E0F0"/>
+  <text class="ct" x="253" y="118" text-anchor="middle">Publisher lädt hoch</text>
+  <text class="cs" x="253" y="139" text-anchor="middle">geschützte Build-Artefakte gehen in das</text>
+  <text class="cs" x="253" y="156" text-anchor="middle">Depot des Stores</text>
+
+  <rect x="486" y="86" width="370" height="84" rx="10" fill="#F7FBFD" stroke="#C9E0F0"/>
+  <text class="ct" x="671" y="118" text-anchor="middle">Store-Backend + CDN</text>
+  <text class="cs" x="671" y="139" text-anchor="middle">Steam, Epic, Microsoft Store …</text>
+  <text class="cs" x="671" y="156" text-anchor="middle">verteilt komprimierte Daten-Chunks</text>
+
+  <rect x="904" y="86" width="370" height="84" rx="10" fill="#F7FBFD" stroke="#C9E0F0"/>
+  <text class="ct" x="1089" y="118" text-anchor="middle">Store-Client auf dem PC</text>
+  <text class="cs" x="1089" y="139" text-anchor="middle">lädt herunter, prüft Hashes,</text>
+  <text class="cs" x="1089" y="156" text-anchor="middle">entpackt und schreibt auf den Datenträger</text>
+
+  <rect x="1322" y="86" width="370" height="84" rx="10" fill="#E8F3FA" stroke="#7FB6D9" stroke-width="1.5"/>
+  <text class="ct" x="1507" y="118" text-anchor="middle">Installation auf SSD / HDD</text>
+  <text class="cs" x="1507" y="139" text-anchor="middle">fertiges Spielverzeichnis,</text>
+  <text class="cs" x="1507" y="156" text-anchor="middle">identisch für alle Käufer weltweit</text>
+
+  <line x1="446" y1="128" x2="478" y2="128" stroke="#1B7FBF" stroke-width="2.4" marker-end="url(#ab)"/>
+  <line x1="864" y1="128" x2="896" y2="128" stroke="#1B7FBF" stroke-width="2.4" marker-end="url(#ab)"/>
+  <line x1="1282" y1="128" x2="1314" y2="128" stroke="#1B7FBF" stroke-width="2.4" marker-end="url(#ab)"/>
+
+  <!-- disk contents panel -->
+  <rect x="68" y="196" width="1624" height="228" rx="12" fill="#F9FCFD" stroke="#E3E8EE"/>
+  <text class="lbl" x="92" y="226" fill="#1B7FBF">WAS JETZT KONKRET AUF DEM GERÄT LIEGT</text>
+
+  <!-- card A: protected exe with PE sections -->
+  <rect x="92" y="252" width="379" height="150" rx="9" fill="#FFFFFF" stroke="#7FB6D9" stroke-width="1.5"/>
+  <text class="ct" x="108" y="274">game.exe (geschützt)</text>
+  <rect x="108" y="284" width="200" height="16" rx="3" fill="#E4EAF0"/><text class="mono" x="116" y="296" fill="#3C4A57">.text</text>
+  <rect x="108" y="303" width="200" height="16" rx="3" fill="#E4EAF0"/><text class="mono" x="116" y="315" fill="#3C4A57">.rdata</text>
+  <rect x="108" y="322" width="200" height="16" rx="3" fill="#E4EAF0"/><text class="mono" x="116" y="334" fill="#3C4A57">.data</text>
+  <rect x="108" y="341" width="200" height="16" rx="3" fill="#6D4AAF"/><text class="mono" x="116" y="353" fill="#FFFFFF">.vm</text>
+  <text class="xs" x="316" y="346" fill="#5B3D99">verschlüsselte</text>
+  <text class="xs" x="316" y="359" fill="#5B3D99">License-DWORDs</text>
+  <text class="sm" x="108" y="376">Die Original-Konstanten fehlen —</text>
+  <text class="sm" x="108" y="392">der Code ist ohne Lizenz unvollständig.</text>
+
+  <!-- card B: store DRM -->
+  <rect x="491" y="252" width="379" height="150" rx="9" fill="#FFFFFF" stroke="#DDE4EA"/>
+  <text class="ct" x="507" y="278">Store-DRM darüber</text>
+  <text class="bds" x="507" y="302">Zusätzliche Hülle des Stores, z. B.</text>
+  <text class="bds" x="507" y="321"><tspan class="mono b">SteamStub</tspan> um die ausführbare Datei.</text>
+  <text class="bds" x="507" y="345">Regelt <tspan class="b">Besitz und Zugang</tspan> —</text>
+  <text class="bds" x="507" y="364">Denuvo regelt die <tspan class="b">Unversehrtheit</tspan></text>
+  <text class="bds" x="507" y="383">des Codes. Zwei getrennte Schichten.</text>
+
+  <!-- card C: assets -->
+  <rect x="890" y="252" width="379" height="150" rx="9" fill="#FFFFFF" stroke="#DDE4EA"/>
+  <text class="ct" x="906" y="278">Spiel-Assets</text>
+  <text class="bds" x="906" y="302">Texturen, Meshes, Audio, Level,</text>
+  <text class="bds" x="906" y="321">Pak-/Archivdateien, Konfigurationen.</text>
+  <rect x="906" y="334" width="347" height="52" rx="7" fill="#EEF7F2" stroke="#A9D6C1"/>
+  <text class="bds" x="918" y="354" fill="#106B49">Von Denuvo <tspan class="b">nicht verschlüsselt</tspan> und</text>
+  <text class="bds" x="918" y="373" fill="#106B49">nicht angefasst. Sie liegen normal da.</text>
+
+  <!-- card D: no token yet -->
+  <rect x="1289" y="252" width="379" height="150" rx="9" fill="#FFFFFF" stroke="#DDE4EA"/>
+  <text class="ct" x="1305" y="278">Noch KEIN Lizenz-Token</text>
+  <text class="bds" x="1305" y="302">Kein Denuvo-Dienst, kein Treiber,</text>
+  <text class="bds" x="1305" y="321">kein Hintergrundprozess.</text>
+  <text class="bds" x="1305" y="345">Die komplette Denuvo-Laufzeit steckt</text>
+  <text class="bds" x="1305" y="364"><tspan class="b">in der .exe selbst</tspan>. Was fehlt, ist</text>
+  <text class="bds" x="1305" y="383">die gerätespezifische Lizenzdatei.</text>
+
+  <!-- key note -->
+  <rect x="68" y="444" width="1624" height="48" rx="9" fill="#FFF6E8" stroke="#E8C48A" stroke-width="1.5"/>
+  <text class="bd" x="92" y="464"><tspan class="b">Der wichtigste Punkt dieser Phase:</tspan> Denuvo verschlüsselt nicht die Spieldaten, sondern beschädigt gezielt den Code, der diese Daten verarbeitet.</text>
+  <text class="bd" x="92" y="483">Eine Kopie des Installationsordners auf einen fremden PC ist deshalb wertlos — dort fehlt die passende, gerätegebundene Lizenzdatei aus Phase 3.</text>
+</g>
+
+<!-- ===================== BAND 3 — AKTIVIERUNG ===================== -->
+<g transform="translate(0,1274)">
+  <rect x="40" y="0" width="1680" height="936" rx="16" fill="#FFFFFF" stroke="#EFD7B8" stroke-width="1.5"/>
+  <rect x="40" y="0" width="1680" height="54" rx="16" fill="#C96F16"/>
+  <rect x="40" y="38" width="1680" height="16" fill="#C96F16"/>
+  <text class="bh" x="68" y="27">PHASE 3 · ERSTSTART &amp; AKTIVIERUNG</text>
+  <text class="bhs" x="68" y="45">Einmalig zwingend online — hier wird das Spiel an genau dieses Gerät gebunden</text>
+  <text class="bhs" x="1692" y="35" text-anchor="end">Aus „unvollständigem Binary“ wird ein lauffähiges Spiel</text>
+
+  <!-- Card A: sequence -->
+  <rect x="68" y="86" width="780" height="290" rx="12" fill="#FEFAF5" stroke="#EFD7B8"/>
+  <text class="lbl" x="90" y="116" fill="#A85A0C">WAS BEIM ALLERERSTEN START PASSIERT</text>
+
+  <circle cx="102" cy="140" r="11" fill="#C96F16"/><text class="num" x="102" y="144" text-anchor="middle">1</text>
+  <text class="bd" x="124" y="144">Store-Client läuft, Nutzer ist eingeloggt. Windows startet <tspan class="mono">game.exe</tspan>.</text>
+
+  <circle cx="102" cy="176" r="11" fill="#C96F16"/><text class="num" x="102" y="180" text-anchor="middle">2</text>
+  <text class="bd" x="124" y="180">Der <tspan class="b">Denuvo-Stub</tspan> bekommt die Kontrolle <tspan class="b">vor</tspan> dem Original Entry Point (OEP)</text>
+  <text class="bd" x="124" y="199">des Spiels. Es läuft noch keine einzige Zeile echter Spielcode.</text>
+
+  <circle cx="102" cy="231" r="11" fill="#C96F16"/><text class="num" x="102" y="235" text-anchor="middle">3</text>
+  <text class="bd" x="124" y="235">Der Stub liest den <tspan class="b">Hardware-Fingerprint</tspan> des Systems aus — rechts im Detail.</text>
+
+  <circle cx="102" cy="267" r="11" fill="#C96F16"/><text class="num" x="102" y="271" text-anchor="middle">4</text>
+  <text class="bd" x="124" y="271">Über die Steamworks-API wird ein <tspan class="mono b">EncryptedAppTicket</tspan> geholt: ein signierter</text>
+  <text class="bd" x="124" y="290">Nachweis, dass dieser Account die AppID besitzt. Gültig rund 30 Minuten,</text>
+  <text class="bd" x="124" y="309">enthält auch die Paket-IDs der zugehörigen DLC-Lizenzen.</text>
+
+  <circle cx="102" cy="341" r="11" fill="#C96F16"/><text class="num" x="102" y="345" text-anchor="middle">5</text>
+  <text class="bd" x="124" y="345">Fingerprint <tspan class="b">und</tspan> Ticket gehen per HTTPS an den Denuvo-Lizenzserver.</text>
+
+  <!-- Card B: hardware fingerprint -->
+  <rect x="876" y="86" width="816" height="290" rx="12" fill="#FEFAF5" stroke="#EFD7B8"/>
+  <text class="lbl" x="898" y="116" fill="#A85A0C">HARDWARE-FINGERPRINT — WAS KONKRET AUSGELESEN WIRD</text>
+
+  <text class="mono b" x="898" y="146" fill="#A85A0C">CPUID</text>
+  <text class="bds" x="1044" y="146">EAX=0x1 (Features) · EAX=0x80000001 (erw. Features) · EAX=0x80000002–0x80000004 (CPU-Brand-String)</text>
+
+  <text class="mono b" x="898" y="173" fill="#A85A0C">XGETBV</text>
+  <text class="bds" x="1044" y="173">Zustand der aktivierten CPU-Feature-Register (XCR0)</text>
+
+  <text class="mono b" x="898" y="200" fill="#A85A0C">KUSER_SHARED_DATA</text>
+  <text class="bds" x="1044" y="200">NtMajorVersion · NtMinorVersion · NtBuildNumber · NtProductType · ProductTypeIsValid · SuiteMask ·</text>
+  <text class="bds" x="1044" y="217">NumberOfPhysicalPages · ProcessorFeatures · NativeProcessorArchitecture · ActiveProcessorCount</text>
+
+  <text class="mono b" x="898" y="244" fill="#A85A0C">PEB</text>
+  <text class="bds" x="1044" y="244">OSMajorVersion · OSMinorVersion · ImageSubsystemMajorVersion · ImageSubsystemMinorVersion</text>
+
+  <text class="mono b" x="898" y="271" fill="#A85A0C">ntdll.dll</text>
+  <text class="bds" x="1044" y="271">Funktionsbytes und RVAs · Data Directories: Export, Import, Resource, Exception, Relocation</text>
+
+  <text class="mono b" x="898" y="298" fill="#A85A0C">Syscall</text>
+  <text class="bds" x="1044" y="298">NtQuerySystemInformation mit Informationsklasse 0x36</text>
+
+  <text class="mono b" x="898" y="325" fill="#A85A0C">Win32-API</text>
+  <text class="bds" x="1044" y="325">GetVolumeInformationW · GetComputerNameW · GetUserNameW · GetWindowsDirectoryW</text>
+
+  <line x1="898" y1="340" x2="1670" y2="340" stroke="#EFD7B8"/>
+  <text class="sm" x="898" y="360">Gebunden wird bewusst an schwer austauschbare Komponenten, vor allem CPU und Mainboard-Umfeld.</text>
+
+  <!-- Row 2: network exchange -->
+  <rect x="68" y="402" width="1624" height="270" rx="12" fill="#FEFAF5" stroke="#EFD7B8"/>
+  <text class="lbl" x="92" y="432" fill="#A85A0C">DER AKTIVIERUNGS-DIALOG — NUR ONLINE MÖGLICH</text>
+
+  <rect x="110" y="474" width="300" height="126" rx="10" fill="#FFFFFF" stroke="#D9A96A" stroke-width="1.5"/>
+  <text class="ct" x="260" y="502" text-anchor="middle">Spiel-Prozess auf dem PC</text>
+  <text class="cs" x="260" y="524" text-anchor="middle">Denuvo-Stub, noch vor dem</text>
+  <text class="cs" x="260" y="541" text-anchor="middle">Original Entry Point</text>
+  <text class="cs" x="260" y="565" text-anchor="middle">liefert: Fingerprint des Geräts</text>
+  <text class="cs" x="260" y="582" text-anchor="middle">+ Besitznachweis des Accounts</text>
+
+  <rect x="640" y="474" width="380" height="126" rx="10" fill="#C96F16"/>
+  <text class="ctw" x="830" y="502" text-anchor="middle">Denuvo- / Irdeto-Lizenzserver</text>
+  <text class="csw" x="830" y="524" text-anchor="middle">hält die in Phase 1 entfernten</text>
+  <text class="csw" x="830" y="541" text-anchor="middle">Original-Konstanten</text>
+  <text class="csw" x="830" y="565" text-anchor="middle">verrechnet sie mit dem Fingerprint</text>
+  <text class="csw" x="830" y="582" text-anchor="middle">zu gerätespezifischen Werten</text>
+
+  <rect x="1330" y="474" width="320" height="126" rx="10" fill="#FFFFFF" stroke="#D9A96A" stroke-width="1.5"/>
+  <text class="ct" x="1490" y="502" text-anchor="middle">Store-Backend</text>
+  <text class="cs" x="1490" y="524" text-anchor="middle">Steam / Epic / Microsoft</text>
+  <text class="cs" x="1490" y="548" text-anchor="middle">bestätigt, dass dieser Account</text>
+  <text class="cs" x="1490" y="565" text-anchor="middle">die AppID tatsächlich besitzt</text>
+
+  <text class="sm" x="525" y="502" text-anchor="middle" fill="#A85A0C">① Fingerprint + AppTicket</text>
+  <line x1="412" y1="512" x2="636" y2="512" stroke="#C96F16" stroke-width="2.4" marker-end="url(#ao)"/>
+
+  <text class="sm" x="1175" y="502" text-anchor="middle" fill="#A85A0C">② Besitz prüfen</text>
+  <line x1="1022" y1="512" x2="1326" y2="512" stroke="#C96F16" stroke-width="2.4" marker-end="url(#ao)"/>
+
+  <line x1="1326" y1="562" x2="1022" y2="562" stroke="#C96F16" stroke-width="2.4" marker-end="url(#ao)"/>
+  <text class="sm" x="1175" y="582" text-anchor="middle" fill="#A85A0C">③ bestätigt</text>
+
+  <line x1="636" y1="562" x2="412" y2="562" stroke="#C96F16" stroke-width="2.4" marker-end="url(#ao)"/>
+  <text class="sm" x="525" y="582" text-anchor="middle" fill="#A85A0C">④ Lizenzdatei / Offline-Token</text>
+
+  <rect x="110" y="614" width="1540" height="42" rx="8" fill="#FFF2E1" stroke="#E8C48A"/>
+  <text class="bd" x="128" y="640">Auf dem Server werden die entfernten Original-Konstanten über <tspan class="b">umkehrbare mathematische Funktionen</tspan> mit dem Hardware-Fingerprint verrechnet. Ergebnis: verschlüsselte Konstanten, die sich <tspan class="b">nur mit genau dieser Hardware</tspan> wieder auflösen lassen.</text>
+
+  <!-- Row 3: three cards -->
+  <rect x="68" y="698" width="520" height="210" rx="12" fill="#FEFAF5" stroke="#EFD7B8"/>
+  <text class="lbl" x="90" y="728" fill="#A85A0C">WO DER TOKEN LANDET</text>
+  <circle cx="96" cy="752" r="3" fill="#C96F16"/><text class="bds" x="110" y="756">Ältere Versionen: eine Datei namens <tspan class="mono b">dbdata</tspan>.</text>
+  <circle cx="96" cy="778" r="3" fill="#C96F16"/><text class="bds" x="110" y="782">Neuere: Dateien mit reinen Zahlen-Namen,</text>
+  <text class="bds" x="110" y="799">ohne Dateiendung.</text>
+  <circle cx="96" cy="821" r="3" fill="#C96F16"/><text class="bds" x="110" y="825">Typische Orte: Installationsordner,</text>
+  <text class="bds" x="110" y="842"><tspan class="mono">ProgramData</tspan>, sowie</text>
+  <text class="bds" x="110" y="859"><tspan class="mono">Steam\userdata\&lt;SteamID&gt;\&lt;AppID&gt;</tspan></text>
+  <circle cx="96" cy="881" r="3" fill="#C96F16"/><text class="bds" x="110" y="885">Größe: meist nur wenige Kilobyte.</text>
+
+  <rect x="620" y="698" width="520" height="210" rx="12" fill="#FEFAF5" stroke="#EFD7B8"/>
+  <text class="lbl" x="642" y="728" fill="#A85A0C">WAS DER TOKEN LEISTET</text>
+  <circle cx="648" cy="752" r="3" fill="#C96F16"/><text class="bds" x="662" y="756">Er enthält die verschlüsselten Konstanten</text>
+  <text class="bds" x="662" y="773">für <tspan class="b">genau dieses eine Gerät</tspan>.</text>
+  <circle cx="648" cy="795" r="3" fill="#C96F16"/><text class="bds" x="662" y="799">Er ist kein Schlüssel, der irgendwo eingesetzt</text>
+  <text class="bds" x="662" y="816">wird — er ist <tspan class="b">Teil des Rechenwegs</tspan>, den</text>
+  <text class="bds" x="662" y="833">der Code zur Laufzeit ständig durchläuft.</text>
+  <circle cx="648" cy="855" r="3" fill="#C96F16"/><text class="bds" x="662" y="859">Auf einen anderen PC kopiert ist er wertlos:</text>
+  <text class="bds" x="662" y="876">die Hardware-Daten passen dann nicht mehr</text>
+  <text class="bds" x="662" y="893">zur Verschlüsselung der Konstanten.</text>
+
+  <rect x="1172" y="698" width="520" height="210" rx="12" fill="#FEFAF5" stroke="#EFD7B8"/>
+  <text class="lbl" x="1194" y="728" fill="#A85A0C">GRENZEN &amp; ABLAUF</text>
+  <circle cx="1200" cy="752" r="3" fill="#C96F16"/><text class="bds" x="1214" y="756">Rund <tspan class="b">5 Aktivierungen pro Account</tspan> und</text>
+  <text class="bds" x="1214" y="773">24 Stunden.</text>
+  <circle cx="1200" cy="795" r="3" fill="#C96F16"/><text class="bds" x="1214" y="799">Nach größerem Hardware-Wechsel ist eine</text>
+  <text class="bds" x="1214" y="816">neue Aktivierung nötig.</text>
+  <circle cx="1200" cy="838" r="3" fill="#C96F16"/><text class="bds" x="1214" y="842">Neuere Versionen: <tspan class="b">fester Ablauf nach</tspan></text>
+  <text class="bds" x="1214" y="859"><tspan class="b">14 Tagen</tspan>, unabhängig von Änderungen.</text>
+  <circle cx="1200" cy="881" r="3" fill="#C96F16"/><text class="bds" x="1214" y="885">Dazwischen: vollständig offline spielbar.</text>
+</g>
+
+<!-- ===================== BAND 4 — LAUFZEIT ===================== -->
+<g transform="translate(0,2244)">
+  <rect x="40" y="0" width="1680" height="952" rx="16" fill="#FFFFFF" stroke="#B9DFCD" stroke-width="1.5"/>
+  <rect x="40" y="0" width="1680" height="54" rx="16" fill="#14875C"/>
+  <rect x="40" y="38" width="1680" height="16" fill="#14875C"/>
+  <text class="bh" x="68" y="27">PHASE 4 · JEDER START &amp; LAUFZEIT</text>
+  <text class="bhs" x="68" y="45">Hier werden die Daten tatsächlich benutzt — und hier sitzt der eigentliche Schutzmechanismus</text>
+  <text class="bhs" x="1692" y="35" text-anchor="end">Läuft normalerweise komplett offline</text>
+
+  <!-- boot chain -->
+  <rect x="68" y="86" width="340" height="80" rx="10" fill="#F5FBF8" stroke="#B9DFCD"/>
+  <text class="ct" x="238" y="116" text-anchor="middle">Stub lädt lokalen Token</text>
+  <text class="cs" x="238" y="137" text-anchor="middle">liest die Lizenzdatei und den aktuellen</text>
+  <text class="cs" x="238" y="154" text-anchor="middle">Hardware-Fingerprint erneut ein</text>
+
+  <rect x="496" y="86" width="340" height="80" rx="10" fill="#F5FBF8" stroke="#B9DFCD"/>
+  <text class="ct" x="666" y="116" text-anchor="middle">Pre-OEP-Integritätsprüfung</text>
+  <text class="cs" x="666" y="137" text-anchor="middle">entschlüsselt Konstanten, deren Sollwert</text>
+  <text class="cs" x="666" y="154" text-anchor="middle">bekannt ist, und vergleicht sie</text>
+
+  <rect x="924" y="86" width="340" height="80" rx="10" fill="#F5FBF8" stroke="#B9DFCD"/>
+  <text class="ct" x="1094" y="116" text-anchor="middle">Sprung zum Entry Point</text>
+  <text class="cs" x="1094" y="137" text-anchor="middle">erst jetzt bekommt der echte</text>
+  <text class="cs" x="1094" y="154" text-anchor="middle">Spielcode die Kontrolle</text>
+
+  <rect x="1352" y="86" width="340" height="80" rx="10" fill="#E7F5EF" stroke="#7CC4A3" stroke-width="1.5"/>
+  <text class="ct" x="1522" y="116" text-anchor="middle">Spiel läuft</text>
+  <text class="cs" x="1522" y="137" text-anchor="middle">Denuvo bleibt im selben Prozess aktiv</text>
+  <text class="cs" x="1522" y="154" text-anchor="middle">und arbeitet dauerhaft mit</text>
+
+  <line x1="418" y1="126" x2="486" y2="126" stroke="#14875C" stroke-width="2.4" marker-end="url(#ag)"/>
+  <line x1="846" y1="126" x2="914" y2="126" stroke="#14875C" stroke-width="2.4" marker-end="url(#ag)"/>
+  <line x1="1274" y1="126" x2="1342" y2="126" stroke="#14875C" stroke-width="2.4" marker-end="url(#ag)"/>
+
+  <rect x="496" y="176" width="1196" height="36" rx="8" fill="#FDF0EF" stroke="#E7B3AE"/>
+  <text class="bds" x="514" y="199" fill="#9B3A31"><tspan class="b">Bei Abweichung:</tspan> die lokale Lizenzdatei wird gelöscht und beim nächsten Start neu vom Server angefordert — dafür ist wieder eine Internetverbindung nötig.</text>
+
+  <!-- trigger cycle -->
+  <rect x="68" y="236" width="960" height="340" rx="12" fill="#F5FBF8" stroke="#7CC4A3" stroke-width="1.5"/>
+  <text class="lbl" x="90" y="266" fill="#0E6B49">DER TRIGGER-ZYKLUS — DAS HERZSTÜCK</text>
+  <text class="sm" x="90" y="290">Der Spielcode erreicht einen der tausenden eingebauten Trigger und springt in die Denuvo-Laufzeit:</text>
+
+  <rect x="112" y="304" width="200" height="130" rx="9" fill="#FFFFFF" stroke="#7CC4A3"/>
+  <circle cx="132" cy="326" r="11" fill="#14875C"/><text class="num" x="132" y="330" text-anchor="middle">1</text>
+  <text class="ct" x="150" y="330" font-size="13.5">Hardware lesen</text>
+  <text class="sm" x="126" y="358">CPUID, KUSER_SHARED_DATA</text>
+  <text class="sm" x="126" y="375">und Co. werden <tspan class="b">live</tspan> abgefragt</text>
+  <text class="sm" x="126" y="392">— jedes Mal neu, nichts wird</text>
+  <text class="sm" x="126" y="409">dauerhaft zwischengespeichert.</text>
+
+  <rect x="336" y="304" width="200" height="130" rx="9" fill="#FFFFFF" stroke="#7CC4A3"/>
+  <circle cx="356" cy="326" r="11" fill="#14875C"/><text class="num" x="356" y="330" text-anchor="middle">2</text>
+  <text class="ct" x="374" y="330" font-size="13.5">DWORD holen</text>
+  <text class="sm" x="350" y="358">Der passende verschlüsselte</text>
+  <text class="sm" x="350" y="375">Wert wird aus der <tspan class="mono b">.vm</tspan>-Sektion</text>
+  <text class="sm" x="350" y="392">geladen — bitweise verstreut</text>
+  <text class="sm" x="350" y="409">abgelegt, nicht am Stück.</text>
+
+  <rect x="560" y="304" width="200" height="130" rx="9" fill="#FFFFFF" stroke="#7CC4A3"/>
+  <circle cx="580" cy="326" r="11" fill="#14875C"/><text class="num" x="580" y="330" text-anchor="middle">3</text>
+  <text class="ct" x="598" y="330" font-size="13.5">Entschlüsseln</text>
+  <text class="sm" x="574" y="358">Hardware-Daten und DWORD</text>
+  <text class="sm" x="574" y="375">werden mathematisch ver-</text>
+  <text class="sm" x="574" y="392">rechnet. Heraus kommt die</text>
+  <text class="sm" x="574" y="409">fehlende Originalkonstante.</text>
+
+  <rect x="784" y="304" width="200" height="130" rx="9" fill="#FFFFFF" stroke="#7CC4A3"/>
+  <circle cx="804" cy="326" r="11" fill="#14875C"/><text class="num" x="804" y="330" text-anchor="middle">4</text>
+  <text class="ct" x="822" y="330" font-size="13.5">Ausführen</text>
+  <text class="sm" x="798" y="358">Die ursprüngliche x86-</text>
+  <text class="sm" x="798" y="375">Instruktion läuft endlich mit</text>
+  <text class="sm" x="798" y="392">dem wiederhergestellten Wert.</text>
+  <text class="sm" x="798" y="409">Das Spiel läuft weiter.</text>
+
+  <line x1="316" y1="369" x2="332" y2="369" stroke="#14875C" stroke-width="2.4" marker-end="url(#ag)"/>
+  <line x1="540" y1="369" x2="556" y2="369" stroke="#14875C" stroke-width="2.4" marker-end="url(#ag)"/>
+  <line x1="764" y1="369" x2="780" y2="369" stroke="#14875C" stroke-width="2.4" marker-end="url(#ag)"/>
+
+  <rect x="90" y="454" width="916" height="102" rx="9" fill="#FDF0EF" stroke="#E7B3AE" stroke-width="1.5"/>
+  <text class="lbl" x="110" y="480" fill="#9B3A31">WARUM DAS SO SCHWER ZU KNACKEN IST</text>
+  <text class="bds" x="110" y="504">Passt die Hardware nicht, ist die entschlüsselte Konstante nicht etwa „ungültig“ — sie ist <tspan class="b">einfach falsch</tspan>. Es erscheint keine</text>
+  <text class="bds" x="110" y="523">Fehlermeldung und keine Lizenzabfrage. Das Spiel rechnet mit Müllwerten weiter und stürzt irgendwann ab oder verhält sich</text>
+  <text class="bds" x="110" y="542">unsinnig. Es gibt also keinen einzelnen Prüfpunkt, den man finden und wegpatchen könnte.</text>
+
+  <!-- parallel protections -->
+  <rect x="1056" y="236" width="636" height="340" rx="12" fill="#F5FBF8" stroke="#B9DFCD"/>
+  <text class="lbl" x="1078" y="266" fill="#0E6B49">PARALLEL LAUFENDE SCHUTZSCHICHTEN</text>
+
+  <circle cx="1084" cy="290" r="3" fill="#14875C"/>
+  <text class="bds" x="1098" y="294"><tspan class="b">VM-Interpreter:</tspan> geschützte Funktionen laufen als Bytecode.</text>
+  <text class="bds" x="1098" y="311">Registerwerte liegen bitweise verstreut statt zusammenhängend.</text>
+
+  <circle cx="1084" cy="333" r="3" fill="#14875C"/>
+  <text class="bds" x="1098" y="337"><tspan class="b">CRC-Prüfungen</tspan> über die eigenen CPUID- und Syscall-Handler —</text>
+  <text class="bds" x="1098" y="354">erkennt Hooks, Breakpoints und Patches.</text>
+
+  <circle cx="1084" cy="376" r="3" fill="#14875C"/>
+  <text class="bds" x="1098" y="380"><tspan class="b">CPUID im Flug:</tspan> die Instruktion wird kurz entschlüsselt, ausgeführt</text>
+  <text class="bds" x="1098" y="397">und sofort wieder verschlüsselt — kein stabiles Suchmuster.</text>
+
+  <circle cx="1084" cy="419" r="3" fill="#14875C"/>
+  <text class="bds" x="1098" y="423"><tspan class="b">Stack-Falle:</tspan> wichtige Werte werden weit oben im „unbenutzten“</text>
+  <text class="bds" x="1098" y="440">Stack geparkt. Löst ein Exception-basierter Hook aus, überschreibt</text>
+  <text class="bds" x="1098" y="457">Windows sie mit <tspan class="mono">EXCEPTION_RECORD</tspan> → Absturz.</text>
+
+  <circle cx="1084" cy="479" r="3" fill="#14875C"/>
+  <text class="bds" x="1098" y="483"><tspan class="b">Spin-Locks</tspan> (<tspan class="mono">lock cmpxchg</tspan> + <tspan class="mono">pause</tspan>), damit parallele Threads sich</text>
+  <text class="bds" x="1098" y="500">beim Entschlüsseln nicht gegenseitig zerstören.</text>
+
+  <circle cx="1084" cy="522" r="3" fill="#14875C"/>
+  <text class="bds" x="1098" y="526"><tspan class="b">Erkennung</tspan> von Debuggern, virtuellen Maschinen, Emulatoren und</text>
+  <text class="bds" x="1098" y="543">Hypervisoren.</text>
+
+  <circle cx="1084" cy="558" r="3" fill="#14875C"/>
+  <text class="bds" x="1098" y="562"><tspan class="b">Zufall ohne RDRAND:</tspan> aus Registerwerten, z. B. <tspan class="mono">VCTX[0] % 9</tspan>.</text>
+
+  <!-- data usage lane -->
+  <rect x="68" y="602" width="1624" height="224" rx="12" fill="#F9FCFB" stroke="#E3E8EE"/>
+  <text class="lbl" x="92" y="632" fill="#14875C">WIE DIE SPIELDATEN DABEI BENUTZT WERDEN</text>
+
+  <rect x="92" y="664" width="356" height="96" rx="9" fill="#FFFFFF" stroke="#DDE4EA"/>
+  <text class="ct" x="270" y="692" text-anchor="middle">SSD / NVMe</text>
+  <text class="cs" x="270" y="714" text-anchor="middle">Texturen, Meshes, Audio, Level,</text>
+  <text class="cs" x="270" y="731" text-anchor="middle">Pak-Archive — liegen unverändert da,</text>
+  <text class="cs" x="270" y="748" text-anchor="middle">Denuvo rührt sie nicht an</text>
+
+  <rect x="498" y="664" width="356" height="96" rx="9" fill="#FFFFFF" stroke="#DDE4EA"/>
+  <text class="ct" x="676" y="692" text-anchor="middle">Engine: Laden &amp; Streamen</text>
+  <text class="cs" x="676" y="714" text-anchor="middle">Dateizugriffe, Dekompression und</text>
+  <text class="cs" x="676" y="731" text-anchor="middle">Asset-Streaming laufen völlig normal —</text>
+  <text class="cs" x="676" y="748" text-anchor="middle">hier greift Denuvo nicht ein</text>
+
+  <rect x="904" y="664" width="356" height="96" rx="9" fill="#E7F5EF" stroke="#7CC4A3" stroke-width="1.5"/>
+  <text class="ct" x="1082" y="692" text-anchor="middle">Spiel-Logik &amp; Engine-Code</text>
+  <text class="cs" x="1082" y="714" text-anchor="middle">HIER sitzen die Trigger. Ohne gültige</text>
+  <text class="cs" x="1082" y="731" text-anchor="middle">Konstanten aus dem Token laufen diese</text>
+  <text class="cs" x="1082" y="748" text-anchor="middle">Code-Pfade schlicht falsch</text>
+
+  <rect x="1310" y="664" width="356" height="96" rx="9" fill="#FFFFFF" stroke="#DDE4EA"/>
+  <text class="ct" x="1488" y="692" text-anchor="middle">Rendering → Bild</text>
+  <text class="cs" x="1488" y="714" text-anchor="middle">Der fertige Frame geht an die GPU.</text>
+  <text class="cs" x="1488" y="731" text-anchor="middle">Der Spieler merkt vom gesamten</text>
+  <text class="cs" x="1488" y="748" text-anchor="middle">Vorgang idealerweise nichts</text>
+
+  <line x1="458" y1="712" x2="488" y2="712" stroke="#8A97A4" stroke-width="2.2" marker-end="url(#ak)"/>
+  <line x1="864" y1="712" x2="894" y2="712" stroke="#8A97A4" stroke-width="2.2" marker-end="url(#ak)"/>
+  <line x1="1270" y1="712" x2="1300" y2="712" stroke="#8A97A4" stroke-width="2.2" marker-end="url(#ak)"/>
+
+  <rect x="92" y="768" width="1574" height="52" rx="8" fill="#FFF6E8" stroke="#E8C48A"/>
+  <text class="bds" x="110" y="790"><tspan class="b">Leistungskosten:</tspan> die Prüfungen hängen an Timern oder festen Engine-Ticks (Physik, KI), nicht am einzelnen Frame. Der zusätzliche Code entwertet den CPU-Cache und untergräbt Optimierungen.</text>
+  <text class="bds" x="110" y="809">Gemessen wurden Werte von praktisch 0 % bis rund 20 % FPS-Verlust — spürbar vor allem im CPU-Limit, kaum im GPU-Limit.</text>
+
+  <!-- when online again -->
+  <rect x="68" y="852" width="1624" height="72" rx="10" fill="#F5FBF8" stroke="#B9DFCD"/>
+  <text class="lbl" x="92" y="878" fill="#0E6B49">WANN DAS SPIEL WIEDER ONLINE MUSS</text>
+  <text class="bds" x="92" y="902">· Token abgelaufen (neuere Versionen: fester 14-Tage-Timer)   · größerer Hardware-Wechsel   · Integritätsprüfung schlägt fehl → Token wird gelöscht   · sonst: dauerhaft offline spielbar</text>
+</g>
+
+<!-- ===================== BAND 5 — ANGRIFFSFLÄCHE ===================== -->
+<g transform="translate(0,3230)">
+  <rect x="40" y="0" width="1680" height="572" rx="16" fill="#FFFFFF" stroke="#E7B3AE" stroke-width="1.5"/>
+  <rect x="40" y="0" width="1680" height="54" rx="16" fill="#BE4238"/>
+  <rect x="40" y="38" width="1680" height="16" fill="#BE4238"/>
+  <text class="bh" x="68" y="27">PHASE 5 · ANGRIFFSFLÄCHE</text>
+  <text class="bhs" x="68" y="45">Vier bekannte Ansätze — und warum ausgerechnet der letzte funktioniert hat</text>
+  <text class="bhs" x="1692" y="35" text-anchor="end">Nur zur Einordnung der Technik</text>
+
+  <rect x="68" y="86" width="522" height="168" rx="12" fill="#FDFAF9" stroke="#E7B3AE"/>
+  <circle cx="94" cy="118" r="12" fill="#BE4238"/><text class="num" x="94" y="122" text-anchor="middle">1</text>
+  <text class="ct" x="116" y="123">Hardware-Prüfungen patchen</text>
+  <text class="bds" x="90" y="152">Die Prüfungen sind über das gesamte Binary</text>
+  <text class="bds" x="90" y="171">randomisiert verteilt und zusätzlich CRC-geschützt.</text>
+  <text class="bds" x="90" y="190">Sie alle zu finden und konsistent zu verändern ist</text>
+  <text class="bds" x="90" y="209">für Einzelpersonen praktisch aussichtslos.</text>
+  <text class="sm" x="90" y="236" fill="#9B3A31">Ergebnis: gescheitert</text>
+
+  <rect x="619" y="86" width="522" height="168" rx="12" fill="#FDFAF9" stroke="#E7B3AE"/>
+  <circle cx="645" cy="118" r="12" fill="#BE4238"/><text class="num" x="645" y="122" text-anchor="middle">2</text>
+  <text class="ct" x="667" y="123">Konstanten-Entschlüsselung patchen</text>
+  <text class="bds" x="641" y="152">Hier greifen weder CRC noch Randomisierung.</text>
+  <text class="bds" x="641" y="171">Aber die Routinen stecken in über 10 Millionen</text>
+  <text class="bds" x="641" y="190">x86-Instruktionen und sind stark MBA-obfuskiert —</text>
+  <text class="bds" x="641" y="209">die sprichwörtliche Nadel im Heuhaufen.</text>
+  <text class="sm" x="641" y="236" fill="#9B3A31">Ergebnis: theoretisch möglich, praktisch enorm aufwendig</text>
+
+  <rect x="1170" y="86" width="522" height="168" rx="12" fill="#FDFAF9" stroke="#E7B3AE"/>
+  <circle cx="1196" cy="118" r="12" fill="#BE4238"/><text class="num" x="1196" y="122" text-anchor="middle">3</text>
+  <text class="ct" x="1218" y="123">Binary vollständig wiederherstellen</text>
+  <text class="bds" x="1192" y="152">Devirtualisierung tausender Instruktionen plus</text>
+  <text class="bds" x="1192" y="171">Rückgewinnung aller entfernten Konstanten —</text>
+  <text class="bds" x="1192" y="190">also die Phase 1 rückwärts rechnen.</text>
+  <text class="bds" x="1192" y="209">Nur in wenigen dokumentierten Fällen gelungen.</text>
+  <text class="sm" x="1192" y="236" fill="#9B3A31">Ergebnis: Einzelfälle, monatelange Arbeit</text>
+
+  <!-- hypervisor bypass -->
+  <rect x="68" y="282" width="1624" height="262" rx="12" fill="#FDF0EF" stroke="#BE4238" stroke-width="1.5"/>
+  <circle cx="94" cy="314" r="12" fill="#BE4238"/><text class="num" x="94" y="318" text-anchor="middle">4</text>
+  <text class="ct" x="116" y="319">Hypervisor-Bypass auf Ring −1 — der Ansatz, der ab Ende 2025 durchschlug</text>
+
+  <circle cx="248" cy="428" r="98" fill="#FFFFFF" stroke="#BE4238" stroke-width="1.5"/>
+  <circle cx="248" cy="428" r="66" fill="#FBE7E5" stroke="#BE4238" stroke-width="1.5"/>
+  <circle cx="248" cy="428" r="38" fill="#BE4238"/>
+  <text class="xs" x="248" y="349" text-anchor="middle" fill="#9B3A31">Ring 3</text>
+  <text class="xs" x="248" y="381" text-anchor="middle" fill="#9B3A31">Ring 0</text>
+  <text class="xs b" x="248" y="432" text-anchor="middle" fill="#FFFFFF" font-size="11.5">Ring −1</text>
+
+  <rect x="366" y="352" width="13" height="13" rx="3" fill="#FFFFFF" stroke="#BE4238"/>
+  <text class="sm" x="390" y="363">Ring 3 — Spiel <tspan class="b">und Denuvo</tspan></text>
+  <rect x="366" y="380" width="13" height="13" rx="3" fill="#FBE7E5" stroke="#BE4238"/>
+  <text class="sm" x="390" y="391">Ring 0 — Windows-Kernel</text>
+  <rect x="366" y="408" width="13" height="13" rx="3" fill="#BE4238"/>
+  <text class="sm" x="390" y="419">Ring −1 — Hypervisor des Angreifers</text>
+  <text class="xs" x="366" y="450" fill="#9B3A31">Denuvo läuft vollständig in Ring 3 und</text>
+  <text class="xs" x="366" y="465" fill="#9B3A31">kann eine saubere Schicht darunter</text>
+  <text class="xs" x="366" y="480" fill="#9B3A31">praktisch nicht sehen.</text>
+
+  <line x1="676" y1="345" x2="676" y2="520" stroke="#E7B3AE" stroke-width="1.5"/>
+
+  <circle cx="706" cy="352" r="3" fill="#BE4238"/>
+  <text class="bds" x="720" y="356">Ein eigener Hypervisor (Intel VMX) schiebt sich unter das laufende Windows und startet das Spiel darüber.</text>
+
+  <circle cx="706" cy="382" r="3" fill="#BE4238"/>
+  <text class="bds" x="720" y="386">Er fängt genau die Abfragen ab, auf denen der Fingerprint beruht: <tspan class="mono">CPUID</tspan>, <tspan class="mono">XGETBV</tspan>, <tspan class="mono">RDTSC</tspan> und Syscalls — und liefert</text>
+  <text class="bds" x="720" y="405">stattdessen die Hardware-Daten der ursprünglich lizenzierten Maschine zurück.</text>
+
+  <circle cx="706" cy="431" r="3" fill="#BE4238"/>
+  <text class="bds" x="720" y="435">Zusätzlich wird <tspan class="mono">KUSER_SHARED_DATA</tspan> gespiegelt und <tspan class="mono">KdDebuggerNotPresent</tspan> gepatcht, damit auch die Anti-Debug-Prüfungen sauber durchlaufen.</text>
+
+  <circle cx="706" cy="461" r="3" fill="#BE4238"/>
+  <text class="bds" x="720" y="465">Der Store-Teil wird separat abgedeckt: eine Steam-Emulation (Goldberg / ColdClientLoader) beantwortet Ticket-Anfragen und SteamStub lokal.</text>
+
+  <rect x="700" y="480" width="968" height="54" rx="8" fill="#FFFFFF" stroke="#BE4238"/>
+  <text class="bds" x="718" y="503"><tspan class="b">Wichtig zur Einordnung:</tspan> Denuvo wird dabei weder entfernt noch entschlüsselt. Der Schutzcode bleibt</text>
+  <text class="bds" x="718" y="522">vollständig intakt — er wird nur mit falschen Hardware-Daten gefüttert und dadurch getäuscht.</text>
+</g>
+
+<!-- ===================== FOOTER ===================== -->
+<g transform="translate(0,3836)">
+  <line x1="40" y1="0" x2="1720" y2="0" stroke="#D9E0E7" stroke-width="1.5"/>
+  <text class="lbl" x="40" y="28" fill="#78858F">KURZFASSUNG IN EINEM SATZ</text>
+  <text class="bd" x="40" y="52">Das ausgelieferte Spiel ist ein absichtlich unvollständiges Programm; die fehlenden Werte werden einmalig online, gebunden an die Hardware des Käufers, nachgeliefert</text>
+  <text class="bd" x="40" y="71">und im laufenden Betrieb tausendfach neu aus Hardware-Daten und lokalem Token zurückgerechnet. Die Spieldateien selbst bleiben dabei unverschlüsselt.</text>
+
+  <text class="lbl" x="40" y="104" fill="#78858F">QUELLEN</text>
+  <text class="xs" x="40" y="124">connorjaydunn.github.io/blog/posts/denuvo-analysis · pcgamingwiki.com/wiki/Denuvo · irdeto.com/video-games · partner.steamgames.com/doc/api/steamencryptedappticket · techpowerup.com/review/denuvo-performance-loss-test · tomshardware.com · tweaktown.com</text>
+</g>
+
+</svg>
