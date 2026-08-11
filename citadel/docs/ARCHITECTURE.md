@@ -114,12 +114,37 @@ lassen.)
 - TLS-Terminierung durch Caddy (automatische Zertifikate, moderne Cipher).
 - Reproduzierbarer Multi-Stage-Build, nur Prod-Dependencies im Runtime-Image.
 
-## 7. Roadmap
+## 7. Implementierungsstand Messenger
+
+Der komplette Krypto-Kern (`web/crypto/`) und das Server-Backend sind gebaut und
+verifiziert — **isomorpher Code**, der identisch im Browser und (für Tests) in Node läuft:
+
+- `primitives.js` — WebCrypto-Wrapper (X25519, Ed25519, HKDF, HMAC, AES-256-GCM, PBKDF2).
+- `x3dh.js` — Identitäts-/Prekey-Erzeugung, Bundle, X3DH-Initiator/Responder.
+- `doubleratchet.js` — Double Ratchet inkl. Skipped-Keys (Out-of-Order/Verlust).
+- `session.js` — Wire-Format, Safety-Numbers, Zustands-Serialisierung.
+- `backup.js` — client-verschlüsseltes Schlüssel-Backup (PBKDF2 → AES-GCM).
+- Server: Directory (`/api/keys*`), atomarer OPK-Pop, Relay (`/api/messages*`),
+  Backup-Speicher (`/api/backup`) — alles auth-/CSRF-geschützt, **Server sieht nur Chiffrat**.
+
+Verifiziert durch zwei Suites: `npm run crypto-test` (22 Checks: Ratchet, Out-of-Order,
+Manipulations-/Identitätsbindung, Safety-Numbers, Serialisierung, Backup) und
+`npm run messenger-e2e` (11 Checks: kompletter Austausch zwei Clients durch den echten
+Server, Nachweis der Server-Blindheit, OPK-Verbrauch, Safety-Number-Gleichheit).
+
+**Krypto-Hinweis (ehrlich):** Die Protokolle laufen auf audited Primitiven (WebCrypto),
+die Protokoll-*Logik* (X3DH/Ratchet) ist hier selbst implementiert und getestet, aber
+nicht extern auditiert. Die Modulgrenze ist bewusst schmal gehalten, damit eine
+produktive Installation sie gegen auditiertes **libsignal** tauschen kann.
+
+## 8. Roadmap
 
 1. **Fundament (fertig):** gehärteter Server, Konten (Argon2id + TOTP + Backup),
    Sessions, CSP/CSRF, Deployment, End-to-End-Smoke-Test.
-2. **Messenger:** X3DH + Double Ratchet im Client (WebCrypto/libsignal), Relay,
-   Verzeichnis, Safety-Numbers-UI.
-3. **Mail:** Anbindung, minimal & nativ integriert.
-4. **Betrieb:** WebAuthn/Passkeys als TOTP-Alternative, Admin-Audit-UI,
-   automatisierte Security-Tests in CI.
+2. **Messenger-Kern + Backend (fertig, verifiziert):** X3DH + Double Ratchet,
+   Relay/Directory, Safety-Numbers, client-verschlüsseltes Backup.
+3. **Messenger-UI (nächster Schritt):** Chat-Oberfläche, Safety-Number-Verifikation,
+   Recovery-Passphrase-Flow, lokale Persistenz (IndexedDB), OPK-Nachfüllung.
+4. **Mail:** Anbindung, minimal & nativ integriert.
+5. **Betrieb:** WebAuthn/Passkeys als TOTP-Alternative, Admin-Audit-UI,
+   automatisierte Security-Tests in CI, Auslagerung auf auditiertes libsignal.

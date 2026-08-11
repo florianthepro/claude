@@ -54,6 +54,40 @@ CREATE TABLE IF NOT EXISTS audit_log (
   detail  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);
+
+-- E2E messenger. The server stores only public keys and opaque ciphertext.
+CREATE TABLE IF NOT EXISTS mkeys (
+  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  ik_sign    TEXT NOT NULL,
+  ik_dh      TEXT NOT NULL,
+  spk_id     TEXT NOT NULL,
+  spk        TEXT NOT NULL,
+  spk_sig    TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS opks (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pub        TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_opks_user ON opks(user_id);
+
+CREATE TABLE IF NOT EXISTS mailbox (
+  id           TEXT PRIMARY KEY,
+  recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sender_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body         TEXT NOT NULL,
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mailbox_recipient ON mailbox(recipient_id, created_at);
+
+CREATE TABLE IF NOT EXISTS kbackup (
+  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  blob       TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 `)
 
 export function audit(event: string, opts: { userId?: string | null; ip?: string | null; detail?: string } = {}): void {

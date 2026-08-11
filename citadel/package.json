@@ -12,7 +12,9 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "keygen": "tsx scripts/keygen.ts",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "crypto-test": "node scripts/crypto-test.mjs",
+    "messenger-e2e": "node scripts/messenger-e2e.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

@@ -3,7 +3,8 @@
 Sichere Self-Hosted-Plattform. Ein Konto (Username + Passwort + TOTP), dahinter
 integrierte Module (Messenger, Mail, …). Dunkel, schlank, für Admins.
 
-Status: **Fundament** — gehärteter Server + Konten/2FA/Sessions. Module folgen
+Status: gehärteter Server + Konten/2FA/Sessions **und** verifizierter E2E-Messenger-Kern
+(X3DH + Double Ratchet, Server ist blinder Relay). Als Nächstes die Messenger-UI
 (siehe `docs/ARCHITECTURE.md`).
 
 ## Schnellstart (lokal)
@@ -39,6 +40,8 @@ und nur im internen Netz.
 | `npm run typecheck` | Typprüfung |
 | `npm run keygen` | 32-Byte-KEK (base64) erzeugen |
 | `npm run smoke` | End-to-End-Test der Auth-Kette gegen einen laufenden Server |
+| `npm run crypto-test` | E2E-Krypto-Kern verifizieren (headless, 22 Checks) |
+| `npm run messenger-e2e` | Messenger-Austausch durch den laufenden Server (11 Checks) |
 
 ## Sicherheit (Kurzfassung)
 
