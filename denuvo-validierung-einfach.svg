@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1090" width="1400" height="1090" role="img" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title>Denuvo Anti-Tamper: wie die Daten validiert werden</title>
+<desc>Einfache Ablaufgrafik: Live gelesener Hardware-Fingerabdruck und lokaler Lizenz-Token werden mathematisch verrechnet. Ergebnis ist der beim Build entfernte Wert. Passt die Hardware, laeuft das Spiel; passt sie nicht, entsteht ein falscher Wert und das Spiel stuerzt ab.</desc>
+
+<defs>
+  <style>
+    .h1   { font-size:30px; font-weight:700; fill:#131C26; }
+    .h2   { font-size:15px; fill:#4A5763; }
+    .bt   { font-size:19px; font-weight:700; fill:#131C26; }
+    .btw  { font-size:19px; font-weight:700; fill:#FFFFFF; }
+    .bd   { font-size:13.5px; fill:#2C3B48; }
+    .bdw  { font-size:13.5px; fill:#FFFFFF; fill-opacity:0.94; }
+    .nt   { font-size:12px; fill:#6B7883; }
+    .ntw  { font-size:12px; fill:#FFFFFF; fill-opacity:0.8; }
+    .pill { font-size:11px; font-weight:700; letter-spacing:0.9px; }
+    .mono { font-family:ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', monospace; font-size:14px; }
+    .b    { font-weight:700; }
+  </style>
+  <marker id="mb" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1B7FBF"/></marker>
+  <marker id="mo" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#C96F16"/></marker>
+  <marker id="mv" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6D4AAF"/></marker>
+  <marker id="mg" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#14875C"/></marker>
+  <marker id="mr" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#BE4238"/></marker>
+  <marker id="mk" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#A8B3BD"/></marker>
+</defs>
+
+<rect x="0" y="0" width="1400" height="1090" fill="#F4F6F8"/>
+
+<!-- header -->
+<text class="h1" x="140" y="52">Wie Denuvo prüft — der Kern in einem Bild</text>
+<text class="h2" x="140" y="80">Live gelesener Systemfingerabdruck + lokale Lizenz ergeben den Wert, der im Spielcode fehlt.</text>
+<line x1="140" y1="104" x2="1260" y2="104" stroke="#D9E0E7" stroke-width="1.5"/>
+
+<!-- ============ INPUT A: hardware ============ -->
+<rect x="140" y="140" width="460" height="180" rx="14" fill="#FFFFFF" stroke="#1B7FBF" stroke-width="2"/>
+<rect x="164" y="162" width="222" height="22" rx="11" fill="#E8F3FA"/>
+<text class="pill" x="176" y="177" fill="#15679B">① LIVE, BEI JEDEM TRIGGER</text>
+<text class="bt" x="164" y="212">Hardware-Fingerabdruck</text>
+<text class="bd" x="164" y="240">CPUID und CPU-Brand-String · Feature-Register</text>
+<text class="bd" x="164" y="260">OS-Version, Speicher- und Prozessordaten</text>
+<text class="bd" x="164" y="280">Volume-, Rechner- und Benutzername · ntdll · PEB</text>
+<text class="nt" x="164" y="304">Wird jedes Mal frisch gelesen und nie zwischengespeichert.</text>
+
+<!-- ============ INPUT B: token ============ -->
+<rect x="800" y="140" width="460" height="180" rx="14" fill="#FFFFFF" stroke="#C96F16" stroke-width="2"/>
+<rect x="824" y="162" width="216" height="22" rx="11" fill="#FDF0E0"/>
+<text class="pill" x="836" y="177" fill="#A85A0C">② EINMALIG ONLINE GEHOLT</text>
+<text class="bt" x="824" y="212">Lizenz-Token auf der Platte</text>
+<text class="bd" x="824" y="240">Verschlüsselte Werte, die der Server aus den beim</text>
+<text class="bd" x="824" y="260">Build entfernten Original-Konstanten und dem</text>
+<text class="bd" x="824" y="280">Fingerabdruck <tspan class="b">genau dieses Geräts</tspan> berechnet hat.</text>
+<text class="nt" x="824" y="304">Wenige Kilobyte. Auf einem anderen PC wertlos.</text>
+
+<!-- merge -->
+<path d="M370,324 V350 Q370,360 380,360 H700" fill="none" stroke="#1B7FBF" stroke-width="2.6"/>
+<path d="M1030,324 V350 Q1030,360 1020,360 H700" fill="none" stroke="#C96F16" stroke-width="2.6"/>
+<line x1="700" y1="360" x2="700" y2="400" stroke="#6D4AAF" stroke-width="2.6" marker-end="url(#mv)"/>
+
+<!-- ============ COMBINER ============ -->
+<rect x="440" y="406" width="520" height="130" rx="14" fill="#6D4AAF"/>
+<rect x="464" y="426" width="150" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.2"/>
+<text class="pill" x="476" y="441" fill="#FFFFFF">③ IN DER DENUVO-VM</text>
+<text class="btw" x="464" y="476">Beides wird verrechnet</text>
+<text class="mono" x="464" y="504" fill="#FFFFFF">Hardware-Daten  ⊗  Lizenz-Wert  →  Ergebnis</text>
+<text class="ntw" x="464" y="524">umkehrbare mathematische Funktion, stark obfuskiert</text>
+
+<line x1="700" y1="540" x2="700" y2="580" stroke="#6D4AAF" stroke-width="2.6" marker-end="url(#mv)"/>
+
+<!-- ============ OUTPUT ============ -->
+<rect x="440" y="586" width="520" height="120" rx="14" fill="#FFFFFF" stroke="#6D4AAF" stroke-width="2"/>
+<rect x="464" y="606" width="118" height="22" rx="11" fill="#F0EAFA"/>
+<text class="pill" x="476" y="621" fill="#5B3D99">④ ERGEBNIS</text>
+<text class="bt" x="464" y="656">Der fehlende Wert im Code</text>
+<text class="bd" x="464" y="680">Genau die Konstante, die beim Build aus dem Binary</text>
+<text class="bd" x="464" y="698">entfernt wurde — das fehlende Puzzleteil im Programm.</text>
+
+<!-- split -->
+<path d="M700,710 V732 Q700,742 690,742 H380 Q370,742 370,752 V770" fill="none" stroke="#14875C" stroke-width="2.6" marker-end="url(#mg)"/>
+<path d="M700,710 V732 Q700,742 710,742 H1020 Q1030,742 1030,752 V770" fill="none" stroke="#BE4238" stroke-width="2.6" marker-end="url(#mr)"/>
+
+<!-- ============ BRANCH: OK ============ -->
+<rect x="140" y="776" width="460" height="170" rx="14" fill="#EDF7F2" stroke="#14875C" stroke-width="2"/>
+<circle cx="170" cy="810" r="13" fill="#14875C"/>
+<path d="M164,810 l4.5,4.5 L177,805" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="bt" x="192" y="816">Hardware passt</text>
+<text class="bd" x="164" y="850">Der Wert ist korrekt. Die ursprüngliche Instruktion</text>
+<text class="bd" x="164" y="870">wird damit ausgeführt.</text>
+<text class="bd" x="164" y="898"><tspan class="b">Das Spiel läuft ganz normal weiter</tspan> — der Spieler</text>
+<text class="bd" x="164" y="918">merkt von dem ganzen Vorgang nichts.</text>
+
+<!-- ============ BRANCH: FAIL ============ -->
+<rect x="800" y="776" width="460" height="170" rx="14" fill="#FCEEED" stroke="#BE4238" stroke-width="2"/>
+<circle cx="830" cy="810" r="13" fill="#BE4238"/>
+<path d="M825,805 l10,10 M835,805 l-10,10" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+<text class="bt" x="852" y="816">Hardware passt nicht</text>
+<text class="bd" x="824" y="850">Der Wert ist nicht „ungültig“ — er ist <tspan class="b">einfach falsch</tspan>.</text>
+<text class="bd" x="824" y="870">Keine Meldung, keine Lizenzabfrage.</text>
+<text class="bd" x="824" y="898">Das Spiel rechnet mit einem Müllwert weiter und</text>
+<text class="bd" x="824" y="918"><tspan class="b">stürzt irgendwann ab</tspan> oder verhält sich unsinnig.</text>
+
+<!-- loop back -->
+<path d="M140,861 H82 V230 H134" fill="none" stroke="#A8B3BD" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mk)"/>
+<text class="nt" x="66" y="545" text-anchor="middle" transform="rotate(-90 66 545)">nächster Trigger · tausende Male pro Sitzung</text>
+
+<!-- ============ KEY CALLOUT ============ -->
+<rect x="140" y="976" width="1120" height="80" rx="12" fill="#FFF6E8" stroke="#E8C48A" stroke-width="1.5"/>
+<text class="bd" x="164" y="1010"><tspan class="b">Der eigentliche Trick:</tspan> Es wird nichts verglichen. Es gibt kein „gültig / ungültig“ und keine Prüfroutine, die man finden und wegpatchen könnte.</text>
+<text class="bd" x="164" y="1032">Die Hardware ist <tspan class="b">Teil der Rechnung</tspan>. Stimmt sie nicht, kommt einfach ein falscher Wert heraus — und der Fehler zeigt sich erst später, irgendwo im Spiel.</text>
+
+</svg>
