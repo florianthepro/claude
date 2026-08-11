@@ -13,6 +13,8 @@ const schema = z.object({
   COOKIE_SECURE: bool.default('true'),
   TRUST_PROXY: z.coerce.number().int().min(0).max(8).default(1),
   ALLOW_REGISTRATION: bool.default('true'),
+  RATE_MAX: z.coerce.number().int().min(1).default(120),
+  AUTH_RATE_MAX: z.coerce.number().int().min(1).default(10),
 })
 
 const parsed = schema.safeParse(process.env)

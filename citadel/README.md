@@ -40,6 +40,7 @@ und nur im internen Netz.
 | `npm run typecheck` | Typprüfung |
 | `npm run keygen` | 32-Byte-KEK (base64) erzeugen |
 | `npm run smoke` | End-to-End-Test der Auth-Kette gegen einen laufenden Server |
+| `npm run sec-test` | Security-Regressionen: TOTP-Replay, Lockout, Origin/CSRF |
 | `npm run crypto-test` | E2E-Krypto-Kern verifizieren (headless, 22 Checks) |
 | `npm run messenger-e2e` | Messenger-Austausch durch den laufenden Server (11 Checks) |
 | `npm run ui-e2e` | Zwei-Nutzer-Browser-Test (Playwright): Registrierung → Chat → Safety-Number |
@@ -50,7 +51,8 @@ vorinstalliert, sonst `npx playwright install chromium`.
 
 ## Sicherheit (Kurzfassung)
 
-- Argon2id-Passwörter, TOTP-Pflicht, Backup-Codes, Account-Lockout.
+- Argon2id-Passwörter, TOTP-Pflicht (einmalig, Replay-Schutz), Backup-Codes,
+  Account-Lockout (ohne bestehende Sessions zu zerstören).
 - Serverseitige Sessions, `__Host-`-Cookies, CSRF-Token + Origin-Check.
 - Strikte CSP + Trusted Types, HSTS, COOP/COEP, restriktive Permissions-Policy.
 - TOTP-Seeds AES-256-GCM-versiegelt; DB-Leak gibt keine Secrets preis.

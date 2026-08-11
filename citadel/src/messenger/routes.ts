@@ -31,6 +31,7 @@ const wire = z.object({
     .optional(),
 })
 
+const MAILBOX_CAP = 5000
 const resolveUser = db.prepare("SELECT id FROM users WHERE username = ? AND status = 'active'")
 const usernameOf = db.prepare('SELECT username FROM users WHERE id = ?')
 
@@ -122,6 +123,8 @@ export function messengerRoutes(app: FastifyInstance): void {
     if (!p.success) return reply.code(400).send({ error: 'invalid' })
     const peer = resolveUser.get(p.data.to) as { id: string } | undefined
     if (!peer) return reply.code(404).send({ error: 'no_user' })
+    const { c } = db.prepare('SELECT COUNT(*) c FROM mailbox WHERE recipient_id = ?').get(peer.id) as { c: number }
+    if (c >= MAILBOX_CAP) return reply.code(429).send({ error: 'mailbox_full' })
     const id = randomUUID()
     db.prepare('INSERT INTO mailbox (id, recipient_id, sender_id, body, created_at) VALUES (?, ?, ?, ?, ?)').run(
       id,

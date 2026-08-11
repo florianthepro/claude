@@ -4,15 +4,8 @@ import { z } from 'zod'
 import { db, audit } from '../db.js'
 import { config } from '../config.js'
 import { hashPassword, verifyPassword, passwordIssues } from './password.js'
-import { newSecretSealed, enrollmentQr, verifyTotp, generateBackupCodes, verifyBackupCode } from './totp.js'
-import {
-  createSession,
-  setSessionCookie,
-  clearSessionCookie,
-  destroySession,
-  destroyAllForUser,
-  COOKIE_NAME,
-} from './session.js'
+import { newSecretSealed, enrollmentQr, totpCounter, generateBackupCodes, verifyBackupCode } from './totp.js'
+import { createSession, setSessionCookie, clearSessionCookie, destroySession, COOKIE_NAME } from './session.js'
 import { requireAuth } from '../security/guards.js'
 
 const USERNAME = /^[a-z0-9](?:[a-z0-9_.-]{1,30}[a-z0-9])$/
@@ -27,6 +20,7 @@ interface UserRow {
   status: string
   failed_attempts: number
   locked_until: number
+  totp_last: number
 }
 
 const findUser = db.prepare('SELECT * FROM users WHERE username = ?')
@@ -40,7 +34,7 @@ async function timingSink(pw: string): Promise<void> {
 
 const ip = (req: FastifyRequest) => req.ip
 const ua = (req: FastifyRequest) => (req.headers['user-agent'] ?? '').slice(0, 256)
-const strict = { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } }
+const strict = { config: { rateLimit: { max: config.AUTH_RATE_MAX, timeWindow: '5 minutes' } } }
 
 const registerBody = z.object({ username: z.string().trim().toLowerCase(), password: z.string() })
 const confirmBody = z.object({ token: z.string() })
@@ -86,7 +80,8 @@ export function authRoutes(app: FastifyInstance): void {
 
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as UserRow | undefined
     if (!user || !user.totp_secret) return reply.code(400).send({ error: 'invalid' })
-    if (!verifyTotp(user.totp_secret, parsed.data.token)) {
+    const counter = totpCounter(user.totp_secret, parsed.data.token)
+    if (counter === null) {
       audit('enroll_fail', { userId: user.id, ip: ip(req) })
       return reply.code(401).send({ error: 'totp_invalid' })
     }
@@ -94,7 +89,7 @@ export function authRoutes(app: FastifyInstance): void {
     const { plain, hashes } = await generateBackupCodes()
     const now = Date.now()
     const tx = db.transaction(() => {
-      db.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?').run('active', now, user.id)
+      db.prepare('UPDATE users SET status = ?, totp_last = ?, updated_at = ? WHERE id = ?').run('active', counter, now, user.id)
       const ins = db.prepare('INSERT INTO backup_codes (id, user_id, code_hash) VALUES (?, ?, ?)')
       for (const h of hashes) ins.run(randomUUID(), user.id, h)
     })
@@ -126,14 +121,27 @@ export function authRoutes(app: FastifyInstance): void {
     }
 
     const pwOk = await verifyPassword(user.password_hash, password)
-    const otpOk = pwOk && (await checkSecondFactor(user, otp))
+    let otpOk = false
+    let newTotpLast = user.totp_last
+    if (pwOk) {
+      if (/^\d{6}$/.test(otp)) {
+        const counter = totpCounter(user.totp_secret, otp)
+        if (counter !== null && counter > user.totp_last) {
+          otpOk = true
+          newTotpLast = counter
+        }
+      } else {
+        otpOk = await checkBackupCode(user, otp)
+      }
+    }
     if (!pwOk || !otpOk) {
       registerFailure(user)
       audit('login_fail', { userId: user.id, ip: ip(req), detail: pwOk ? 'otp' : 'password' })
       return generic()
     }
 
-    db.prepare('UPDATE users SET failed_attempts = 0, locked_until = 0, updated_at = ? WHERE id = ?').run(
+    db.prepare('UPDATE users SET failed_attempts = 0, locked_until = 0, totp_last = ?, updated_at = ? WHERE id = ?').run(
+      newTotpLast,
       Date.now(),
       user.id,
     )
@@ -164,8 +172,7 @@ export function authRoutes(app: FastifyInstance): void {
   })
 }
 
-async function checkSecondFactor(user: UserRow, otp: string): Promise<boolean> {
-  if (/^\d{6}$/.test(otp)) return verifyTotp(user.totp_secret as string, otp)
+async function checkBackupCode(user: UserRow, otp: string): Promise<boolean> {
   const codes = db
     .prepare('SELECT id, code_hash FROM backup_codes WHERE user_id = ? AND used_at IS NULL')
     .all(user.id) as { id: string; code_hash: string }[]
@@ -178,11 +185,12 @@ async function checkSecondFactor(user: UserRow, otp: string): Promise<boolean> {
   return false
 }
 
+// Lock out new logins after repeated failure. Existing sessions are deliberately
+// left intact so an attacker cannot log a victim out with bad-password spam.
 function registerFailure(user: UserRow): void {
   const attempts = user.failed_attempts + 1
   if (attempts >= MAX_FAILED) {
     db.prepare('UPDATE users SET failed_attempts = 0, locked_until = ? WHERE id = ?').run(Date.now() + LOCK_MS, user.id)
-    destroyAllForUser(user.id)
   } else {
     db.prepare('UPDATE users SET failed_attempts = ? WHERE id = ?').run(attempts, user.id)
   }

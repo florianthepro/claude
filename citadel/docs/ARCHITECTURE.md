@@ -38,7 +38,10 @@ Angriffe unterhalb der TLS/OS-Ebene.
   Sperrliste gängiger Passwörter.
 - Zweiter Faktor: **TOTP (RFC 6238)** verpflichtend beim Registrieren; 10 einmalige
   **Backup-Codes** (nur als Argon2id-Hash gespeichert).
-- Lockout nach 5 Fehlversuchen (15 min), aktive Sessions werden dabei invalidiert.
+- **TOTP-Replay-Schutz:** jeder Code ist einmalig — der zuletzt akzeptierte 30-s-Zähler
+  wird gespeichert, ein nicht strikt größerer Zähler wird abgewiesen.
+- Lockout nach 5 Fehlversuchen (15 min) blockiert *neue* Logins; **bestehende Sessions
+  bleiben erhalten**, damit Fehl-Login-Spam das Opfer nicht aussperrt.
 - Nutzer-Enumeration verhindert: generische Fehler + Timing-Angleich (Dummy-Hash
   für unbekannte Konten).
 
@@ -126,6 +129,8 @@ verifiziert — **isomorpher Code**, der identisch im Browser und (für Tests) i
 - `backup.js` — client-verschlüsseltes Schlüssel-Backup (PBKDF2 → AES-GCM).
 - Server: Directory (`/api/keys*`), atomarer OPK-Pop, Relay (`/api/messages*`),
   Backup-Speicher (`/api/backup`) — alles auth-/CSRF-geschützt, **Server sieht nur Chiffrat**.
+- Relay-Schutz: Obergrenze für unzugestellte Nachrichten pro Empfänger; bei erschöpftem
+  OPK-Pool fällt X3DH sicher auf den signierten Prekey zurück (keine Blockade).
 
 Verifiziert durch zwei Suites: `npm run crypto-test` (22 Checks: Ratchet, Out-of-Order,
 Manipulations-/Identitätsbindung, Safety-Numbers, Serialisierung, Backup) und

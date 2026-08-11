@@ -34,13 +34,13 @@ async function call(method: string, path: string, body?: unknown) {
   return { status: res.status, data }
 }
 
-function totp(secret: string): string {
+function totp(secret: string, step = 0): string {
   return new OTPAuth.TOTP({
     algorithm: 'SHA1',
     digits: 6,
     period: 30,
     secret: OTPAuth.Secret.fromBase32(secret),
-  }).generate()
+  }).generate({ timestamp: Date.now() + step * 30000 })
 }
 
 let failures = 0
@@ -83,7 +83,7 @@ const badLogin = await call('POST', '/api/login', { username: user, password: 'w
 check('login rejects wrong password', badLogin.status === 401)
 
 csrf = null
-const login = await call('POST', '/api/login', { username: user, password: pass, otp: totp(secret) })
+const login = await call('POST', '/api/login', { username: user, password: pass, otp: totp(secret, 1) })
 check('login 200 with totp', login.status === 200 && login.data?.ok === true)
 csrf = login.data?.csrf ?? null
 

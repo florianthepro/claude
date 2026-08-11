@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "keygen": "tsx scripts/keygen.ts",
     "smoke": "tsx scripts/smoke.ts",
+    "sec-test": "tsx scripts/sec-test.ts",
     "crypto-test": "node scripts/crypto-test.mjs",
     "messenger-e2e": "node scripts/messenger-e2e.mjs",
     "ui-e2e": "node scripts/ui-e2e.mjs"

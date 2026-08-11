@@ -56,7 +56,7 @@ const app = Fastify({
 
 await app.register(cookie)
 await app.register(rateLimit, {
-  max: 120,
+  max: config.RATE_MAX,
   timeWindow: '1 minute',
   hook: 'onRequest',
   keyGenerator: (req) => req.ip,

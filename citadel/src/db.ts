@@ -90,6 +90,15 @@ CREATE TABLE IF NOT EXISTS kbackup (
 );
 `)
 
+// Idempotent column migrations for existing databases.
+for (const [table, col, decl] of [['users', 'totp_last', 'INTEGER NOT NULL DEFAULT 0']] as const) {
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${decl}`)
+  } catch {
+    /* column already exists */
+  }
+}
+
 export function audit(event: string, opts: { userId?: string | null; ip?: string | null; detail?: string } = {}): void {
   db.prepare('INSERT INTO audit_log (ts, user_id, event, ip, detail) VALUES (?, ?, ?, ?, ?)').run(
     Date.now(),

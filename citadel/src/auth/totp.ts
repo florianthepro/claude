@@ -29,11 +29,14 @@ export async function enrollmentQr(username: string, base32: string): Promise<{ 
   return { uri, qr }
 }
 
-export function verifyTotp(sealed: string, token: string): boolean {
-  if (!/^\d{6}$/.test(token)) return false
+// Returns the absolute 30s counter the token belongs to, or null if invalid.
+// The caller rejects reuse by requiring a strictly greater counter than last time.
+export function totpCounter(sealed: string, token: string): number | null {
+  if (!/^\d{6}$/.test(token)) return null
   const base32 = open(sealed).toString('utf8')
   const delta = totpFor('x', base32).validate({ token, window: 1 })
-  return delta !== null
+  if (delta === null) return null
+  return Math.floor(Date.now() / 1000 / 30) + delta
 }
 
 // Backup codes: shown once, stored only as Argon2id hashes.
