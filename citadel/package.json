@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "keygen": "tsx scripts/keygen.ts",
+    "test": "node scripts/test-all.mjs",
     "smoke": "tsx scripts/smoke.ts",
     "sec-test": "tsx scripts/sec-test.ts",
     "crypto-test": "node scripts/crypto-test.mjs",

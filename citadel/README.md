@@ -35,6 +35,7 @@ und nur im internen Netz.
 
 | Befehl | Zweck |
 |---|---|
+| `npm test` | Komplette Verifikation: bootet Wegwerf-Server, fährt alle Suiten |
 | `npm run dev` | Entwicklungsserver (Hot-Reload) |
 | `npm run build` / `npm start` | Build + Produktionsstart |
 | `npm run typecheck` | Typprüfung |
