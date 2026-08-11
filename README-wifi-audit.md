@@ -20,6 +20,12 @@ gecrackt.
 
 - **Interface**: automatisch erkannt; Nachfrage nur bei mehreren Adaptern.
 - **Ziel**: aus der Scan-Liste, `Enter` wählt das stärkste Netz.
+- **Topologie-Bündelung**: Netze mit mehreren Accesspoints/Bändern (gleiche
+  SSID, z. B. Mesh oder 2,4 + 5 GHz) erscheinen als **ein** Eintrag mit
+  AP-Anzahl. Angegriffen wird automatisch der **stärkste** AP. Bei mehreren
+  APs bekommst du optional eine AP-Unterauswahl (`Enter` = stärkster);
+  mit `-a/--auto` entfällt auch diese Frage. Versteckte SSIDs werden nicht
+  zusammengefasst.
 - **Deauth**: gezielt gegen alle erkannten Clients des Ziels **plus** Broadcast,
   mit automatisch steigender Stärke (5 → 30) über die Runden.
 - **Handshake**: wird laufend geprüft; sobald erfasst, endet die Wartephase.
@@ -45,6 +51,7 @@ sudo ./wifi-audit.sh -C                    # bei Erfolg automatisch verbinden
 | `-s, --scan-time` | Scan-Dauer (Standard 15 s) |
 | `-T, --cap-time`  | Handshake-Budget (Standard 180 s) |
 | `-C, --connect`   | Bei Erfolg automatisch per `nmcli` verbinden |
+| `-a, --auto`      | Bei mehreren APs eines Netzes ohne Frage stärksten nehmen |
 | `-y, --yes`       | Ohne Autorisierungs-Nachfrage starten |
 
 ## Robustheit / behobene Fehler

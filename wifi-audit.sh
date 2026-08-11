@@ -57,6 +57,7 @@ SCAN_TIME=15
 CAP_TIME=180          # Gesamt-Budget fuer den Handshake-Angriff (Sekunden)
 ASSUME_YES=0
 DO_CONNECT=0
+AUTO_AP=0             # 1 = bei mehreren APs eines Netzes ohne Rueckfrage staerksten nehmen
 
 usage() {
     cat <<EOF
@@ -70,8 +71,13 @@ ${B}wifi-audit.sh${R} — autonomer WPA/WPA2-Audit
   -s, --scan-time <s>    Scan-Dauer (Standard ${SCAN_TIME}s)
   -T, --cap-time <s>     Handshake-Budget (Standard ${CAP_TIME}s)
   -C, --connect          Bei Erfolg automatisch verbinden (nmcli)
+  -a, --auto             Bei mehreren APs eines Netzes ohne Frage staerksten nehmen
   -y, --yes              Ohne Autorisierungs-Nachfrage starten
   -h, --help             Diese Hilfe
+
+Netze mit mehreren Accesspoints/Baendern (gleiche SSID) werden zu EINEM
+Eintrag zusammengefasst; standardmaessig wird der staerkste AP angegriffen.
+Bei mehreren APs kannst du optional einen bestimmten waehlen (mit -a nicht).
 EOF
 }
 
@@ -85,6 +91,7 @@ while [ $# -gt 0 ]; do
         -s|--scan-time) SCAN_TIME="$2"; shift 2;;
         -T|--cap-time)  CAP_TIME="$2"; shift 2;;
         -C|--connect)   DO_CONNECT=1; shift;;
+        -a|--auto)      AUTO_AP=1; shift;;
         -y|--yes)       ASSUME_YES=1; shift;;
         -h|--help)      usage; exit 0;;
         *) err "Unbekannte Option: $1"; usage; exit 1;;
@@ -276,19 +283,53 @@ else
         [ "$found" -eq 1 ] || { err "BSSID $BSSID nicht in Reichweite."; exit 1; }
         ok "Ziel: ${B}${ESSID}${R}  (${BSSID}, Kanal ${CH})"
     else
-        printf '\n  %s%3s  %-8s %-5s %-4s  %-17s %s%s\n' "$B" "#" "SIGNAL" "dBm" "KAN" "BSSID" "NAME" "$R"
-        printf '  %s%s%s\n' "$DIM" "────────────────────────────────────────────────────────────" "$R"
+        # Nach ESSID gruppieren: mehrere APs/Baender desselben Netzes = 1 Eintrag.
+        # NET_* ist nach Signal absteigend sortiert -> erster Treffer = staerkster AP.
+        declare -A _grp_of; GRP_MEMBERS=()
         for i in "${!NET_BSSID[@]}"; do
-            printf '  %s%3s%s  %b %4s  %-4s  %-17s %s\n' "$CYA" "$((i+1))" "$R" \
-                "$(sig_bar "${NET_PWR[$i]}")" "${NET_PWR[$i]}" "${NET_CH[$i]}" \
-                "$(enc_tag "${NET_ENC[$i]}")" "${NET_ESSID[$i]}"
+            e="${NET_ESSID[$i]}"
+            if [ "$e" = "<versteckt>" ]; then           # versteckte nicht mergen
+                GRP_MEMBERS+=("$i")
+            elif [ -n "${_grp_of[$e]:-}" ]; then
+                g="${_grp_of[$e]}"; GRP_MEMBERS[$g]="${GRP_MEMBERS[$g]} $i"
+            else
+                _grp_of[$e]="${#GRP_MEMBERS[@]}"; GRP_MEMBERS+=("$i")
+            fi
+        done
+
+        printf '\n  %s%3s  %-8s %-5s %-4s  %-4s  %s%s\n' "$B" "#" "SIGNAL" "dBm" "KAN" "ENC" "NAME" "$R"
+        printf '  %s%s%s\n' "$DIM" "────────────────────────────────────────────────────────────" "$R"
+        for g in "${!GRP_MEMBERS[@]}"; do
+            read -ra _m <<< "${GRP_MEMBERS[$g]}"; r="${_m[0]}"; n="${#_m[@]}"
+            name="${NET_ESSID[$r]}"
+            [ "$n" -gt 1 ] && name="${name} ${DIM}(${n} APs)${R}"
+            printf '  %s%3s%s  %b %4s  %-4s  %s  %b\n' "$CYA" "$((g+1))" "$R" \
+                "$(sig_bar "${NET_PWR[$r]}")" "${NET_PWR[$r]}" "${NET_CH[$r]}" \
+                "$(enc_tag "${NET_ENC[$r]}")" "$name"
         done
         echo
-        printf '  Ziel %s[Enter=1, 1-%s]:%s ' "$DIM" "${#NET_BSSID[@]}" "$R"; read -r pick
-        idx=$(( ${pick:-1} - 1 ))
-        [ -n "${NET_BSSID[$idx]:-}" ] || { err "Ungueltige Auswahl."; exit 1; }
-        BSSID="${NET_BSSID[$idx]}"; CH="${NET_CH[$idx]}"
-        ESSID="${NET_ESSID[$idx]}"; ENC="${NET_ENC[$idx]}"
+        printf '  Ziel %s[Enter=1, 1-%s]:%s ' "$DIM" "${#GRP_MEMBERS[@]}" "$R"; read -r pick
+        g=$(( ${pick:-1} - 1 ))
+        [ -n "${GRP_MEMBERS[$g]:-}" ] || { err "Ungueltige Auswahl."; exit 1; }
+        read -ra _m <<< "${GRP_MEMBERS[$g]}"; chosen="${_m[0]}"
+
+        # Mehrere APs -> staerkster ist Standard, Auswahl optional (mit -a uebersprungen)
+        if [ "${#_m[@]}" -gt 1 ] && [ "$AUTO_AP" -ne 1 ]; then
+            printf '  %s"%s" hat %s APs — staerkster ist Standard:%s\n' \
+                "$DIM" "${NET_ESSID[$chosen]}" "${#_m[@]}" "$R"
+            for k in "${!_m[@]}"; do
+                mi="${_m[$k]}"; tag=""; [ "$k" -eq 0 ] && tag=" ${GRN}← staerkster${R}"
+                printf '     %s%s)%s %b %4s dBm  Kan %-3s  %s%b\n' "$CYA" "$((k+1))" "$R" \
+                    "$(sig_bar "${NET_PWR[$mi]}")" "${NET_PWR[$mi]}" "${NET_CH[$mi]}" \
+                    "${NET_BSSID[$mi]}" "$tag"
+            done
+            printf '  AP %s[Enter=1, 1-%s]:%s ' "$DIM" "${#_m[@]}" "$R"; read -r ap
+            aidx=$(( ${ap:-1} - 1 ))
+            [ -n "${_m[$aidx]:-}" ] && chosen="${_m[$aidx]}"
+        fi
+
+        BSSID="${NET_BSSID[$chosen]}"; CH="${NET_CH[$chosen]}"
+        ESSID="${NET_ESSID[$chosen]}"; ENC="${NET_ENC[$chosen]}"
         ok "Ziel: ${B}${ESSID}${R}  (${BSSID}, Kanal ${CH})"
     fi
     printf '%s' "$ENC" | grep -q 'WPA3' && warn "WPA3: kein Offline-Handshake-Angriff moeglich."
