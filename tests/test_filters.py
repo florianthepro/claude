@@ -146,3 +146,12 @@ def test_lautgleiche_kraftausdruecke_im_erlaubten_alphabet(label):
 def test_fag_faellt():
     """Stand auf Platz 10 einer Ergebnisliste, bevor der Eintrag da war."""
     assert check("fagmo").rule == "blacklist_en"
+
+
+def test_ausnahmen_entkraeften_kurze_teilzeichenfolgen():
+    """'pus' auf der harten Liste hat opus und korpus mitverworfen. Die Loesung
+    ist nicht, die Teilzeichenfolge zu streichen -- dann kaeme pusno durch."""
+    assert passes("opus") and passes("korpus")     # Ausnahme deckt den Treffer
+    assert passes("diktat") and passes("impuls")
+    assert not passes("pusno")                      # keine Ausnahme: raus
+    assert not passes("dikpa")

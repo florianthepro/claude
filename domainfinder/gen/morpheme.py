@@ -18,9 +18,9 @@ import re
 from collections.abc import Iterator
 
 from ..filters import VOWELS, passes
-from .lexicon import MORPHEMES_IT, MORPHEMES_MATTER
+from .lexicon import MORPHEMES_IT, MORPHEMES_MATTER, MORPHEMES_SKY
 
-POOL = tuple(sorted(set(MORPHEMES_MATTER) | set(MORPHEMES_IT)))
+POOL = tuple(sorted(set(MORPHEMES_MATTER) | set(MORPHEMES_IT) | set(MORPHEMES_SKY)))
 _FULL = frozenset(POOL)
 
 

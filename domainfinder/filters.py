@@ -169,6 +169,18 @@ TRADEMARKS = (
     "truenas", "proton", "telekom", "siemens", "bosch", "lufthansa", "airbnb",
     "spotify", "netflix", "reddit", "discord", "telegram", "signal", "oracle",
 )
+# Unschuldige Woerter, die eine Teilzeichenfolge der harten Liste enthalten.
+# Deckt das Ausnahmewort den Treffer vollstaendig ab, gilt er als entkraeftet:
+# `opus` und `korpus` tragen `pus`, `diktat` traegt `dik`. Ohne das muesste man
+# entweder die Teilzeichenfolge streichen -- dann kaeme `pusno` durch -- oder
+# echte Woerter verwerfen. Beides ist falsch.
+BLACKLIST_EXCEPTIONS = (
+    "opus", "korpus", "kampus", "impuls", "puls", "spule", "kapsul",
+    "diktat", "indikat", "predikat", "diktion", "sakral", "sakrament",
+    "kaktus", "traktus", "duktus", "fokus", "lotus", "modus", "bonus",
+    "salut", "absud", "sudo", "pupil", "populus",
+)
+
 # Weiche Liste: nur Punktabzug, kein Ausschluss (mehrdeutig oder harmlos-schief).
 BLACKLIST_SOFT = (
     "tod", "grab", "sarg", "blut", "gift", "narb", "fies", "made", "pilz",
@@ -187,6 +199,17 @@ class Rejection:
 
     def __str__(self) -> str:
         return f"{self.rule}: {self.detail}"
+
+
+def _entkraeftet(label: str, start: int, end: int) -> bool:
+    """True, wenn ein Ausnahmewort den Treffer vollstaendig ueberdeckt."""
+    for gut in BLACKLIST_EXCEPTIONS:
+        pos = label.find(gut)
+        while pos >= 0:
+            if pos <= start and pos + len(gut) >= end:
+                return True
+            pos = label.find(gut, pos + 1)
+    return False
 
 
 def _syllables(label: str) -> int:
@@ -287,12 +310,14 @@ def check(label: str, *, compound: bool = False) -> Rejection | None:
     if _syllables(label) > 3:
         return Rejection("silben", f"{_syllables(label)} Silben, hoechstens 3 erlaubt")
 
-    for word in BLACKLIST_HARD_DE:
-        if word in label:
-            return Rejection("blacklist_de", f"enthaelt {word!r}")
-    for word in BLACKLIST_HARD_EN:
-        if word in label:
-            return Rejection("blacklist_en", f"enthaelt {word!r}")
+    for sprache, liste in (("de", BLACKLIST_HARD_DE), ("en", BLACKLIST_HARD_EN)):
+        for word in liste:
+            start = label.find(word)
+            if start < 0:
+                continue
+            if _entkraeftet(label, start, start + len(word)):
+                continue
+            return Rejection(f"blacklist_{sprache}", f"enthaelt {word!r}")
     for mark in TRADEMARKS:
         if mark in label:
             return Rejection("marke", f"enthaelt die bekannte Marke {mark!r}")

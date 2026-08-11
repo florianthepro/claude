@@ -103,6 +103,24 @@ MORPHEMES_MATTER: tuple[str, ...] = (
     "forge", "temper", "anneal", "solder", "rivet", "dowel", "shim", "gasket",
 )
 
+# Wolken, Wind und Wetter. Fuer eine Cloud-Domain ist das die naheliegende
+# Bildspende -- `cloud` selbst ist im diktiersicheren Alphabet unmoeglich
+# (c verboten, ou verboten), das Bild dahinter aber reich an brauchbaren
+# Morphemen. Lateinische Wolkengattungen tragen ausserdem von Haus aus den
+# Klang, den ein Produktname braucht.
+MORPHEMES_SKY: tuple[str, ...] = (
+    # Wolkengattungen und Atmosphaere
+    "nimbus", "stratus", "kumulus", "kirrus", "strato", "nimbo", "nebula",
+    "nebel", "dunst", "atem", "luft", "halo", "aura", "orbit", "apogee",
+    "gipfel", "alpin", "firn", "graupel", "reif", "tau", "rime",
+    # Winde
+    "orkan", "passat", "monsun", "bora", "boreas", "notus", "brise", "bise",
+    "sturm", "regen", "front", "flaute", "traube",
+    # Hoehe und Weite
+    "altus", "apex", "kuppe", "grat", "kamm", "hoehe", "zenit", "traufe",
+    "segel", "drachen", "ballon", "hangar", "flug", "start", "landung",
+)
+
 MORPHEMES_IT: tuple[str, ...] = (
     "kernel", "daemon", "socket", "subnet", "netmask", "bastion", "inode", "initrd",
     "rootfs", "tmpfs", "fstab", "dmesg", "sudo", "mount", "pidfile", "hardlink",
@@ -205,4 +223,5 @@ JARGON: tuple[tuple[str, str], ...] = (
     ("soattl", "TTL des SOA-Records"), ("nullroute", "Null-Route"),
 )
 
-CATEGORY_BY_SOURCE = {"A": "zufall", "B": "marke", "C": "fachwitz"}
+CATEGORY_BY_SOURCE = {"A": "zufall", "B": "marke", "C": "fachwitz",
+                      "D": "it", "E": "marke"}
