@@ -199,7 +199,7 @@ WEIGHTS = {
 # im Modell statt als stille Nachsortierung. Auf die Kalibrierung wirkt er
 # nicht: google, bitfabric und ahefid haben keine Quelle.
 SOURCE_BONUS = {"A": 0.0, "B": 0.0, "C": 12.0, "D": 10.0, "E": 0.0,
-                "F": 0.0, "G": 0.0}
+                "F": 0.0, "G": 0.0, "H": 0.0}
 
 
 def breakdown(label: str, source: str | None = None) -> dict[str, float]:
