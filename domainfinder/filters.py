@@ -26,8 +26,15 @@ OPTIMUM = range(5, 9)  # 5..8
 #         waere es zwar eindeutig hoerbar -- aber der Hoerer schreibt dafuer im
 #         Deutschen `j`, und damit kollidiert es mit dem jetzt erlaubten j.
 #   z  -> in der Vorgabe genannt
-#   q  -> `qu` gibt es nur vor u; ein Fantasiename gewinnt dadurch nichts, was
-#         `kw` nicht auch gaebe, und `kw` ist ohnehin ueber w gesperrt
+#   (q stand hier mit der Begruendung "`qu` gibt es nur vor u; ein Fantasiename
+#    gewinnt dadurch nichts, was `kw` nicht auch gaebe". Das war keine Aussage
+#    ueber Diktiersicherheit, sondern ueber Nutzen -- und zirkulaer, denn `kw`
+#    ist nur gesperrt, weil `w` gesperrt ist. Im Anlaut schreibt der deutsche
+#    Hoerer /kv/ praktisch ausnahmslos `qu`: Quelle, Quark, quer, Quote, Quirl.
+#    Anders als bei `x`, wo `ks` als Cluster erlaubt ist und echt kollidiert,
+#    gibt es hier keine konkurrierende Schreibung. `q` ist jetzt zugelassen --
+#    nur im Anlaut, denn im Wortinneren gibt es an Fugen auch `kw`
+#    (rueckwaerts, Backware).)
 #   x  -> /ks/ ist hoerbar nicht von "ks" zu unterscheiden (Hexe/Hekse) --
 #         das ist ein Fehler des deutschen Hoerers, die Regel bleibt
 #
@@ -38,9 +45,9 @@ OPTIMUM = range(5, 9)  # 5..8
 # englischen Massstab zu verwerfen war dazu unvereinbar. Es kostete rund ein
 # Fuenftel des Namensraums.
 VOWELS = frozenset("aeiou")
-CONSONANTS = frozenset("bdfghjklmnprst")
+CONSONANTS = frozenset("bdfghjklmnpqrst")
 ALLOWED = VOWELS | CONSONANTS
-FORBIDDEN_LETTERS = frozenset("cvwyzqx")
+FORBIDDEN_LETTERS = frozenset("cvwyzx")
 
 # --- Verbotene Buchstabenfolgen ----------------------------------------------
 FORBIDDEN_SEQS: tuple[tuple[str, str], ...] = (
@@ -88,6 +95,8 @@ LEGAL_ONSET_CLUSTERS = frozenset({
     # Echte deutsche Anlaute, die vorher fehlten. Massstab ist laut Aufgabe der
     # deutschsprachige Hoerer -- fuer den sind Knoten, Pfad und Gnade eindeutig.
     "kn", "pf", "gn",
+    # Dieselbe Begruendung, dieselbe Konsequenz: Pflug, Pfropfen, Sklave.
+    "pfl", "pfr", "skl",
 })
 # Cluster, die im Auslaut noch diktierbar sind.
 LEGAL_CODA_CLUSTERS = frozenset({
@@ -96,6 +105,12 @@ LEGAL_CODA_CLUSTERS = frozenset({
     "sk", "sp", "ts", "ks", "bt", "pt", "kt", "ds", "gs", "ls", "ms", "ns",
     "fs", "rb", "rd", "sd", "md", "nf", "ln", "lg", "lb", "ld", "ld", "gd",
     "mt", "nst", "rst", "lst", "mpf", "rgt", "lft",
+    # `pf` war als Anlaut und als Binnencluster erlaubt, im Auslaut nicht --
+    # Kopf, Topf, Napf, Knopf. `mpf` (Kampf) stand sogar schon drin.
+    "pf", "gt", "bs",
+    # Die produktiven Erweiterungen auf -t und -s. Die Bausteine waren einzeln
+    # alle erlaubt, die Verbindung nicht: Punkt, Markt, singt, sanft, Dings.
+    "nkt", "rkt", "ngt", "nft", "ngs", "nds", "rts", "pft", "lkt", "rft",
 })
 
 # Einzelkonsonanten, die eine Silbe schliessen bzw. eroeffnen duerfen.
@@ -335,8 +350,13 @@ def check(label: str, *, compound: bool = False) -> Rejection | None:
         return Rejection("alphabet", f"ausserhalb des Alphabets: {','.join(unknown)}")
 
     for seq, why in FORBIDDEN_SEQS:
-        if seq in label:
-            return Rejection("folge", f"{seq!r} -- {why}")
+        pos = label.find(seq)
+        while pos >= 0:
+            # Das `ue` in `quer` und `Quelle` ist kein Umlaut, sondern das `u`
+            # von `qu` plus der folgende Vokal.
+            if not (seq == "ue" and pos == 1 and label.startswith("qu")):
+                return Rejection("folge", f"{seq!r} -- {why}")
+            pos = label.find(seq, pos + 1)
 
     for seq, followers, why in FORBIDDEN_BEFORE:
         for pos in range(len(label) - len(seq)):
@@ -360,6 +380,15 @@ def check(label: str, *, compound: bool = False) -> Rejection | None:
     # Konsonant + h am Wortanfang ist immer eine fremde Schreibung (ghost, khan).
     if len(label) > 1 and label[1] == "h" and label[0] not in VOWELS:
         return Rejection("anlaut", f"Anlaut {label[:2]!r} ist keine deutsche Schreibung")
+
+    # q kennt das Deutsche nur als `qu` im Anlaut. Im Wortinneren stuende an
+    # einer Fuge auch `kw` zur Wahl (rueckwaerts, Backware), dort waere es
+    # nicht mehr eindeutig.
+    if "q" in label:
+        if label[0] != "q" or label.count("q") > 1:
+            return Rejection("qstellung", "q gibt es nur im Anlaut")
+        if len(label) < 3 or label[1] != "u" or label[2] not in VOWELS:
+            return Rejection("qstellung", "auf q folgt im Deutschen immer `u` und darauf ein Vokal")
 
     # j ist eindeutig -- aber nur an den Stellen, an denen das Deutsche es kennt:
     # am Silbenanfang vor einem Vokal (ja, Sonja, Katja). Zwischen zwei Vokalen

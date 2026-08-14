@@ -32,7 +32,6 @@ def test_gute_labels_bestehen(label):
     ("nullmx", "alphabet"),     # x
     ("syslog", "alphabet"),     # y
     ("zonefil", "alphabet"),    # z
-    ("quorum", "alphabet"),     # q
     ("norther", "folge"),       # th
     ("graphit", "folge"),       # ph
     ("keeper", "folge"),        # ee
@@ -198,3 +197,33 @@ def test_j_erweitert_das_alphabet_nicht_um_beliebige_cluster():
     Deutschen wirklich vorkommen (Sonja, Marja, Katja, Ronja)."""
     assert check("judjo").rule == "cluster"
     assert check("labjo").rule == "cluster"
+
+
+@pytest.mark.parametrize("label", ["quiro", "quado", "quast", "quirl", "quote", "quero"])
+def test_q_ist_im_anlaut_erlaubt(label):
+    """`q` war gesperrt mit einer Nutzenbehauptung statt einer Aussage ueber
+    Diktiersicherheit. Im Anlaut schreibt der deutsche Hoerer /kv/ ausnahmslos
+    `qu`: Quelle, Quark, quer, Quote."""
+    assert passes(label), f"{label} wurde verworfen: {check(label)}"
+
+
+@pytest.mark.parametrize("label", ["buqar", "qumbo", "laqur", "quqar"])
+def test_q_nur_im_anlaut_und_nur_vor_u(label):
+    """Im Wortinneren stuende an einer Fuge auch `kw` zur Wahl (rueckwaerts)."""
+    assert check(label).rule == "qstellung"
+
+
+def test_ue_in_qu_ist_kein_umlaut():
+    """`quer` und `Quelle` tragen `ue`, aber keinen Umlaut."""
+    assert passes("quero"), check("quero")
+    assert check("buelo").rule == "folge"
+
+
+@pytest.mark.parametrize("label", ["brant", "grund", "stark", "print", "first",
+                                   "borst", "punkt", "markt", "sanft", "napf",
+                                   "kropf", "pflug"])
+def test_geschlossene_silben_bestehen(label):
+    """Die Coda-Liste kannte `mpf` (Kampf), aber nicht `pf` (Kopf); sie kannte
+    `nk` und `t` einzeln, aber nicht `nkt` (Punkt). `pf` war als Anlaut und
+    Binnencluster erlaubt, `pfl` (Pflug) nicht."""
+    assert passes(label), f"{label} wurde verworfen: {check(label)}"
