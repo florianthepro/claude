@@ -5,7 +5,19 @@ import pytest
 from domainfinder.filters import check, passes, soft_hits
 
 GOOD = ["bitrot", "purlink", "granot", "nodepot", "tarpit", "badalg",
-        "notimp", "stratum", "helo", "fastopen", "sigterm"]
+        "notimp", "stratum", "helo", "fastopen", "sigterm",
+        # `ei` und `eu` waren gesperrt, obwohl die Vorgabe nur ee/ea/ie nennt.
+        "meister", "neutron", "leido", "reida",
+        # Der deutsche Hoerer schreibt /j/ ohne Zoegern.
+        "jalis", "jorda", "sonja",
+        # Standardfugen deutscher Praefixe, die in der Clusterliste fehlten.
+        "konra", "anmut", "lisbo", "asgar", "dusfa",
+        # Sonorant + h ist hoerbar: Anhalt, erholen, Wilhelm.
+        "solho", "kirha", "durho",
+        # Von unverankerten Blacklist-Fragmenten erschlagen.
+        "klang", "titan", "basis", "kanal", "sauna", "kokos", "fakir",
+        # Vierzeichen-Marken trafen als Teilzeichenfolge Unschuldige.
+        "audio", "audit", "baldi"]
 
 
 @pytest.mark.parametrize("label", GOOD)
@@ -20,16 +32,16 @@ def test_gute_labels_bestehen(label):
     ("nullmx", "alphabet"),     # x
     ("syslog", "alphabet"),     # y
     ("zonefil", "alphabet"),    # z
-    ("jitter", "alphabet"),     # j
     ("quorum", "alphabet"),     # q
     ("norther", "folge"),       # th
     ("graphit", "folge"),       # ph
     ("keeper", "folge"),        # ee
     ("beadle", "folge"),        # ea
     ("relief", "folge"),        # ie
-    ("meister", "folge"),       # ei
-    ("mailbot", "folge"),       # ai
-    ("neutron", "folge"),       # eu
+    ("mailbot", "folge"),       # ai -- ei ist die Normalschreibung, ai die Ausnahme
+    ("soemal", "folge"),        # oe = Ersatzschreibung fuer o-Umlaut
+    ("kaebis", "folge"),        # ae
+    ("nuebor", "folge"),        # ue
     ("mounter", "folge"),       # ou
     ("moonlit", "folge"),       # oo
     ("shard", "folge"),         # sh
@@ -88,20 +100,18 @@ def test_englische_dge_schreibung_faellt():
 
 
 def test_dg_stoert_nur_vor_e_und_i():
-    """gabledge ist englisch, badglue ist eine harte Morphemfuge."""
+    """gabledge ist englisch, badglas ist eine harte Morphemfuge."""
     assert check("gabledge").rule == "folge"
-    assert passes("badglue"), check("badglue")
+    assert passes("badglas"), check("badglas")
 
 
 @pytest.mark.parametrize("label", [
-    "dusfa",   # sf
     "bufdo",   # fd
     "bekga",   # kg
     "pokfa",   # kf
     "pumno",   # mn
-    "durho",   # h im Cluster
-    "bemha",   # h im Cluster
-    "pulho",   # h im Cluster
+    "bekho",   # h nach Plosiv
+    "dakho",   # h nach Plosiv
 ])
 def test_unsprechbare_binnencluster_fallen(label):
     """Aus einem echten Lauf: diese standen in einer Liste, die
@@ -127,8 +137,11 @@ def test_h_hinter_konsonant_nur_bei_echten_komposita():
     kuratierte Liste echter Standardbegriffe ein. Fuer alles Erzeugte gilt der
     strenge Weg -- und nur der entscheidet ueber die Ergebnisliste.
     """
-    for erfunden in ("durho", "bemha", "pulho"):
+    for erfunden in ("bekho", "dakho", "tudho"):
         assert not passes(erfunden), f"{erfunden} muss im Normalmodus fallen"
+    # Nach einem Sonoranten ist das h hoerbar und braucht keine Fuge:
+    for hoerbar in ("durho", "bemha", "pulho", "solho"):
+        assert passes(hoerbar), f"{hoerbar}: {check(hoerbar)}"
     assert check("sighup") is not None            # als erfundener Name: raus
     assert passes("sighup", compound=True)        # als Standardbegriff: bleibt
     assert passes("sinkhole", compound=True)
@@ -145,7 +158,8 @@ def test_lautgleiche_kraftausdruecke_im_erlaubten_alphabet(label):
 
 def test_fag_faellt():
     """Stand auf Platz 10 einer Ergebnisliste, bevor der Eintrag da war."""
-    assert check("fagmo").rule == "blacklist_en"
+    assert check("fagmo").rule.startswith("blacklist")
+    assert passes("fagot"), check("fagot")   # als Fragment mittendrin: harmlos
 
 
 def test_ausnahmen_entkraeften_kurze_teilzeichenfolgen():
@@ -155,3 +169,32 @@ def test_ausnahmen_entkraeften_kurze_teilzeichenfolgen():
     assert passes("diktat") and passes("impuls")
     assert not passes("pusno")                      # keine Ausnahme: raus
     assert not passes("dikpa")
+
+
+@pytest.mark.parametrize("label", ["jalis", "jorda", "junda", "jomir", "jenta",
+                                   "sonja", "ronja", "katja", "marja"])
+def test_j_ist_erlaubt(label):
+    """`j` stand mit der Begruendung "deutsch /j/, englisch /dZ/" auf der
+    Verbotsliste. Der Massstab der Aufgabe ist aber ausdruecklich der
+    deutschsprachige Hoerer, und die Vorgabe nennt `j` nirgends. Mit demselben
+    Argument sind kn, pf und gn zugelassen worden."""
+    assert passes(label), f"{label} wurde verworfen: {check(label)}"
+
+
+@pytest.mark.parametrize("label", ["maja", "hajo", "tajo", "kaji"])
+def test_j_zwischen_vokalen_faellt(label):
+    """Maja, Maia, Maya -- intervokalisch ist j nicht diktiersicher."""
+    assert check(label).rule == "jstellung"
+
+
+@pytest.mark.parametrize("label", ["rajno", "hejla", "dolaj"])
+def test_j_ohne_folgenden_vokal_faellt(label):
+    """Im Deutschen schliesst j nie eine Silbe."""
+    assert check(label).rule == "jstellung"
+
+
+def test_j_erweitert_das_alphabet_nicht_um_beliebige_cluster():
+    """`dj` und `bj` bleiben draussen -- zugelassen sind nur die Fugen, die im
+    Deutschen wirklich vorkommen (Sonja, Marja, Katja, Ronja)."""
+    assert check("judjo").rule == "cluster"
+    assert check("labjo").rule == "cluster"
