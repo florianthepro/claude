@@ -22,25 +22,29 @@ from .config import (DEFAULT_ENV_FILE, DEFAULT_RATES, DEFAULT_WORKERS, ConfigErr
 from .db import Store
 from .filters import check
 from .gen import (brand5, branding, compound, itpair, itroot, jargon, morpheme,
-                  phonotactic)
+                  phonotactic, vollstaendig)
 from .output import write_rejections, write_results
 from .scoring import classify, explain, score
 from .select import cap
+from .schoenheit import rank as schoen_rank
 from .startup import rank as startup_rank
 from .vertraut import rank as vertraut_rank
 from .stages import recheck, stage_dns, stage_rdap, stage_registrar, stage_zone
 
 ALT_TLDS = ("fail", "computer", "email", "exposed", "haus", "codes", "host")
 
-# Zwei Zwecke, zwei Rangordnungen. `infra` ist auf Proxmox/Traefik kalibriert,
-# `startup` auf Figma/Gusto. Welche die score-Spalte fuellt, entscheidet --rank.
-# Drei Zwecke, drei Rangordnungen. `infra` ist auf Proxmox/Traefik kalibriert,
-# `startup` auf Figma/Gusto, `vertraut` auf hafen/nadel/riegel -- also darauf,
-# ob ein Label klingt wie ein Wort, das es geben koennte.
+# Vier Zwecke, vier Rangordnungen. Sie werden bewusst nicht verrechnet -- was
+# fuer eine Homelab-Basisdomain traegt, traegt nicht fuer eine Marke.
+#   infra     Proxmox, Traefik, Komodo -- klingt nach Infrastruktur
+#   startup   Figma, Gusto -- klingt nach Produkt
+#   vertraut  hafen, nadel, riegel -- klingt wie ein Wort, das es geben koennte
+#   schoen    Prisma, Vanta, Solana -- klingt schoen, ohne etwas zu bedeuten
+# Welche die score-Spalte fuellt, entscheidet --rank.
 RANKERS = {
     "infra": score,
     "startup": lambda label, source=None: startup_rank(label),
     "vertraut": lambda label, source=None: vertraut_rank(label),
+    "schoen": lambda label, source=None: schoen_rank(label),
 }
 
 
@@ -52,7 +56,7 @@ def log(msg: str) -> None:
 def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
                      limit_c: int | None = None, limit_d: int = 0,
                      limit_e: int = 0, limit_f: int = 0, limit_g: int = 0,
-                     limit_h: int = 0, limit_i: int = 0,
+                     limit_h: int = 0, limit_i: int = 0, limit_m: int = 0,
                      only_length: int | None = None, rank: str = "infra",
                      cap_prefix: int = 5, cap_rhyme: int = 5,
                      cap_skeleton: int = 3) -> dict[str, int]:
@@ -65,6 +69,21 @@ def build_candidates(store: Store, tld: str, *, limit_a: int, limit_b: int,
     keep = (lambda lab: only_length is None or len(lab) == only_length)
     bewerte = RANKERS[rank]
     log(f"Rangordnung: {rank}")
+
+    if limit_m:
+        # Quelle M kennt keine Musterschablone und ist damit die einzige, deren
+        # Abdeckung sich beweisen laesst. Sie laeuft ueber genau eine Laenge --
+        # ohne --only-length waere nicht definiert, welche.
+        laenge = only_length or 5
+        log(f"Quelle M: vollstaendige Aufzaehlung, {laenge} Zeichen")
+        m_raw = sorted(((bewerte(lab, "M"), lab, org)
+                        for lab, org in vollstaendig.generate(laenge)), reverse=True)
+        m_top = list(cap(m_raw, per_morpheme=10 ** 6, per_prefix=cap_prefix,
+                         per_rhyme=cap_rhyme, per_skeleton=cap_skeleton, limit=limit_m))
+        added["M"] = store.add_candidates(
+            [(f"{lab}.{tld}", lab, tld, "M", "kunstwort", sc) for sc, lab, _ in m_top])
+        log(f"  M: {len(m_raw)} bestehen die harten Kriterien, nach Vielfaltsgrenze"
+            f" {len(m_top)}, {added['M']} neu")
 
     if limit_i:
         log("Quelle I: Markennamen aus Bildwortschatz")
@@ -165,7 +184,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
             log(f"== Kandidaten fuer .{tld} ==")
             build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                              limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
-                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h, limit_i=args.limit_i,
+                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h,
+                             limit_i=args.limit_i, limit_m=args.limit_m,
                              only_length=args.only_length, rank=args.rank,
                              cap_prefix=args.cap_prefix, cap_rhyme=args.cap_rhyme,
                              cap_skeleton=args.cap_skeleton)
@@ -189,7 +209,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             if not store.pending("dns", tld, limit=1) and not store.results(tld, "dns", "free"):
                 build_candidates(store, tld, limit_a=args.limit_a, limit_b=args.limit_b,
                                  limit_c=args.limit_c, limit_d=args.limit_d, limit_e=args.limit_e,
-                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h, limit_i=args.limit_i,
+                             limit_f=args.limit_f, limit_g=args.limit_g, limit_h=args.limit_h,
+                             limit_i=args.limit_i, limit_m=args.limit_m,
                                  only_length=args.only_length, rank=args.rank,
                              cap_prefix=args.cap_prefix, cap_rhyme=args.cap_rhyme,
                              cap_skeleton=args.cap_skeleton)
@@ -324,6 +345,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Quelle G: IT-Komposita aus echten Woertern")
         sp.add_argument("--limit-e", type=int, default=0,
                         help="Quelle E: Markenform, vollstaendig aufgezaehlt")
+        sp.add_argument("--limit-m", type=int, default=0,
+                        help="Quelle M: vollstaendige Aufzaehlung ueber --only-length"
+                             " (Vorgabe 5). Ohne Muster, dafuer beweisbar vollstaendig.")
         sp.add_argument("--limit-d", type=int, default=0,
                         help="Quelle D: IT-Wurzel in genau fuenf Zeichen")
         sp.add_argument("--only-length", type=int, default=None,

@@ -92,7 +92,7 @@ def test_vertraut_trennt_deutsche_auslaute_von_fremden():
             assert vertraut(gut) > vertraut(fremd), f"{gut} vs {fremd}"
 
 
-def test_drei_rangordnungen_bleiben_getrennt():
+def test_rangordnungen_bleiben_getrennt():
     from domainfinder.cli import RANKERS
-    assert set(RANKERS) == {"infra", "startup", "vertraut"}
-    assert len({RANKERS[k]("fodma") for k in RANKERS}) == 3
+    assert set(RANKERS) == {"infra", "startup", "vertraut", "schoen"}
+    assert len({RANKERS[k]("fodma") for k in RANKERS}) == 4

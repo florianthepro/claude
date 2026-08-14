@@ -262,6 +262,9 @@ TRADEMARKS = (
     "komodo", "portainer", "hetzner", "ionos", "strato", "plesk", "unifi",
     "truenas", "proton", "telekom", "siemens", "bosch", "lufthansa", "airbnb",
     "spotify", "netflix", "reddit", "discord", "telegram", "signal", "oracle",
+    # Nachgetragen, als Quelle M sie an die Spitze der Liste gesetzt hat: mit
+    # dem erweiterten Alphabet sind sie erstmals erzeugbar.
+    "quora", "okta", "drata", "datadog", "kagi", "brave",
 )
 # Unschuldige Woerter, die eine Teilzeichenfolge der harten Liste enthalten.
 # Deckt das Ausnahmewort den Treffer vollstaendig ab, gilt er als entkraeftet:

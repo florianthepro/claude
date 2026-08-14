@@ -230,12 +230,14 @@ def test_quelle_d_haelt_die_wurzel_am_stueck_und_am_rand():
 def test_refresh_kennt_alle_rangordnungen():
     """refresh darf eine Skala nicht mit den Werten einer anderen ueberschreiben."""
     from domainfinder.cli import RANKERS
+    from domainfinder.schoenheit import rank as schoen_rank
     from domainfinder.startup import rank as startup_rank
     from domainfinder.vertraut import rank as vertraut_rank
-    assert set(RANKERS) == {"infra", "startup", "vertraut"}
+    assert set(RANKERS) == {"infra", "startup", "vertraut", "schoen"}
     assert RANKERS["startup"]("gusto") == startup_rank("gusto")
     assert RANKERS["vertraut"]("gusto") == vertraut_rank("gusto")
-    assert len({RANKERS[k]("gusto") for k in RANKERS}) == 3
+    assert RANKERS["schoen"]("gusto") == schoen_rank("gusto")
+    assert len({RANKERS[k]("gusto") for k in RANKERS}) == 4
 
 
 def test_vielfaltsgrenze_greift_auch_bei_fuenfzeichnern():

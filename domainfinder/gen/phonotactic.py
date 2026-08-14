@@ -10,9 +10,15 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from ..filters import LEGAL_ONSET_CLUSTERS, passes
+from ..filters import CONSONANTS, LEGAL_ONSET_CLUSTERS, passes
 
-CONS = "bdfghklmnprst"
+# Das Alphabet kommt aus den harten Kriterien, nicht aus einer zweiten Liste.
+# Es hier zu wiederholen war der Grund, warum `j` unsichtbar blieb: filters.py
+# hat es zugelassen, die Generatoren kannten es nicht und konnten kein einziges
+# Label damit erzeugen. `q` faellt heraus, weil es nur als `qu` im Wortanlaut
+# zulaessig ist und keines der Muster hier diese Stellung modelliert -- dafuer
+# gibt es Quelle M.
+CONS = "".join(sorted(CONSONANTS - set("q")))
 VOWS = "aeiou"
 
 # Nur Cluster, die aus dem erlaubten Alphabet stammen und als Anlaut zugelassen sind.
