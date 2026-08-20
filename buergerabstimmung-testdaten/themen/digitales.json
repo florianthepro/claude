@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Rechtsanspruch auf digitale Verwaltungsleistungen",
+        "ziel": "Zur Abstimmung steht, ob Bürgerinnen, Bürger und Unternehmen einen einklagbaren Anspruch auf die digitale Erledigung von Verwaltungsleistungen erhalten.",
+        "begruendung": "Das Onlinezugangsgesetz verpflichtet Bund, Länder und Kommunen zur digitalen Bereitstellung von Verwaltungsleistungen; die ursprüngliche Frist Ende 2022 wurde nicht erreicht. Die Änderung von 2024 sieht einen Anspruch auf elektronische Kommunikation mit Bundesbehörden nach einer Übergangszeit vor, für Länder und Kommunen gelten Öffnungsklauseln. Ein umfassender Anspruch berührte die Verwaltungshoheit der Länder und den Finanzbedarf der Kommunen."
+    },
+    {
+        "titel": "Registermodernisierung und einheitliche Identifikationsnummer",
+        "ziel": "Entschieden wird, ob die Steuer-Identifikationsnummer als übergreifendes Ordnungsmerkmal zwischen Verwaltungsregistern genutzt wird.",
+        "begruendung": "Das Identifikationsnummerngesetz von 2021 sieht die Nummer als Ordnungsmerkmal für rund 50 Register vor; ein Datenschutzcockpit soll Abrufe nachvollziehbar machen. Kritik richtet sich auf das Risiko einer registerübergreifenden Zusammenführung personenbezogener Daten. Verfassungsbeschwerden gegen das Gesetz sind anhängig."
+    },
+    {
+        "titel": "Europäische Brieftasche für digitale Identitäten",
+        "ziel": "Zur Abstimmung steht, ob Deutschland die europäische Identitäts-Wallet als zentralen Nachweis für Behörden- und Geschäftsvorgänge einführt.",
+        "begruendung": "Die überarbeitete eIDAS-Verordnung verpflichtet die Mitgliedstaaten, bis Ende 2026 eine Wallet bereitzustellen; sie soll Ausweis, Nachweise und Signaturen bündeln. Der Online-Ausweis mit der eID-Funktion des Personalausweises besteht bereits, wird aber selten genutzt. Offen sind Betreibermodell, Datensparsamkeit und die Akzeptanz in der Privatwirtschaft."
+    },
+    {
+        "titel": "Once-Only-Prinzip im Verwaltungsverfahren",
+        "ziel": "Gegenstand der Abstimmung ist, ob Behörden bereits vorliegende Nachweise selbst abrufen müssen, statt sie erneut anzufordern.",
+        "begruendung": "Das Prinzip ist im Onlinezugangsgesetz und in der europäischen Single-Digital-Gateway-Verordnung angelegt; die Umsetzung setzt vernetzte Register und eine Einwilligung der Betroffenen voraus. Derzeit fordern Behörden Geburtsurkunden, Meldebescheinigungen oder Einkommensnachweise regelmäßig erneut an. Betroffen sind Datenschutz, Registerqualität und Verwaltungsaufwand."
+    },
+    {
+        "titel": "Souveräne Cloud für die öffentliche Verwaltung",
+        "ziel": "Zur Abstimmung steht, ob Verwaltungsdaten ausschließlich in Rechenzentren unter europäischer Rechtshoheit verarbeitet werden.",
+        "begruendung": "Bund und Länder betreiben eine Deutsche Verwaltungscloud; daneben werden Angebote internationaler Anbieter genutzt. Der US-amerikanische Cloud Act ermöglicht unter Voraussetzungen Zugriffe auf Daten dortiger Unternehmen. Eine Beschränkung berührte Kosten, Verfügbarkeit von Fachanwendungen und Vergaberecht."
+    },
+    {
+        "titel": "Offene Standards und quelloffene Software in der Verwaltung",
+        "ziel": "Entschieden wird, ob öffentliche Stellen bei Neubeschaffungen quelloffener Software den Vorrang geben.",
+        "begruendung": "Das Zentrum für Digitale Souveränität betreibt mit openDesk eine offene Arbeitsplatzumgebung; einzelne Länder haben Umstiegsbeschlüsse gefasst. Ein Vorrang berührte Vergaberecht, Migrationskosten, Schulungen und die Verfügbarkeit von Fachverfahren. Die europäische Interoperabilitätsverordnung setzt Rahmenvorgaben."
+    },
+    {
+        "titel": "Bereitstellung offener Verwaltungsdaten",
+        "ziel": "Zur Abstimmung steht, ob Behörden ihre nicht personenbezogenen Daten grundsätzlich maschinenlesbar und kostenfrei veröffentlichen müssen.",
+        "begruendung": "Das Datennutzungsgesetz und das Open-Data-Gesetz verpflichten Bundesbehörden zur Bereitstellung; Ausnahmen bestehen unter anderem für Sicherheitsbelange und Betriebsgeheimnisse. Länder und Kommunen regeln den Zugang unterschiedlich, mehrere Länder haben Transparenzgesetze. Ein allgemeines Gebot berührte Gebührenmodelle und den Aufwand der Datenaufbereitung."
+    },
+    {
+        "titel": "Bündelung der Zuständigkeit für Digitalpolitik im Bund",
+        "ziel": "Gegenstand der Abstimmung ist, ob Zuständigkeiten und Budgets für Digitalisierung in einem Ressort zusammengeführt werden.",
+        "begruendung": "Seit 2025 besteht ein Bundesministerium für Digitales und Staatsmodernisierung; Fachzuständigkeiten und IT-Haushalte verbleiben in Teilen bei anderen Ressorts. Der IT-Planungsrat koordiniert Bund und Länder. Eine vollständige Bündelung berührte das Ressortprinzip nach Artikel 65 des Grundgesetzes."
+    },
+    {
+        "titel": "Flächendeckender Ausbau der Glasfasernetze",
+        "ziel": "Zur Abstimmung steht, ob der Bund den flächendeckenden Glasfaserausbau bis 2030 weiterhin fördert.",
+        "begruendung": "Die Gigabitstrategie sieht Glasfaseranschlüsse für alle Haushalte bis 2030 vor; die Förderung erfolgt nachrangig in Gebieten ohne eigenwirtschaftlichen Ausbau. Genehmigungsverfahren, Tiefbaukapazitäten und Anschlussquoten begrenzen das Tempo. Betroffen sind Bundeshaushalt, Kommunen und Netzbetreiber."
+    },
+    {
+        "titel": "Versorgungsauflagen für den Mobilfunk in der Fläche",
+        "ziel": "Entschieden wird, ob Mobilfunkbetreiber zur flächendeckenden Versorgung entlang von Straßen, Schienen und in Ortslagen verpflichtet werden.",
+        "begruendung": "Die Bundesnetzagentur knüpft Frequenzzuteilungen an Versorgungsauflagen nach Haushalten und Verkehrswegen; die Mobilfunkinfrastrukturgesellschaft fördert Masten in nicht wirtschaftlichen Gebieten. Messkampagnen zeigen weiterhin unversorgte Bereiche. Strengere Auflagen berührten Investitionskosten und Genehmigungsverfahren."
+    },
+    {
+        "titel": "Nationale Aufsicht über künstliche Intelligenz",
+        "ziel": "Zur Abstimmung steht, ob die Bundesnetzagentur als zentrale Marktüberwachungsbehörde für KI-Systeme bestimmt wird.",
+        "begruendung": "Die KI-Verordnung der Europäischen Union gilt seit 2024 gestuft und verlangt die Benennung nationaler Marktüberwachungs- und Notifizierungsbehörden. In Deutschland kommen daneben Datenschutzaufsichten, Bundesamt für Sicherheit in der Informationstechnik und Fachbehörden in Betracht. Ein Durchführungsgesetz steht aus."
+    },
+    {
+        "titel": "Anlasslose Durchsuchung von Nachrichteninhalten",
+        "ziel": "Gegenstand der Abstimmung ist, ob Anbieter von Kommunikationsdiensten Inhalte automatisiert auf Darstellungen sexualisierter Gewalt gegen Kinder durchsuchen müssen.",
+        "begruendung": "Ein Verordnungsvorschlag der Europäischen Kommission sieht Aufdeckungsanordnungen vor; die Beratungen im Rat sind seit Jahren strittig. Bei Ende-zu-Ende-verschlüsselter Kommunikation wäre eine Prüfung auf den Endgeräten erforderlich. Der Europäische Datenschutzbeauftragte und Fachverbände haben grundrechtliche Bedenken geäußert."
+    },
+    {
+        "titel": "Durchsetzung des Digitale-Dienste-Gesetzes",
+        "ziel": "Zur Abstimmung steht, ob die Aufsicht über Plattformen personell und mit erweiterten Befugnissen ausgestattet wird.",
+        "begruendung": "Der Digital Services Act gilt seit 2024; sehr große Plattformen beaufsichtigt die Europäische Kommission, für die übrigen ist der Koordinator für digitale Dienste bei der Bundesnetzagentur zuständig. Aufgaben sind Melde- und Beschwerdeverfahren, Risikominderung und Datenzugang für die Forschung. Betroffen sind Bußgeldverfahren und die Zusammenarbeit mit den Landesmedienanstalten."
+    },
+    {
+        "titel": "Recht auf Versorgung mit Telekommunikationsdiensten",
+        "ziel": "Entschieden wird, ob die Mindestbandbreite des Rechts auf schnelles Internet angehoben wird.",
+        "begruendung": "Seit 2022 besteht ein Anspruch auf eine Mindestversorgung, deren Werte die Bundesnetzagentur jährlich überprüft und zuletzt angehoben hat. Das Verfahren beginnt mit einer Meldung der Unterversorgung und kann zur Verpflichtung eines Anbieters führen. Eine Anhebung berührte Kosten der Anbieter und die Zahl der Berechtigten."
+    },
+    {
+        "titel": "Einführung des digitalen Euro",
+        "ziel": "Zur Abstimmung steht, ob Deutschland die Einführung eines digitalen Euro als gesetzliches Zahlungsmittel unterstützt.",
+        "begruendung": "Die Europäische Zentralbank bereitet einen digitalen Euro vor; ein Verordnungsvorschlag regelt Annahmepflichten, Haltegrenzen und den Fortbestand des Bargelds. Offline-Zahlungen sollen ohne Übermittlung personenbezogener Daten möglich sein. Betroffen sind Zahlungsverkehr, Banken und Datenschutz."
+    },
+    {
+        "titel": "Meldepflichten für Unternehmen bei IT-Sicherheitsvorfällen",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Meldepflichten für IT-Sicherheitsvorfälle auf weitere Unternehmen ausgeweitet werden.",
+        "begruendung": "Das NIS-2-Umsetzungsgesetz erweitert die Zahl der erfassten Einrichtungen erheblich und sieht gestufte Meldefristen an das Bundesamt für Sicherheit in der Informationstechnik vor. Für kritische Anlagen bestehen zusätzliche Nachweispflichten. Eine Ausweitung träfe vor allem mittelständische Betriebe und kommunale Unternehmen."
+    },
+    {
+        "titel": "Digitale Bürgerkonten und Postfächer",
+        "ziel": "Zur Abstimmung steht, ob alle Verwaltungsleistungen über ein einheitliches Nutzerkonto mit rechtsverbindlichem Postfach abgewickelt werden.",
+        "begruendung": "Die BundID beziehungsweise DeutschlandID bündelt Zugänge zu Bundesleistungen; Länder betreiben teils eigene Konten, was zu Mehrfachregistrierungen führt. Ein verbindliches Postfach berührte Zustellungsfiktionen im Verwaltungsverfahrensrecht. Alternativ bleibt der Zugang über Papier und persönliche Vorsprache erhalten."
+    },
+    {
+        "titel": "Barrierefreiheit digitaler Produkte und Dienstleistungen",
+        "ziel": "Entschieden wird, ob die Ausnahmen für Kleinstunternehmen im Barrierefreiheitsstärkungsgesetz eingeschränkt werden.",
+        "begruendung": "Das Gesetz setzt seit Juni 2025 die europäische Richtlinie um und verpflichtet unter anderem Onlinehandel, Bankdienste, E-Books und Selbstbedienungsterminals zur Barrierefreiheit. Kleinstunternehmen im Dienstleistungsbereich sind ausgenommen. Die Marktüberwachung liegt bei einer Stelle der Länder."
+    },
+    {
+        "titel": "Versteigerung oder Verlängerung von Mobilfunkfrequenzen",
+        "ziel": "Zur Abstimmung steht, ob Frequenzen künftig verlängert statt versteigert werden.",
+        "begruendung": "Die Bundesnetzagentur hat Nutzungsrechte zuletzt gegen Auflagen verlängert, statt sie neu zu versteigern; frühere Versteigerungen erbrachten Milliardenerlöse für den Bundeshaushalt. Verlängerungen sollen Investitionen in die Netzabdeckung ermöglichen. Neue Anbieter kritisieren erschwerten Marktzugang."
+    },
+    {
+        "titel": "Bündelung der Datenschutzaufsicht für die Wirtschaft",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Aufsicht über den nicht-öffentlichen Bereich bei einer Bundesbehörde zusammengeführt wird.",
+        "begruendung": "In Deutschland bestehen der Bundesbeauftragte für den Datenschutz und die Informationsfreiheit sowie Aufsichtsbehörden der Länder; die Datenschutzkonferenz stimmt Auslegungsfragen ab. Unternehmen mit bundesweiter Tätigkeit haben teils mehrere Ansprechstellen. Eine Bündelung berührte die Zuständigkeitsverteilung nach der Datenschutz-Grundverordnung und Landesrecht."
+    },
+    {
+        "titel": "Verschlüsselung und staatlicher Zugriff",
+        "ziel": "Zur Abstimmung steht, ob Anbieter zur Ermöglichung eines behördlichen Zugriffs auf verschlüsselte Kommunikation verpflichtet werden.",
+        "begruendung": "Ende-zu-Ende-Verschlüsselung ist derzeit zulässig; das Telekommunikationsgesetz verpflichtet Anbieter zur Mitwirkung nur im Rahmen ihrer technischen Möglichkeiten. Sicherheitsbehörden verweisen auf Ermittlungslücken, Fachleute auf Risiken für die allgemeine IT-Sicherheit. Die Bundesregierung hat sich in der Digitalen Agenda zur starken Verschlüsselung bekannt."
+    },
+    {
+        "titel": "Konsolidierung der Informationstechnik der Bundesverwaltung",
+        "ziel": "Entschieden wird, ob Rechenzentren und Fachverfahren des Bundes bei einem zentralen Dienstleister zusammengeführt werden.",
+        "begruendung": "Das Programm IT-Konsolidierung Bund läuft seit 2015 und bündelt Betrieb und Beschaffung schrittweise beim Informationstechnikzentrum Bund; der Bundesrechnungshof hat Verzögerungen und Kostensteigerungen festgestellt. Ressorts betreiben weiterhin eigene Verfahren. Eine vollständige Bündelung berührte Personal, Zuständigkeiten und Ausfallsicherheit."
+    },
+    {
+        "titel": "Netzneutralität im offenen Internet",
+        "ziel": "Zur Abstimmung steht, ob Deutschland Ausnahmen von der Netzneutralität für bestimmte Dienste ablehnt.",
+        "begruendung": "Die europäische Verordnung über den Zugang zum offenen Internet verpflichtet Anbieter zur Gleichbehandlung des Datenverkehrs; Spezialdienste sind unter engen Voraussetzungen zulässig. Der Europäische Gerichtshof hat Zero-Rating-Angebote für unzulässig erklärt. Diskutiert wird zudem eine Beteiligung großer Inhalteanbieter an den Netzkosten."
+    }
+]

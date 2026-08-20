@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Volksinitiative, Volksbegehren und Volksentscheid auf Bundesebene",
+        "ziel": "Zur Abstimmung steht, ob im Grundgesetz bundesweite Volksentscheide über Gesetze eingeführt werden.",
+        "begruendung": "Artikel 20 des Grundgesetzes nennt Wahlen und Abstimmungen, sieht Abstimmungen im Bund bislang aber nur bei einer Neugliederung des Bundesgebiets vor; in allen Ländern bestehen direktdemokratische Verfahren. Entwürfe zu einer dreistufigen Regelung erreichten im Bundestag bisher keine Zweidrittelmehrheit. Zu regeln wären Quoren, Fristen, Themenausschlüsse und die Finanzierung der Kampagnen."
+    },
+    {
+        "titel": "Absenkung des Wahlalters bei Bundestagswahlen",
+        "ziel": "Entschieden wird, ob das aktive Wahlrecht bei Bundestagswahlen auf 16 Jahre abgesenkt wird.",
+        "begruendung": "Artikel 38 des Grundgesetzes knüpft das Wahlrecht an die Vollendung des 18. Lebensjahres; bei Europawahlen gilt seit 2024 ein Mindestalter von 16 Jahren, ebenso bei Kommunal- und teils Landtagswahlen in mehreren Ländern. Eine Absenkung im Bund erforderte eine Zweidrittelmehrheit in Bundestag und Bundesrat. Das passive Wahlrecht bliebe davon unberührt."
+    },
+    {
+        "titel": "Größe des Bundestages und Zweitstimmendeckung",
+        "ziel": "Zur Abstimmung steht, ob die Regelgröße von 630 Sitzen und das Verfahren der Zweitstimmendeckung beibehalten werden.",
+        "begruendung": "Mit der Wahlrechtsreform 2023 entfallen Überhang- und Ausgleichsmandate; Wahlkreissiege führen nur zu einem Mandat, wenn sie durch das Zweitstimmenergebnis der Partei gedeckt sind. Das Bundesverfassungsgericht hat die Regelung 2024 im Kern bestätigt. Folge ist, dass einzelne Wahlkreise ohne direkt gewählte Vertretung bleiben können."
+    },
+    {
+        "titel": "Fünf-Prozent-Hürde und Grundmandatsklausel",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Sperrklausel abgesenkt oder um eine Ersatzstimme ergänzt wird.",
+        "begruendung": "Die Sperrklausel von fünf Prozent soll die Handlungsfähigkeit des Parlaments sichern; das Bundesverfassungsgericht hat 2024 die Streichung der Grundmandatsklausel für unvereinbar mit dem Grundgesetz erklärt, sodass sie bis zu einer Neuregelung fortgilt. Bei Europawahlen besteht in Deutschland keine Sperrklausel. Diskutiert werden Absenkung, Ersatzstimme und Anpassungen der Klausel."
+    },
+    {
+        "titel": "Höhe der staatlichen Parteienfinanzierung",
+        "ziel": "Zur Abstimmung steht, ob die absolute Obergrenze der staatlichen Parteienfinanzierung abgesenkt wird.",
+        "begruendung": "Das Parteiengesetz begrenzt die Gesamtsumme staatlicher Mittel; eine Anhebung von 2018 hat das Bundesverfassungsgericht 2023 wegen unzureichender Begründung für nichtig erklärt. Die Mittel bemessen sich nach Wahlergebnissen sowie Beiträgen und Spenden. Zusätzlich werden Fraktionen und parteinahe Stiftungen aus öffentlichen Mitteln finanziert."
+    },
+    {
+        "titel": "Transparenz und Obergrenzen bei Parteispenden",
+        "ziel": "Entschieden wird, ob Großspenden ab 10 000 Euro sofort veröffentlicht und Spenden je Person begrenzt werden.",
+        "begruendung": "Spenden über 50 000 Euro sind derzeit unverzüglich anzuzeigen und werden veröffentlicht, Spenden über 10 000 Euro erst im Rechenschaftsbericht des Folgejahres. Eine Obergrenze je Spender besteht nicht; unzulässig sind unter anderem anonyme Spenden über 500 Euro. Die Staatengruppe gegen Korruption des Europarats hat wiederholt Empfehlungen ausgesprochen."
+    },
+    {
+        "titel": "Lobbyregister und legislativer Fußabdruck",
+        "ziel": "Zur Abstimmung steht, ob bei Gesetzentwürfen offengelegt wird, welche Interessenvertretungen an einzelnen Regelungen mitgewirkt haben.",
+        "begruendung": "Das Lobbyregistergesetz verpflichtet Interessenvertreter seit 2022 zur Eintragung und erfasst auch Kontakte zu Ministerien; ein Verhaltenskodex ist Bestandteil. Ein vollständiger Nachweis der Einflussnahme auf einzelne Vorschriften ist bislang nicht vorgesehen. Betroffen wären Ministerien, Verbände, Kanzleien und Nichtregierungsorganisationen."
+    },
+    {
+        "titel": "Karenzzeit für Regierungsmitglieder nach dem Ausscheiden",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Karenzzeit beim Wechsel in die Privatwirtschaft verlängert wird.",
+        "begruendung": "Das Bundesministergesetz sieht eine Anzeigepflicht und eine Untersagung von bis zu 18 Monaten vor; ein beratendes Gremium gibt Empfehlungen ab. Für Parlamentarische Staatssekretäre gelten entsprechende Regeln, für Abgeordnete nicht. Eine Verlängerung berührte Berufsfreiheit und Übergangsgeldregelungen."
+    },
+    {
+        "titel": "Nebentätigkeiten und Nebeneinkünfte von Abgeordneten",
+        "ziel": "Zur Abstimmung steht, ob entgeltliche Nebentätigkeiten von Bundestagsabgeordneten weiter eingeschränkt werden.",
+        "begruendung": "Nach dem Abgeordnetengesetz und den Verhaltensregeln sind Nebeneinkünfte ab 1000 Euro monatlich oder 3000 Euro jährlich auf Euro genau anzuzeigen und zu veröffentlichen; bezahlte Lobbytätigkeit und Interessenvertretung gegen Entgelt sind untersagt. Das Mandat soll im Mittelpunkt der Tätigkeit stehen. Weitere Einschränkungen berührten das freie Mandat nach Artikel 38 des Grundgesetzes."
+    },
+    {
+        "titel": "Öffentliche Petitionen beim Deutschen Bundestag",
+        "ziel": "Entschieden wird, ob das Quorum für eine öffentliche Anhörung im Petitionsausschuss gesenkt wird.",
+        "begruendung": "Artikel 17 des Grundgesetzes gewährt jedem das Petitionsrecht; öffentliche Petitionen werden nach der Verfahrensordnung des Ausschusses ab 50 000 Mitzeichnungen innerhalb von vier Wochen in öffentlicher Sitzung beraten. Die Zahl eingereichter Petitionen ist rückläufig, der Anteil öffentlicher Petitionen gering. Eine Senkung berührte Kapazitäten des Ausschusses und die Auswahl der Themen."
+    },
+    {
+        "titel": "Bürgerräte als ständiges Beteiligungsinstrument",
+        "ziel": "Zur Abstimmung steht, ob per Los besetzte Bürgerräte regelmäßig zu Gesetzesvorhaben eingesetzt werden.",
+        "begruendung": "Der Bundestag hat 2023 erstmals einen von ihm eingesetzten Bürgerrat zum Thema Ernährung durchgeführt; zuvor gab es von Vereinen organisierte Räte. Empfehlungen sind rechtlich unverbindlich und werden in Ausschüssen beraten. Eine Verstetigung berührte Geschäftsordnung, Auswahlverfahren und Kosten."
+    },
+    {
+        "titel": "Transparenzgesetz für Behörden des Bundes",
+        "ziel": "Gegenstand der Abstimmung ist, ob Bundesbehörden Informationen von öffentlichem Interesse ohne Antrag veröffentlichen müssen.",
+        "begruendung": "Das Informationsfreiheitsgesetz gewährt seit 2006 einen Anspruch auf Zugang zu amtlichen Informationen mit zahlreichen Ausnahmen; mehrere Länder haben Transparenzgesetze mit proaktiver Veröffentlichung erlassen. Gebühren und Bearbeitungszeiten werden als Hürden benannt. Ein Bundesgesetz berührte Verwaltungsaufwand, Betriebsgeheimnisse und Sicherheitsbelange."
+    },
+    {
+        "titel": "Amtszeitbegrenzung für das Amt der Bundeskanzlerin oder des Bundeskanzlers",
+        "ziel": "Zur Abstimmung steht, ob die Amtszeit auf zwei Wahlperioden begrenzt wird.",
+        "begruendung": "Das Grundgesetz enthält keine Begrenzung; die Wahl erfolgt durch den Bundestag ohne Beschränkung der Wiederwahl. Eine Begrenzung erforderte eine Verfassungsänderung und berührte das Wahlrecht des Parlaments. Vergleichbare Regelungen bestehen in präsidentiellen Systemen und in einzelnen Ländern für Regierungsämter."
+    },
+    {
+        "titel": "Einführung einer Wahlpflicht bei Bundestagswahlen",
+        "ziel": "Entschieden wird, ob die Teilnahme an Bundestagswahlen zur gesetzlichen Pflicht wird.",
+        "begruendung": "Die Wahlbeteiligung unterscheidet sich deutlich nach sozialer Lage und Region; Belgien, Luxemburg und weitere Staaten kennen eine Wahlpflicht mit unterschiedlichen Sanktionen. Eine Einführung berührte die Freiheit der Wahl nach Artikel 38 des Grundgesetzes und erforderte voraussichtlich eine Verfassungsänderung. Zu regeln wären Entschuldigungsgründe und Durchsetzung."
+    },
+    {
+        "titel": "Briefwahl ohne Angabe von Gründen",
+        "ziel": "Zur Abstimmung steht, ob die Briefwahl in ihrer heutigen Form beibehalten wird.",
+        "begruendung": "Seit 2008 ist die Briefwahl ohne Angabe von Gründen möglich; ihr Anteil ist auf mehr als ein Drittel der abgegebenen Stimmen gestiegen. Das Bundesverfassungsgericht hat sie als vereinbar mit den Wahlrechtsgrundsätzen beurteilt, da sie die Allgemeinheit der Wahl sichert. Diskutiert werden Fristen, Zustellung und die Wahrung des Wahlgeheimnisses."
+    },
+    {
+        "titel": "Zahl und Zuschnitt der Bundestagswahlkreise",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Zahl der Wahlkreise verringert und der Zuschnitt regelmäßig angepasst wird.",
+        "begruendung": "Das Bundeswahlgesetz sieht 299 Wahlkreise vor, deren Bevölkerungszahl um höchstens 15 Prozent vom Durchschnitt abweichen soll; eine ständige Wahlkreiskommission berichtet dem Bundestag. Abweichungen entstehen durch Bevölkerungsentwicklung und Zuschnitt entlang von Kreisgrenzen. Änderungen berührten Betreuungsgebiete und die Nähe zwischen Abgeordneten und Wahlkreis."
+    },
+    {
+        "titel": "Ausschluss verfassungsfeindlicher Parteien von der staatlichen Finanzierung",
+        "ziel": "Zur Abstimmung steht, ob häufiger von der Möglichkeit Gebrauch gemacht wird, Parteien von der Finanzierung auszuschließen.",
+        "begruendung": "Artikel 21 Absatz 3 des Grundgesetzes erlaubt seit 2017 den Ausschluss von Parteien, die darauf ausgerichtet sind, die freiheitliche demokratische Grundordnung zu beeinträchtigen; das Bundesverfassungsgericht hat 2024 erstmals so entschieden. Antragsberechtigt sind Bundestag, Bundesrat und Bundesregierung. Der Ausschluss lässt die Partei bestehen und ist vom Parteiverbot zu unterscheiden."
+    },
+    {
+        "titel": "Direktwahl des Bundespräsidenten oder der Bundespräsidentin",
+        "ziel": "Entschieden wird, ob das Staatsoberhaupt künftig unmittelbar vom Volk gewählt wird.",
+        "begruendung": "Die Wahl erfolgt nach Artikel 54 des Grundgesetzes durch die Bundesversammlung aus Bundestagsmitgliedern und ebenso vielen Vertretern der Länder. Eine Direktwahl erforderte eine Verfassungsänderung und berührte das Verhältnis zwischen Staatsoberhaupt, Parlament und Regierung. In Österreich, Frankreich und Polen wird das Staatsoberhaupt direkt gewählt."
+    },
+    {
+        "titel": "Bundeszentrale für politische Bildung",
+        "ziel": "Zur Abstimmung steht, ob Auftrag und Unabhängigkeit der Bundeszentrale für politische Bildung gesetzlich geregelt werden.",
+        "begruendung": "Die Bundeszentrale arbeitet auf Grundlage eines Erlasses des Bundesinnenministeriums und wird von einem Kuratorium aus Abgeordneten begleitet; ihr Haushalt wird jährlich festgelegt und wurde zuletzt gekürzt. Der Beutelsbacher Konsens prägt die fachlichen Standards. Ein Gesetz berührte Weisungsverhältnisse, Finanzierung und Aufgabenbeschreibung."
+    },
+    {
+        "titel": "Digitale Beteiligung an Gesetzgebungsverfahren",
+        "ziel": "Gegenstand der Abstimmung ist, ob Referentenentwürfe und Stellungnahmen frühzeitig und vollständig veröffentlicht werden.",
+        "begruendung": "Nach der Gemeinsamen Geschäftsordnung der Bundesministerien werden Entwürfe an Verbände versandt; die Veröffentlichung erfolgt uneinheitlich und teils erst spät. Stellungnahmen werden nicht durchgängig zugänglich gemacht. Eine Pflicht berührte Fristen im Gesetzgebungsverfahren und die Arbeitsweise der Ressorts."
+    },
+    {
+        "titel": "Wahlprüfung durch Bundestag und Bundesverfassungsgericht",
+        "ziel": "Zur Abstimmung steht, ob Wahleinsprüche künftig unmittelbar gerichtlich statt zunächst parlamentarisch geprüft werden.",
+        "begruendung": "Über Einsprüche entscheidet nach Artikel 41 des Grundgesetzes zunächst der Bundestag, gegen dessen Beschluss die Beschwerde zum Bundesverfassungsgericht möglich ist; Verfahren nach der Wiederholungswahl in Berlin dauerten mehrere Jahre. Internationale Wahlbeobachtung durch die Organisation für Sicherheit und Zusammenarbeit in Europa findet auf Einladung statt. Eine Änderung erforderte eine Verfassungsänderung."
+    },
+    {
+        "titel": "Gleiche Repräsentation von Frauen und Männern in Parlamenten",
+        "ziel": "Entschieden wird, ob Parteien verpflichtet werden, ihre Wahllisten paritätisch zu besetzen.",
+        "begruendung": "Der Frauenanteil im Bundestag liegt seit Jahren unter 40 Prozent; Paritätsgesetze in Brandenburg und Thüringen wurden von den Landesverfassungsgerichten für unvereinbar mit der Wahlfreiheit und der Parteienfreiheit erklärt. Frankreich und Belgien wenden Paritätsregeln bei Listenwahlen an. Eine Bundesregelung berührte Artikel 3, 21 und 38 des Grundgesetzes."
+    },
+    {
+        "titel": "Schutz von Wahlen vor Desinformation und Einflussnahme",
+        "ziel": "Zur Abstimmung steht, ob politische Werbung im Netz und koordinierte Desinformationskampagnen strenger reguliert werden.",
+        "begruendung": "Die europäische Verordnung über die Transparenz politischer Werbung gilt ab Oktober 2025 und verlangt Kennzeichnung, Herkunftsangaben und Beschränkungen beim Targeting; der Digital Services Act verpflichtet große Plattformen zur Risikominderung bei Wahlen. Nachrichtendienste berichten über Einflussoperationen aus dem Ausland. Nationale Regelungen berührten Meinungsfreiheit, Parteienrecht und Medienaufsicht der Länder."
+    }
+]

@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Speicherpflicht für IP-Adressen zur Strafverfolgung",
+        "ziel": "Zur Abstimmung steht, ob Telekommunikationsanbieter IP-Adressen für einen festen Zeitraum zur Strafverfolgung speichern müssen.",
+        "begruendung": "Der Europäische Gerichtshof hat die anlasslose Vorratsdatenspeicherung von Verkehrsdaten für unzulässig erklärt, eine befristete Speicherung von IP-Adressen zur Bekämpfung schwerer Kriminalität aber für möglich gehalten. Das Telekommunikationsgesetz enthält derzeit eine ausgesetzte Regelung; als Alternative wird das Quick-Freeze-Verfahren diskutiert. Betroffen sind Ermittlungen bei Darstellungen sexualisierter Gewalt gegen Kinder und Cyberkriminalität."
+    },
+    {
+        "titel": "Novelle des Bundespolizeigesetzes und neue Befugnisse",
+        "ziel": "Entschieden wird, ob die Befugnisse der Bundespolizei bei Kontrollen, Aufenthaltsermittlung und Drohneneinsatz erweitert werden.",
+        "begruendung": "Das Bundespolizeigesetz stammt in wesentlichen Teilen aus dem Jahr 1994; mehrere Novellierungsversuche sind im Bundesrat gescheitert. Vorgesehen waren unter anderem Regelungen zu Bodycams, Drohnen, Aufenthaltsvorgaben und einer Rechtsgrundlage für Kontrollen im Grenzraum. Die Aufgabenverteilung zwischen Bundes- und Landespolizeien bleibt unberührt."
+    },
+    {
+        "titel": "Befugnisse des Bundeskriminalamts zur Datenverarbeitung",
+        "ziel": "Zur Abstimmung steht, ob das Bundeskriminalamt weitergehende Befugnisse zur Datenverarbeitung und heimlichen Überwachung erhält.",
+        "begruendung": "Das Bundesverfassungsgericht hat das BKA-Gesetz mehrfach in Teilen beanstandet, zuletzt 2024 zu Speicherungen in polizeilichen Verbunddateien und zur längerfristigen Observation. Eine Neuregelung muss Eingriffsschwellen, Kennzeichnungspflichten und Löschfristen bestimmen. Betroffen sind Terrorismusabwehr, organisierte Kriminalität und der Informationsverbund mit den Ländern."
+    },
+    {
+        "titel": "Quellen-Telekommunikationsüberwachung und Online-Durchsuchung",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Einsatz von Überwachungssoftware auf Endgeräten weiterhin zulässig bleibt.",
+        "begruendung": "Die Strafprozessordnung erlaubt die Überwachung verschlüsselter Kommunikation an der Quelle sowie die Online-Durchsuchung bei bestimmten Katalogtaten und richterlicher Anordnung. Kritik richtet sich auf den Umgang mit Sicherheitslücken und die Abgrenzung zum Kernbereich privater Lebensgestaltung. Verfassungsbeschwerden zu einzelnen Landesgesetzen sind anhängig."
+    },
+    {
+        "titel": "Biometrischer Abgleich mit öffentlich zugänglichen Internetdaten",
+        "ziel": "Zur Abstimmung steht, ob Sicherheitsbehörden Lichtbilder mit öffentlich zugänglichen Internetdaten biometrisch abgleichen dürfen.",
+        "begruendung": "Ein Sicherheitspaket sah einen solchen Abgleich zur Identifizierung von Tatverdächtigen und Gesuchten vor; die Regelung passierte den Bundesrat zunächst nicht. Die europäische KI-Verordnung untersagt das ungezielte Auslesen von Gesichtsbildern aus dem Internet zum Aufbau von Datenbanken. Betroffen sind Datenschutz, Trefferqualität und Kontrolle des Verfahrens."
+    },
+    {
+        "titel": "Automatisierte Gesichtserkennung an Bahnhöfen und Flughäfen",
+        "ziel": "Entschieden wird, ob Videoüberwachung mit automatisierter Gesichtserkennung an Bahnhöfen und Flughäfen erlaubt wird.",
+        "begruendung": "Pilotversuche fanden am Berliner Bahnhof Südkreuz statt; eine Rechtsgrundlage für den Wirkbetrieb besteht nicht. Die KI-Verordnung stuft biometrische Echtzeit-Fernidentifizierung als verboten ein, lässt aber eng begrenzte Ausnahmen für schwere Straftaten mit richterlicher Genehmigung zu. Betroffen sind Grundrechte unbeteiligter Personen und die Fehlerquote der Systeme."
+    },
+    {
+        "titel": "Verschärfung des Waffenrechts bei halbautomatischen Waffen",
+        "ziel": "Zur Abstimmung steht, ob der Erwerb halbautomatischer Waffen und die Zuverlässigkeitsprüfung im Waffenrecht weiter eingeschränkt werden.",
+        "begruendung": "Die Novelle 2024 hat Messerverbote erweitert, die Regelabfrage beim Verfassungsschutz eingeführt und Anforderungen an Sportschützen und Jäger angepasst. Der Vollzug liegt bei den Waffenbehörden der Länder; das Nationale Waffenregister erfasst erlaubnispflichtige Waffen. Weitere Verschärfungen berührten Jagd, Schießsport und Sammler."
+    },
+    {
+        "titel": "Waffen- und Messerverbotszonen im öffentlichen Raum",
+        "ziel": "Gegenstand der Abstimmung ist, ob Länder und Kommunen dauerhafte Messerverbotszonen mit anlassunabhängigen Kontrollen einrichten dürfen.",
+        "begruendung": "Das Waffengesetz erlaubt seit 2024 Verbotszonen an bestimmten Orten; die Ausgestaltung und die Kontrollbefugnisse regeln die Länder in ihren Polizeigesetzen. Anlassunabhängige Kontrollen werden unter dem Gesichtspunkt diskriminierungsfreier Auswahl diskutiert. Betroffen sind Bahnhöfe, Volksfeste und innerstädtische Bereiche."
+    },
+    {
+        "titel": "Videoüberwachung öffentlicher Plätze an Kriminalitätsschwerpunkten",
+        "ziel": "Zur Abstimmung steht, ob die Videoüberwachung öffentlicher Plätze an festgelegten Schwerpunkten ausgeweitet wird.",
+        "begruendung": "Rechtsgrundlagen finden sich in den Polizeigesetzen der Länder und im Bundesdatenschutzgesetz; Voraussetzung ist regelmäßig eine belegte Gefahrenlage. Studien zur Wirkung zeigen unterschiedliche Ergebnisse je nach Deliktsart und Verdrängungseffekten. Speicherfristen und Zugriffsrechte sind gesondert geregelt."
+    },
+    {
+        "titel": "Einsatz der Bundeswehr im Innern",
+        "ziel": "Entschieden wird, ob die Bundeswehr über Katastrophenhilfe hinaus zu Sicherungsaufgaben im Inland eingesetzt werden darf.",
+        "begruendung": "Das Grundgesetz erlaubt Einsätze im Innern nur in engen Grenzen, insbesondere bei Naturkatastrophen und im inneren Notstand; das Bundesverfassungsgericht hat den Einsatz militärischer Waffen 2012 nur für Ausnahmefälle zugelassen. Amtshilfe leistet die Bundeswehr regelmäßig technisch und logistisch. Eine Erweiterung erforderte eine Grundgesetzänderung."
+    },
+    {
+        "titel": "Aktive Cyberabwehr gegen Angriffe aus dem Ausland",
+        "ziel": "Zur Abstimmung steht, ob deutsche Behörden angreifende Server im Ausland durch eigene Maßnahmen unschädlich machen dürfen.",
+        "begruendung": "Eine Rechtsgrundlage für sogenannte Hackbacks besteht nicht; Vorschläge sehen eine Grundgesetzänderung und eine Zuständigkeitsregelung zwischen Bund und Ländern vor. Fachbehörden verweisen auf Zurechnungsprobleme, Eskalationsrisiken und völkerrechtliche Fragen. Das BSI-Gesetz regelt bislang die Abwehr auf eigenen Systemen."
+    },
+    {
+        "titel": "Dachgesetz für den Schutz kritischer Infrastrukturen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Betreiber kritischer Infrastrukturen zu physischen Schutzmaßnahmen und Resilienzplänen verpflichtet werden.",
+        "begruendung": "Das KRITIS-Dachgesetz setzt die europäische Richtlinie über die Resilienz kritischer Einrichtungen um und ergänzt die IT-Sicherheitsvorgaben des NIS-2-Umsetzungsgesetzes. Erfasst wären unter anderem Energie, Wasser, Verkehr, Gesundheit und digitale Infrastruktur. Betroffen sind Meldepflichten, Mindeststandards und die Aufsicht durch das Bundesamt für Bevölkerungsschutz."
+    },
+    {
+        "titel": "Wiederaufbau von Schutzräumen im Zivilschutz",
+        "ziel": "Zur Abstimmung steht, ob der Bund ein Programm zum Erhalt und Neubau öffentlicher Schutzräume auflegt.",
+        "begruendung": "Das Schutzraumkonzept wurde 2007 aufgegeben; die meisten öffentlichen Anlagen sind zurückgebaut oder umgenutzt. Ein neues Konzept prüft die Ertüchtigung von Tiefgaragen, U-Bahnhöfen und Kellern. Zuständig ist der Bund im Zivilschutz, die Länder im Katastrophenschutz."
+    },
+    {
+        "titel": "Sirenen und Warninfrastruktur im Bevölkerungsschutz",
+        "ziel": "Entschieden wird, ob Sirenen, Warn-Apps und Cell Broadcast bundesweit einheitlich vorgehalten und finanziert werden.",
+        "begruendung": "Nach der Flutkatastrophe 2021 wurde Cell Broadcast eingeführt und ein Sirenenförderprogramm aufgelegt; der Aufbau liegt bei Ländern und Kommunen und ist unterschiedlich weit fortgeschritten. Das Modulare Warnsystem des Bundes verbindet die Kanäle. Eine einheitliche Vorhaltung berührte Zuständigkeiten und Dauerfinanzierung."
+    },
+    {
+        "titel": "Reform des Bundesamtes für Verfassungsschutz",
+        "ziel": "Zur Abstimmung steht, ob Befugnisse und Kontrolle des Bundesamtes für Verfassungsschutz neu geregelt werden.",
+        "begruendung": "Das Bundesverfassungsschutzgesetz regelt nachrichtendienstliche Mittel, Datenübermittlung und die Einstufung von Beobachtungsobjekten; das Bundesverfassungsgericht hat 2022 Übermittlungsvorschriften beanstandet. Die parlamentarische Kontrolle liegt beim Parlamentarischen Kontrollgremium und beim Unabhängigen Kontrollrat. Diskutiert werden Trennungsgebot, V-Personen-Einsatz und Berichtspflichten."
+    },
+    {
+        "titel": "Vereinsverbote gegen extremistische Organisationen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Vermögenseinziehung und Nachfolgeorganisationsverbote im Vereinsrecht verschärft werden.",
+        "begruendung": "Das Vereinsgesetz erlaubt dem Bundesinnenministerium das Verbot von Vereinigungen, die sich gegen die verfassungsmäßige Ordnung oder den Gedanken der Völkerverständigung richten; Verbote werden regelmäßig gerichtlich überprüft. Die Durchsetzung scheitert häufig an Ersatzstrukturen im Ausland und im Internet. Betroffen sind Beweisanforderungen, Fristen und die Zusammenarbeit mit den Ländern."
+    },
+    {
+        "titel": "Kennzeichnungspflicht für Vollzugsbeamte der Bundespolizei",
+        "ziel": "Zur Abstimmung steht, ob Bundespolizei und Bundeskriminalamt eine individuelle Kennzeichnung tragen müssen.",
+        "begruendung": "Mehrere Länder haben eine Kennzeichnungspflicht mit Namensschild oder Nummer eingeführt; im Bund besteht sie nicht. Ziel ist die Zuordnung bei Vorwürfen unverhältnismäßiger Gewaltanwendung, insbesondere bei geschlossenen Einheiten. Umstritten sind Schutz der Beamten vor Ausspähung und Ausnahmen bei Sondereinsätzen."
+    },
+    {
+        "titel": "Unabhängige Polizeibeauftragte des Bundes",
+        "ziel": "Entschieden wird, ob die Stelle der oder des Polizeibeauftragten des Bundes mit eigenen Untersuchungsbefugnissen ausgestattet wird.",
+        "begruendung": "Das Amt wurde 2024 beim Deutschen Bundestag eingerichtet und nimmt Eingaben von Bürgerinnen, Bürgern und Beschäftigten der Bundespolizeien entgegen. Eigene Ermittlungsrechte gegenüber Staatsanwaltschaften bestehen nicht. Vergleichbare Stellen bestehen in mehreren Ländern mit unterschiedlichen Befugnissen."
+    },
+    {
+        "titel": "Anlassunabhängige Kontrollen der Bundespolizei",
+        "ziel": "Zur Abstimmung steht, ob verdachtsunabhängige Personenkontrollen im Grenzgebiet und in Zügen eingeschränkt werden.",
+        "begruendung": "Das Bundespolizeigesetz erlaubt solche Kontrollen zur Verhinderung unerlaubter Einreise; Gerichte haben Auswahlkriterien beanstandet, die an äußere Merkmale anknüpfen. Die Bundespolizei hat Vorgaben zur diskriminierungsfreien Kontrollpraxis erlassen. Eine Einschränkung berührte Grenzkontrollen und Fahndungserfolge."
+    },
+    {
+        "titel": "Vermögenseinziehung bei ungeklärter Herkunft",
+        "ziel": "Gegenstand der Abstimmung ist, ob Vermögen auch ohne Nachweis einer konkreten Straftat eingezogen werden kann.",
+        "begruendung": "Die Strafprozessordnung ermöglicht seit 2017 die selbstständige Einziehung, wenn ein Gegenstand aus einer rechtswidrigen Tat stammt; ein vollständiger Nachweis der Anlasstat ist nicht erforderlich. Eine Beweislastumkehr wäre ein weitergehender Schritt und berührte die Unschuldsvermutung. Diskutiert werden zudem Bargeldobergrenzen und ein Immobilienregister."
+    },
+    {
+        "titel": "Elektronische Aufenthaltsüberwachung von Gefährdern",
+        "ziel": "Zur Abstimmung steht, ob die elektronische Fußfessel für Gefährder auf weitere Fallgruppen erstreckt wird.",
+        "begruendung": "Das Bundeskriminalamtgesetz und Landesrecht erlauben die Aufenthaltsüberwachung bei terroristischen Gefahren sowie im Rahmen der Führungsaufsicht; die Anordnung trifft ein Gericht. Diskutiert wird eine Ausweitung auf Fälle häuslicher Gewalt, wie sie in Spanien praktiziert wird. Betroffen sind Verhältnismäßigkeit, technische Zuverlässigkeit und Zuständigkeit der Länder."
+    },
+    {
+        "titel": "Abwehr unbemannter Luftfahrzeuge",
+        "ziel": "Entschieden wird, ob eine klare Zuständigkeit für die Abwehr von Drohnen über kritischen Anlagen geschaffen wird.",
+        "begruendung": "Die Abwehr verteilt sich derzeit auf Landespolizeien, Bundespolizei und Bundeswehr; das Luftsicherheitsgesetz und das Luftverkehrsgesetz regeln Detektion und Eingriff nur teilweise. Sichtungen über Flughäfen, Häfen und Industrieanlagen haben zugenommen. Eine Neuregelung berührte Zuständigkeiten, Waffeneinsatz und Haftungsfragen."
+    },
+    {
+        "titel": "Stärkung des Ehrenamts im Katastrophenschutz",
+        "ziel": "Zur Abstimmung steht, ob ehrenamtliche Helferinnen und Helfer einen bundesweiten Anspruch auf Freistellung und Entschädigung erhalten.",
+        "begruendung": "Der Katastrophenschutz beruht überwiegend auf ehrenamtlichen Kräften in Feuerwehren, Hilfsorganisationen und dem Technischen Hilfswerk; Freistellungsregelungen und Verdienstausfall regeln Landesgesetze unterschiedlich. Das THW-Gesetz enthält eine bundesrechtliche Regelung für seine Einsatzkräfte. Eine Vereinheitlichung berührte Arbeitgeberpflichten und Kostenerstattung."
+    }
+]

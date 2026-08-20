@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Krankenhausreform mit Leistungsgruppen und Vorhaltevergütung",
+        "ziel": "Zur Abstimmung steht, ob die Umstellung der Krankenhausfinanzierung auf Leistungsgruppen und Vorhaltevergütung wie beschlossen umgesetzt wird.",
+        "begruendung": "Das Krankenhausversorgungsverbesserungsgesetz löst einen Teil der Fallpauschalen durch eine leistungsunabhängige Vorhaltevergütung ab und knüpft die Zulassung an Qualitätsvorgaben je Leistungsgruppe. Die Krankenhausplanung bleibt Sache der Länder; ein Transformationsfonds finanziert Umbau und Schließungen mit. Betroffen sind Erreichbarkeit, Spezialisierung und Personalbedarf."
+    },
+    {
+        "titel": "Bürgerversicherung als einheitliches Krankenversicherungssystem",
+        "ziel": "Entschieden wird, ob gesetzliche und private Krankenversicherung zu einem einheitlichen System zusammengeführt werden.",
+        "begruendung": "Derzeit bestehen die gesetzliche Krankenversicherung mit einkommensabhängigen Beiträgen und die private Krankenversicherung mit risikoabhängigen Prämien nebeneinander; Wechselmöglichkeiten sind an Einkommensgrenzen und Berufsgruppen gebunden. Eine Zusammenführung berührt Bestandsverträge, Alterungsrückstellungen, Beihilfe für Beamte und die Vergütung der Ärzteschaft. Erforderlich wäre eine grundlegende Änderung des Fünften Buches Sozialgesetzbuch."
+    },
+    {
+        "titel": "Anhebung der Beitragsbemessungsgrenze in der Krankenversicherung",
+        "ziel": "Zur Abstimmung steht, ob die Beitragsbemessungsgrenze der gesetzlichen Krankenversicherung an die der Rentenversicherung angeglichen wird.",
+        "begruendung": "Beiträge werden bis zur Bemessungsgrenze erhoben, die in der Krankenversicherung niedriger liegt als in der Rentenversicherung; die Versicherungspflichtgrenze bestimmt zusätzlich den Zugang zur privaten Versicherung. Eine Angleichung erhöhte die Einnahmen des Gesundheitsfonds und die Belastung höherer Einkommen. Die Werte werden jährlich durch Rechtsverordnung fortgeschrieben."
+    },
+    {
+        "titel": "Steuerfinanzierter Bundeszuschuss an den Gesundheitsfonds",
+        "ziel": "Gegenstand der Abstimmung ist, ob versicherungsfremde Leistungen der Krankenkassen vollständig aus Steuermitteln finanziert werden.",
+        "begruendung": "Der Bund zahlt einen pauschalen Zuschuss an den Gesundheitsfonds; als versicherungsfremd gelten unter anderem die beitragsfreie Familienversicherung und die Beiträge für Bürgergeldbeziehende, die nicht kostendeckend erstattet werden. Die Höhe wird jährlich im Haushalt festgelegt. Eine vollständige Finanzierung entlastete die Zusatzbeiträge."
+    },
+    {
+        "titel": "Kassenindividueller Zusatzbeitrag in der gesetzlichen Krankenversicherung",
+        "ziel": "Zur Abstimmung steht, ob der Zusatzbeitrag durch einen einheitlichen, gesetzlich festgelegten Beitragssatz ersetzt wird.",
+        "begruendung": "Der allgemeine Beitragssatz ist gesetzlich festgelegt; darüber hinaus erheben die Kassen einen eigenen Zusatzbeitrag, der je Kasse unterschiedlich ausfällt und paritätisch getragen wird. Der Wettbewerb zwischen den Kassen stützt sich wesentlich auf diesen Satz. Ein Einheitsbeitrag veränderte Wettbewerb und Finanzausgleich zwischen den Kassen."
+    },
+    {
+        "titel": "Begrenzung der Eigenanteile in der stationären Pflege",
+        "ziel": "Entschieden wird, ob der pflegebedingte Eigenanteil im Pflegeheim auf einen festen Höchstbetrag begrenzt wird.",
+        "begruendung": "Die Pflegeversicherung zahlt feste Leistungsbeträge je Pflegegrad; die verbleibenden Kosten für Pflege, Unterkunft, Verpflegung und Investitionen tragen die Pflegebedürftigen. Zuschläge mindern den pflegebedingten Anteil gestaffelt nach Aufenthaltsdauer. Eine feste Obergrenze verlagerte Kosten auf Beitragszahlende oder den Bundeshaushalt."
+    },
+    {
+        "titel": "Umstellung auf eine Pflegevollversicherung",
+        "ziel": "Zur Abstimmung steht, ob die Pflegeversicherung von einer Teilleistung auf eine Vollversicherung der pflegebedingten Kosten umgestellt wird.",
+        "begruendung": "Die soziale Pflegeversicherung ist seit 1995 als Teilkaskoleistung ausgestaltet; verbleibende Kosten tragen Pflegebedürftige, Angehörige oder die Sozialhilfe über die Hilfe zur Pflege. Eine Vollversicherung erforderte höhere Beiträge, einen Steuerzuschuss oder beides. Die Zahl der Pflegebedürftigen ist zuletzt schneller gestiegen als vorausberechnet."
+    },
+    {
+        "titel": "Elektronische Patientenakte für alle Versicherten",
+        "ziel": "Gegenstand der Abstimmung ist, ob die elektronische Patientenakte weiterhin für alle Versicherten automatisch angelegt wird.",
+        "begruendung": "Seit 2025 richten die Krankenkassen die Akte ohne gesonderten Antrag ein; Versicherte können widersprechen und den Zugriff einzelner Praxen sowie einzelne Dokumente ausschließen. Die Akte enthält unter anderem Befunde, Medikationsliste und Arztbriefe und kann pseudonymisiert für Forschungszwecke bereitgestellt werden. Betrieb und Sicherheit verantwortet die Gematik."
+    },
+    {
+        "titel": "Widerspruchsregelung im Transplantationsgesetz zur Organspende",
+        "ziel": "Zur Abstimmung steht, ob jede Person als Organspenderin oder Organspender gilt, sofern sie nicht widersprochen hat.",
+        "begruendung": "Nach dem Transplantationsgesetz gilt die Entscheidungslösung: Eine Entnahme setzt die Zustimmung der verstorbenen Person oder ihrer Angehörigen voraus. Der Bundestag hat 2020 eine Widerspruchsregelung abgelehnt; ein Organspende-Register besteht seit 2024. Eine Umstellung berührte das Selbstbestimmungsrecht und die Rolle der Angehörigen."
+    },
+    {
+        "titel": "Regelungen des Konsumcannabisgesetzes zu Anbau und Besitz",
+        "ziel": "Entschieden wird, ob die Regelungen zum Eigenanbau und zu Anbauvereinigungen nach dem Konsumcannabisgesetz bestehen bleiben.",
+        "begruendung": "Seit April 2024 sind Besitz und Anbau begrenzter Mengen für Erwachsene straffrei; Anbauvereinigungen dürfen unter Auflagen an Mitglieder abgeben. Für Minderjährige und im Straßenverkehr gelten weiterhin Verbote sowie ein gesonderter THC-Grenzwert. Eine Evaluation der Wirkungen ist gesetzlich vorgesehen."
+    },
+    {
+        "titel": "Gesetzliche Regelung der geschäftsmäßigen Suizidhilfe",
+        "ziel": "Zur Abstimmung steht, ob die Hilfe zur Selbsttötung durch ein Gesetz mit Beratungs- und Wartepflichten geregelt wird.",
+        "begruendung": "Das Bundesverfassungsgericht hat 2020 das Verbot der geschäftsmäßigen Förderung der Selbsttötung für nichtig erklärt und ein Recht auf selbstbestimmtes Sterben anerkannt; eine gesetzliche Neuregelung ist im Bundestag zweimal gescheitert. Derzeit gelten allgemeine Vorschriften des Straf-, Betäubungsmittel- und Berufsrechts. Gegenstand einer Regelung wären Beratungsangebote, Fristen und der Zugang zu Arzneimitteln."
+    },
+    {
+        "titel": "Apothekenreform und Betrieb von Zweigapotheken",
+        "ziel": "Gegenstand der Abstimmung ist, ob Filialapotheken künftig zeitweise ohne anwesende Apothekerin oder anwesenden Apotheker betrieben werden dürfen.",
+        "begruendung": "Die Apothekenbetriebsordnung verlangt bislang die persönliche Leitung durch approbiertes Personal. Ein Reformentwurf sah Zweigapotheken mit telepharmazeutischer Anbindung, eine Umverteilung des Fixhonorars und mehr Impfangebote vor. Hintergrund ist die rückläufige Zahl der Apotheken, besonders im ländlichen Raum."
+    },
+    {
+        "titel": "Reform der Notfallversorgung durch integrierte Notfallzentren",
+        "ziel": "Zur Abstimmung steht, ob Notaufnahmen und ärztlicher Bereitschaftsdienst in integrierten Notfallzentren zusammengeführt werden.",
+        "begruendung": "Notfallversorgung ist heute auf Rettungsdienst der Länder, Krankenhäuser und den kassenärztlichen Bereitschaftsdienst verteilt; ein Reformentwurf sieht gemeinsame Tresen, ein Ersteinschätzungsverfahren und eine erweiterte telefonische Steuerung über die Rufnummern 116 117 und 112 vor. Ziel ist die Zuweisung in die jeweils passende Versorgungsstufe. Betroffen sind Zuständigkeiten von Bund, Ländern und Kassenärztlichen Vereinigungen."
+    },
+    {
+        "titel": "Bundeseinheitliches Rettungsdienstrecht mit Hilfsfristen",
+        "ziel": "Entschieden wird, ob der Rettungsdienst bundesweit einheitlichen Qualitäts- und Hilfsfristvorgaben unterworfen wird.",
+        "begruendung": "Der Rettungsdienst ist Landesrecht; Hilfsfristen, Qualifikationen und Trägerstrukturen unterscheiden sich erheblich. Die Notfallsanitäter-Befugnisse wurden 2024 bundesrechtlich klargestellt. Eine bundeseinheitliche Regelung berührte die Gesetzgebungskompetenz der Länder und die Finanzierung durch die Krankenkassen."
+    },
+    {
+        "titel": "Preisbildung für neue Arzneimittel",
+        "ziel": "Zur Abstimmung steht, ob die Preisleitplanken für patentgeschützte Arzneimittel beibehalten werden.",
+        "begruendung": "Nach dem Arzneimittelmarktneuordnungsgesetz wird der Erstattungsbetrag nach einer Nutzenbewertung zwischen Herstellern und Spitzenverband der Krankenkassen verhandelt; das Finanzstabilisierungsgesetz hat zusätzliche Obergrenzen und einen Herstellerabschlag eingeführt. Im ersten Jahr gilt weiterhin der Herstellerpreis. Die Regelungen wirken auf Ausgaben der Kassen und auf Markteinführungen."
+    },
+    {
+        "titel": "Nachweispflicht der Masernimpfung in Gemeinschaftseinrichtungen",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Masernimpfpflicht für Gemeinschaftseinrichtungen bestehen bleibt.",
+        "begruendung": "Das Masernschutzgesetz verlangt seit 2020 einen Immunitätsnachweis für Kinder in Kitas und Schulen sowie für dort und in medizinischen Einrichtungen Tätige; das Bundesverfassungsgericht hat die Regelung 2022 bestätigt. Bei fehlendem Nachweis können Betretungsverbote und Bußgelder verhängt werden. Der Vollzug liegt bei den Gesundheitsämtern."
+    },
+    {
+        "titel": "Werbebeschränkungen für Tabak- und Nikotinprodukte",
+        "ziel": "Zur Abstimmung steht, ob Werbung für Tabakerhitzer und nikotinhaltige Produkte weiter eingeschränkt wird.",
+        "begruendung": "Außenwerbung für Tabakprodukte ist seit 2022 untersagt, für Tabakerhitzer und E-Zigaretten seit 2023 beziehungsweise 2024; Werbung am Verkaufsort bleibt zulässig. Das Tabakerzeugnisgesetz setzt europäische Vorgaben um. Ein Verbot weiterer Werbeformen berührt Handel, Gastronomie und Sponsoring."
+    },
+    {
+        "titel": "Werbung für alkoholische Getränke",
+        "ziel": "Entschieden wird, ob Werbung für alkoholische Getränke in Rundfunk und Internet zeitlich beschränkt wird.",
+        "begruendung": "Alkoholwerbung ist derzeit über den Medienstaatsvertrag, das Jugendschutzrecht und Selbstverpflichtungen der Wirtschaft geregelt; ein umfassendes Verbot besteht nicht. Die Weltgesundheitsorganisation empfiehlt Werbebeschränkungen als Präventionsmaßnahme. Zuständig wären Bund und Länder gemeinsam."
+    },
+    {
+        "titel": "Einführung eines Primärarztsystems",
+        "ziel": "Zur Abstimmung steht, ob der Zugang zu Fachärztinnen und Fachärzten grundsätzlich über eine hausärztliche Überweisung erfolgt.",
+        "begruendung": "Gesetzlich Versicherte können Fachärzte bislang unmittelbar aufsuchen; Hausarztverträge nach § 73b des Fünften Buches Sozialgesetzbuch sind freiwillig. Ein Primärarztsystem soll Terminvergabe und Behandlungspfade steuern; Ausnahmen sind für Augenheilkunde, Gynäkologie und Notfälle in der Diskussion. Betroffen sind Wartezeiten, Vergütung und Praxisorganisation."
+    },
+    {
+        "titel": "Verbindliche Pflegepersonalbemessung im Krankenhaus",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Pflegepersonalregelung als verbindliche Personaluntergrenze mit Sanktionen ausgestaltet wird.",
+        "begruendung": "Seit 2024 ermitteln Krankenhäuser den Pflegebedarf auf bettenführenden Stationen nach einem einheitlichen Verfahren und melden Soll- und Ist-Besetzung; verbindliche Konsequenzen sind bislang begrenzt. Daneben gelten Pflegepersonaluntergrenzen für einzelne Bereiche. Verbindliche Vorgaben berührten Stationsschließungen und die Personalgewinnung."
+    },
+    {
+        "titel": "Anerkennung im Ausland erworbener Pflegeabschlüsse",
+        "ziel": "Zur Abstimmung steht, ob die Anerkennung ausländischer Pflegeabschlüsse bundesweit vereinheitlicht und beschleunigt wird.",
+        "begruendung": "Die Anerkennung erfolgt durch die Länder nach dem Pflegeberufegesetz; Verfahren, Anpassungslehrgänge und Bearbeitungszeiten unterscheiden sich erheblich. Die Bundesagentur für Arbeit und die Zentrale Servicestelle Berufsanerkennung begleiten Verfahren aus dem Ausland. Eine Vereinheitlichung berührte Landeszuständigkeiten und Qualitätsprüfungen."
+    },
+    {
+        "titel": "Sicherstellung der Geburtshilfe in der Fläche",
+        "ziel": "Entschieden wird, ob Geburtshilfeabteilungen unabhängig von der Fallzahl über Sicherstellungszuschläge finanziert werden.",
+        "begruendung": "Die Zahl der Kreißsäle ist seit Jahren rückläufig; Anfahrtswege haben sich in ländlichen Regionen verlängert. Die Krankenhausreform sieht Mindestvorhaltezahlen je Leistungsgruppe und Ausnahmen zur Sicherstellung der Erreichbarkeit vor. Hebammenkreißsäle und Geburtshäuser werden gesondert vergütet."
+    },
+    {
+        "titel": "Verbindliche Ziele der nationalen Präventionsstrategie",
+        "ziel": "Zur Abstimmung steht, ob die Nationale Präventionsstrategie mit verbindlichen Zielwerten und eigener Finanzierung unterlegt wird.",
+        "begruendung": "Das Präventionsgesetz verpflichtet die Sozialversicherungsträger zu Ausgaben für Prävention in Lebenswelten und Betrieben; die Nationale Präventionskonferenz stimmt die Strategie ab. Verbindliche Zielwerte etwa zu Bewegung, Ernährung oder Tabakkonsum bestehen nicht. Eine Verbindlichkeit berührte Zuständigkeiten von Bund, Ländern, Kommunen und Kassen."
+    }
+]

@@ -1,0 +1,112 @@
+[
+    {
+        "titel": "Recht auf Reparatur und Verfügbarkeit von Ersatzteilen",
+        "ziel": "Zur Abstimmung steht, ob Hersteller zur Bereitstellung von Ersatzteilen und Reparaturanleitungen über die europäischen Mindestvorgaben hinaus verpflichtet werden.",
+        "begruendung": "Die europäische Reparaturrichtlinie ist bis Mitte 2026 umzusetzen und begründet Reparaturansprüche für bestimmte Produktgruppen sowie eine Verlängerung der Gewährleistung nach Reparatur. Die Ökodesign-Verordnung regelt Ersatzteilverfügbarkeit und Softwareunterstützung. Weitergehende Vorgaben berührten Produktgestaltung, Preise und den Binnenmarkt."
+    },
+    {
+        "titel": "Dauer der Gewährleistung bei langlebigen Gütern",
+        "ziel": "Entschieden wird, ob die gesetzliche Gewährleistungsfrist für langlebige Güter auf mehr als zwei Jahre verlängert wird.",
+        "begruendung": "Das Bürgerliche Gesetzbuch sieht zwei Jahre vor, mit Beweislastumkehr zugunsten der Käuferseite im ersten Jahr; die Warenkaufrichtlinie erlaubt längere nationale Fristen. Herstellergarantien sind freiwillige Zusatzleistungen. Eine Verlängerung berührte Kalkulation, Ersatzteilhaltung und Preise."
+    },
+    {
+        "titel": "Kündigung von Verträgen im Internet",
+        "ziel": "Zur Abstimmung steht, ob der Kündigungsbutton auf weitere Vertragsarten und auf Verträge im stationären Vertrieb ausgeweitet wird.",
+        "begruendung": "Seit 2022 müssen Anbieter von Dauerschuldverhältnissen im elektronischen Geschäftsverkehr eine Kündigungsschaltfläche bereitstellen; Marktbeobachtungen der Verbraucherzentralen zeigen weiterhin Umsetzungsmängel. Für Verträge, die außerhalb des Internets geschlossen wurden, gilt die Pflicht nicht. Eine Ausweitung berührte Fitnessstudios, Versicherungen und Energieverträge."
+    },
+    {
+        "titel": "Unerlaubte Telefonwerbung und Bestätigung in Textform",
+        "ziel": "Gegenstand der Abstimmung ist, ob am Telefon geschlossene Verträge generell einer Bestätigung in Textform bedürfen.",
+        "begruendung": "Seit 2021 gilt eine solche Bestätigungslösung für Verträge über Strom und Gas; für andere Bereiche besteht sie nicht. Die Bundesnetzagentur verhängt Bußgelder gegen unerlaubte Werbeanrufe und Rufnummernmissbrauch. Eine Ausweitung berührte Telefonvertrieb, Beweisfragen und Widerrufsrechte."
+    },
+    {
+        "titel": "Höhe der erstattungsfähigen Inkassokosten",
+        "ziel": "Zur Abstimmung steht, ob die erstattungsfähigen Inkassokosten bei geringen Forderungen weiter begrenzt werden.",
+        "begruendung": "Das Gesetz zur Verbesserung des Verbraucherschutzes im Inkassorecht hat die Gebührensätze für einfache Fälle abgesenkt und Informationspflichten eingeführt. Die Aufsicht führen die Landesjustizverwaltungen. Eine weitere Begrenzung berührte die Wirtschaftlichkeit der Forderungseinziehung und die Zahlungsmoral."
+    },
+    {
+        "titel": "Personalisierte Preise im Onlinehandel",
+        "ziel": "Entschieden wird, ob Preise, die auf individuellem Nutzerverhalten beruhen, kenntlich gemacht oder untersagt werden.",
+        "begruendung": "Die Omnibus-Richtlinie verlangt bereits die Information über personalisierte Preise auf Basis automatisierter Entscheidungsfindung; ein Verbot besteht nicht. Dynamische Preise nach Nachfrage und Uhrzeit sind davon zu unterscheiden. Eine Regelung berührte Datenschutz, Preistransparenz und Wettbewerbsrecht."
+    },
+    {
+        "titel": "Irreführende Gestaltung von Benutzeroberflächen",
+        "ziel": "Zur Abstimmung steht, ob manipulative Gestaltungsmuster in Apps und auf Webseiten ausdrücklich verboten werden.",
+        "begruendung": "Der Digital Services Act untersagt bestimmte Muster auf Online-Plattformen; für andere Dienste gelten die allgemeinen Regeln des Gesetzes gegen den unlauteren Wettbewerb. Typische Beispiele sind voreingestellte Zusatzleistungen, künstliche Verknappung und erschwerte Kündigungen. Ein ausdrückliches Verbot erleichterte die Rechtsdurchsetzung."
+    },
+    {
+        "titel": "Institutionelle Finanzierung der Verbraucherzentralen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Beratung und Marktbeobachtung der Verbraucherzentralen dauerhaft institutionell finanziert werden.",
+        "begruendung": "Die Verbraucherzentralen der Länder und der Bundesverband werden aus Landes- und Bundesmitteln sowie Projektförderung finanziert; Beratungsstellen wurden in einzelnen Ländern reduziert. Sie nehmen zugleich Aufgaben der kollektiven Rechtsdurchsetzung wahr. Eine dauerhafte Finanzierung berührte Haushalte von Bund und Ländern."
+    },
+    {
+        "titel": "Provisionen und Honorare in der Anlageberatung",
+        "ziel": "Zur Abstimmung steht, ob Provisionen in der Anlageberatung durch Honorare ersetzt werden.",
+        "begruendung": "Die europäische Kleinanlegerstrategie sah zunächst ein weitgehendes Provisionsverbot vor, das im Verfahren abgeschwächt wurde; in Deutschland dominiert die provisionsbasierte Beratung. Honorarberatung ist im Wertpapierhandelsgesetz geregelt, aber wenig verbreitet. Eine Umstellung berührte Zugang zur Beratung und Vertriebsstrukturen."
+    },
+    {
+        "titel": "Basiskonto und Entgelte für die Kontoführung",
+        "ziel": "Entschieden wird, ob die Entgelte für das Basiskonto gesetzlich begrenzt werden.",
+        "begruendung": "Das Zahlungskontengesetz gibt jedem Menschen mit rechtmäßigem Aufenthalt einen Anspruch auf ein Basiskonto zu angemessenen Entgelten; der Bundesgerichtshof hat einzelne Preismodelle beanstandet. Die Bundesanstalt für Finanzdienstleistungsaufsicht führt die Aufsicht. Eine gesetzliche Obergrenze berührte Kalkulation und Angebotsvielfalt der Institute."
+    },
+    {
+        "titel": "Insolvenzabsicherung von Pauschalreisen im Reisesicherungsfonds",
+        "ziel": "Zur Abstimmung steht, ob die Deckungssumme des Reisesicherungsfonds erhöht wird.",
+        "begruendung": "Nach der Insolvenz eines großen Reiseveranstalters wurde 2021 ein Fonds errichtet, in den Veranstalter ab bestimmten Umsätzen einzahlen; die Absicherung ersetzt die frühere Haftungsobergrenze der Versicherer. Der Aufbau des Fondsvermögens erfolgt über Jahre. Betroffen sind Reisepreise, Veranstalter und Reisende."
+    },
+    {
+        "titel": "Information der Öffentlichkeit bei Lebensmittelrückrufen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Behörden Verstöße und Rückrufe früher und umfassender veröffentlichen müssen.",
+        "begruendung": "Das Lebensmittel- und Futtermittelgesetzbuch regelt die Information der Öffentlichkeit; Veröffentlichungen erfolgen über das Portal lebensmittelwarnung.de. Gerichte haben Anforderungen an Verhältnismäßigkeit und Fristen gestellt. Die Überwachung liegt bei den Ländern."
+    },
+    {
+        "titel": "Produktsicherheit bei Einfuhren aus Drittstaaten",
+        "ziel": "Zur Abstimmung steht, ob Online-Marktplätze für die Sicherheit der über sie vertriebenen Produkte haften.",
+        "begruendung": "Die europäische Produktsicherheitsverordnung verpflichtet Marktplätze zu Meldewegen und zur Zusammenarbeit mit Behörden; eine Herstellerhaftung besteht nicht. Marktüberwachungsbehörden der Länder und der Zoll beanstanden regelmäßig eingeführte Waren. Eine Haftung berührte Geschäftsmodelle, Preise und Rückrufverfahren."
+    },
+    {
+        "titel": "Angaben zur Haltbarkeit von Lebensmitteln",
+        "ziel": "Entschieden wird, ob das Mindesthaltbarkeitsdatum durch ergänzende Hinweise zur Genießbarkeit erweitert wird.",
+        "begruendung": "Die Lebensmittelinformationsverordnung schreibt das Mindesthaltbarkeitsdatum und für leicht verderbliche Ware das Verbrauchsdatum vor; Verwechslungen tragen zur Entsorgung genießbarer Lebensmittel bei. Ergänzende Formulierungen sind auf europäischer Ebene in Beratung. Betroffen sind Hersteller, Handel und Haushalte."
+    },
+    {
+        "titel": "Realitätsnahe Verbrauchsangaben und Energieeffizienzkennzeichnung",
+        "ziel": "Zur Abstimmung steht, ob Verbrauchsangaben unter realitätsnahen Bedingungen ermittelt werden müssen.",
+        "begruendung": "Die Energieverbrauchskennzeichnung beruht auf standardisierten Prüfverfahren, die von der tatsächlichen Nutzung abweichen können; für Fahrzeuge gilt das WLTP-Verfahren. Marktüberwachung und Nachprüfungen erfolgen durch nationale Behörden. Änderungen erfolgen überwiegend auf europäischer Ebene."
+    },
+    {
+        "titel": "Obergrenze für Dispositions- und Überziehungszinsen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Dispositionszinsen an einen Höchstsatz über dem Basiszinssatz gebunden werden.",
+        "begruendung": "Das Bürgerliche Gesetzbuch verlangt Information und Beratung bei dauerhafter Überziehung, begrenzt die Zinshöhe aber nicht; die Rechtsprechung greift erst bei sittenwidrigen Konditionen ein. Mehrere europäische Staaten kennen Zinsobergrenzen für Verbraucherkredite. Betroffen wären Kreditvergabe, Kontomodelle und Überschuldungsrisiken."
+    },
+    {
+        "titel": "Automatische Verlängerung von Verbraucherverträgen",
+        "ziel": "Zur Abstimmung steht, ob stillschweigende Verlängerungen von Verbraucherverträgen weiter eingeschränkt werden.",
+        "begruendung": "Seit 2022 dürfen Verträge sich nur noch auf unbestimmte Zeit mit einmonatiger Kündigungsfrist verlängern; Erstlaufzeiten von bis zu zwei Jahren bleiben zulässig. Für Telekommunikationsverträge gelten eigene Regeln. Eine weitere Einschränkung berührte Preisgestaltung und Vertragsbindung."
+    },
+    {
+        "titel": "Gewährleistung beim Gebrauchtwagenkauf",
+        "ziel": "Entschieden wird, ob die Verkürzung der Gewährleistung auf ein Jahr beim Gebrauchtwagenkauf entfällt.",
+        "begruendung": "Beim Kauf gebrauchter Waren von Unternehmen kann die Frist auf ein Jahr verkürzt werden, wenn dies ausdrücklich vereinbart wird; die Warenkaufrichtlinie lässt diese Möglichkeit zu. Private Verkäufe können die Gewährleistung ganz ausschließen. Eine Änderung berührte Händlerkalkulation und Fahrzeugpreise."
+    },
+    {
+        "titel": "Einwilligungen zu Werbe- und Analysediensten",
+        "ziel": "Zur Abstimmung steht, ob nutzerfreundliche Einwilligungsverwaltung für Webseiten verpflichtend wird.",
+        "begruendung": "Das Telekommunikation-Digitale-Dienste-Datenschutz-Gesetz und die Einwilligungsverwaltungsverordnung sehen anerkannte Dienste vor, über die Einstellungen zentral verwaltet werden können; die Nutzung ist bislang freiwillig. Modelle mit Bezahlalternative zur Einwilligung werden von Aufsichtsbehörden geprüft. Betroffen sind Medienangebote, Werbewirtschaft und Nutzende."
+    },
+    {
+        "titel": "Preisangaben und Referenzpreise bei Rabattaktionen",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Angabe des niedrigsten Preises der vergangenen 30 Tage strenger kontrolliert wird.",
+        "begruendung": "Die Preisangabenverordnung verlangt diese Angabe bei Preisermäßigungen; Marktuntersuchungen der Verbraucherzentralen zeigen häufige Verstöße. Die Durchsetzung erfolgt über Wettbewerbsverbände und Landesbehörden. Strengere Kontrollen berührten Handel, Plattformen und Bußgeldrahmen."
+    },
+    {
+        "titel": "Teilnahmepflicht an der außergerichtlichen Verbraucherschlichtung",
+        "ziel": "Zur Abstimmung steht, ob Unternehmen zur Teilnahme an Schlichtungsverfahren verpflichtet werden.",
+        "begruendung": "Das Verbraucherstreitbeilegungsgesetz sieht Verfahren vor anerkannten Schlichtungsstellen vor; die Teilnahme ist außerhalb einzelner Branchen wie Luftverkehr, Energie und Finanzdienstleistungen freiwillig. Verfahren sind für Verbraucher überwiegend kostenfrei. Eine Pflicht berührte Verfahrensdauer, Kosten und die Zahl der Stellen."
+    },
+    {
+        "titel": "Werbung mit Umwelt- und Klimaaussagen",
+        "ziel": "Entschieden wird, ob Aussagen wie klimaneutral nur mit geprüftem Nachweis verwendet werden dürfen.",
+        "begruendung": "Die europäische Richtlinie zur Stärkung der Verbraucher für den ökologischen Wandel verbietet ab 2026 allgemeine Umweltaussagen ohne Nachweis; eine ergänzende Richtlinie über Umweltaussagen wurde zurückgezogen. Der Bundesgerichtshof hat 2024 strenge Aufklärungspflichten bei Klimaneutralitätswerbung bestätigt. Betroffen sind Kennzeichnung, Zertifikate und Kompensationsprojekte."
+    }
+]
