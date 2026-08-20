@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Verfahren zum Verbot verfassungsfeindlicher Parteien",
+        "ziel": "Zur Abstimmung steht, ob ein Verbotsverfahren gegen eine als verfassungsfeindlich eingestufte Partei eingeleitet wird.",
+        "begruendung": "Nach Artikel 21 Absatz 2 des Grundgesetzes entscheidet allein das Bundesverfassungsgericht; antragsberechtigt sind Bundestag, Bundesrat und Bundesregierung. Das Gericht verlangt neben verfassungsfeindlichen Zielen auch ein planvolles Vorgehen mit Aussicht auf Erfolg. Frühere Verfahren endeten mit Verbot, Einstellung oder Ablehnung."
+    },
+    {
+        "titel": "Minderheitenrechte der Opposition im Bundestag",
+        "ziel": "Entschieden wird, ob Oppositionsrechte unabhängig von festen Quoren im Grundgesetz verankert werden.",
+        "begruendung": "Untersuchungsausschüsse, Normenkontrollanträge und Enquete-Kommissionen setzen Quoren von einem Viertel beziehungsweise einem Drittel der Mitglieder voraus; das Bundesverfassungsgericht hat 2016 entschieden, dass ein allgemeines Oppositionsfraktionsrecht dem Grundgesetz nicht zu entnehmen ist. Bei wechselnden Mehrheitsverhältnissen können Rechte leerlaufen oder von einzelnen Fraktionen allein ausgeübt werden. Eine Änderung erforderte eine Zweidrittelmehrheit."
+    },
+    {
+        "titel": "Verlängerung der Wahlperiode auf fünf Jahre",
+        "ziel": "Zur Abstimmung steht, ob die Wahlperiode des Bundestages von vier auf fünf Jahre verlängert wird.",
+        "begruendung": "Alle Landtage außer Bremen werden für fünf Jahre gewählt, das Europäische Parlament ebenfalls; für den Bundestag nennt Artikel 39 des Grundgesetzes vier Jahre. Befürworter verweisen auf längere Handlungsspielräume, Kritiker auf seltenere Rechenschaft gegenüber den Wählenden. Eine Änderung erforderte eine Zweidrittelmehrheit in Bundestag und Bundesrat."
+    },
+    {
+        "titel": "Zustimmungsbedürftigkeit von Gesetzen im Bundesrat",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Anteil zustimmungsbedürftiger Gesetze weiter verringert wird.",
+        "begruendung": "Die Föderalismusreform von 2006 hat die Zustimmungsquote gesenkt, indem Verwaltungsverfahren aus Bundesgesetzen herausgelöst wurden; sie liegt weiterhin bei etwa 40 Prozent. Blockaden im Bundesrat entstehen häufig bei abweichenden Mehrheiten. Eine weitere Reduzierung berührte die Mitwirkung der Länder und erforderte eine Verfassungsänderung."
+    },
+    {
+        "titel": "Entflechtung der Mischfinanzierungen im Föderalismus",
+        "ziel": "Zur Abstimmung steht, ob Mischfinanzierungen zwischen Bund und Ländern abgebaut werden.",
+        "begruendung": "Gemeinschaftsaufgaben, Finanzhilfen und Bundesprogramme führen zu geteilten Zuständigkeiten mit hohem Abstimmungsaufwand; eine Föderalismuskommission zur Modernisierung der Aufgabenverteilung wurde mehrfach gefordert. Eine Entflechtung setzte eine Neuverteilung der Steuereinnahmen voraus. Betroffen sind Bildung, Verkehr, Wohnungsbau und Digitalisierung."
+    },
+    {
+        "titel": "Elektronische Stimmabgabe bei Wahlen",
+        "ziel": "Entschieden wird, ob elektronische Stimmabgabe bei politischen Wahlen zugelassen wird.",
+        "begruendung": "Das Bundesverfassungsgericht hat 2009 den Einsatz von Wahlgeräten für unzulässig erklärt, weil die Stimmabgabe für Laien nicht nachvollziehbar war; der Grundsatz der Öffentlichkeit der Wahl setzt enge Grenzen. Bei Sozialwahlen ist die Onlinewahl seit 2023 möglich. Betroffen wären Nachvollziehbarkeit, Wahlgeheimnis und Manipulationsschutz."
+    },
+    {
+        "titel": "Zahl und Erreichbarkeit der Wahllokale",
+        "ziel": "Zur Abstimmung steht, ob Mindestvorgaben für Zahl und Erreichbarkeit der Wahllokale festgelegt werden.",
+        "begruendung": "Die Einteilung der Wahlbezirke obliegt den Gemeinden; in ländlichen Räumen sind Wahllokale zusammengelegt worden, in Großstädten kam es bei zurückliegenden Wahlen zu Wartezeiten und Organisationsmängeln. Die Bundeswahlordnung nennt eine Obergrenze für Wahlberechtigte je Bezirk. Betroffen sind Wahlbeteiligung, Kosten und Personalbedarf."
+    },
+    {
+        "titel": "Innerparteiliche Demokratie und Urwahlen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Mitgliederentscheide über Spitzenkandidaturen im Parteiengesetz geregelt werden.",
+        "begruendung": "Artikel 21 des Grundgesetzes verlangt eine demokratische Ordnung der Parteien; Aufstellung von Kandidatinnen und Kandidaten erfolgt nach dem Bundeswahlgesetz in Versammlungen. Urwahlen und Mitgliederbefragungen sind in den Satzungen unterschiedlich geregelt. Betroffen sind Delegiertensysteme, Parteienrecht und Wahlanfechtungen."
+    },
+    {
+        "titel": "Gewinnung und Schutz von Wahlhelfenden",
+        "ziel": "Zur Abstimmung steht, ob das Erfrischungsgeld erhöht und der strafrechtliche Schutz von Wahlhelfenden verstärkt wird.",
+        "begruendung": "Wahlen werden von mehreren hunderttausend ehrenamtlichen Helferinnen und Helfern durchgeführt; die Aufwandsentschädigung ist gering und wird von den Ländern und Gemeinden ergänzt. Kommunen berichten über zunehmende Schwierigkeiten bei der Gewinnung sowie über Anfeindungen. Betroffen sind Bundeswahlordnung, kommunale Haushalte und Strafrecht."
+    },
+    {
+        "titel": "Öffentliche Sitzungen der Bundestagsausschüsse",
+        "ziel": "Entschieden wird, ob Ausschusssitzungen des Bundestages grundsätzlich öffentlich stattfinden.",
+        "begruendung": "Die Geschäftsordnung sieht grundsätzlich nichtöffentliche Beratungen mit der Möglichkeit öffentlicher Anhörungen vor; einzelne Ausschüsse tagen regelmäßig öffentlich. Befürworter verweisen auf Nachvollziehbarkeit, Kritiker auf die Beratungsatmosphäre bei Kompromissen. Eine Änderung erfolgte durch Beschluss des Bundestages."
+    },
+    {
+        "titel": "Verpflichtende Evaluierung von Gesetzen",
+        "ziel": "Zur Abstimmung steht, ob Gesetze regelmäßig auf Wirkung und Zielerreichung überprüft werden müssen.",
+        "begruendung": "Die Gemeinsame Geschäftsordnung sieht Evaluierungen für Regelungen mit erheblichem Erfüllungsaufwand nach drei bis fünf Jahren vor; Umfang und Qualität schwanken. Befristungen mit Verlängerungsentscheidung sind die Ausnahme. Eine Pflicht berührte Ressourcen der Ressorts und die parlamentarische Befassung."
+    },
+    {
+        "titel": "Direkte Demokratie in den Ländern",
+        "ziel": "Gegenstand der Abstimmung ist, ob Quoren für Volksbegehren und Volksentscheide in den Ländern gesenkt werden.",
+        "begruendung": "Alle Länder kennen dreistufige Verfahren, doch Unterschriftenquoren, Eintragungsfristen und Zustimmungsquoren unterscheiden sich erheblich; Finanzfragen sind meist ausgeschlossen. Die Zahl erfolgreicher Volksentscheide ist gering. Zuständig sind die Landesverfassungen, nicht der Bund."
+    },
+    {
+        "titel": "Gesetzliche Grundlage der parteinahen Stiftungen",
+        "ziel": "Zur Abstimmung steht, ob die Finanzierung der politischen Stiftungen gesetzlich geregelt wird.",
+        "begruendung": "Das Bundesverfassungsgericht hat 2023 entschieden, dass die Verteilung der Globalzuschüsse einer gesetzlichen Grundlage bedarf; bislang erfolgte sie über den Haushaltsgesetzgeber. Ein Gesetz müsste Voraussetzungen wie dauerhafte Bedeutung im politischen Leben und Verfassungstreue festlegen. Betroffen sind Stiftungen, Auslandsarbeit und politische Bildung."
+    },
+    {
+        "titel": "Begrenzung der Wahlperioden für Abgeordnete",
+        "ziel": "Entschieden wird, ob die Zahl der Wahlperioden für Bundestagsabgeordnete begrenzt wird.",
+        "begruendung": "Das Grundgesetz enthält keine Begrenzung; das freie Mandat und die Wahlfreiheit der Wählenden stehen einer Beschränkung entgegen, weshalb eine Verfassungsänderung erforderlich wäre. Befürworter verweisen auf Erneuerung, Kritiker auf den Verlust von Erfahrung und die Stärkung der Ministerialverwaltung. Vergleichbare Regelungen bestehen in einzelnen Staaten für Exekutivämter."
+    },
+    {
+        "titel": "Beteiligung des Bundestages an EU-Vorhaben",
+        "ziel": "Zur Abstimmung steht, ob Stellungnahmen des Bundestages zu EU-Vorhaben für die Bundesregierung bindend werden.",
+        "begruendung": "Artikel 23 des Grundgesetzes und das Zusammenarbeitsgesetz verpflichten die Bundesregierung zu Unterrichtung und Berücksichtigung von Stellungnahmen; eine strikte Bindung besteht nur in einzelnen Fällen. Die Zahl der Vorhaben ist hoch, die Beratungszeit knapp. Betroffen sind Verhandlungsspielräume im Rat und die parlamentarische Kontrolle."
+    },
+    {
+        "titel": "Zusammenlegung von Wahlterminen auf allen Ebenen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Bundestags-, Landtags- und Kommunalwahlen möglichst gemeinsam stattfinden.",
+        "begruendung": "Wahltermine legen Bund, Länder und Kommunen jeweils eigenständig fest; Zusammenlegungen senken Kosten und erhöhen nach Untersuchungen die Beteiligung bei Kommunalwahlen. Kritiker verweisen auf die Überlagerung von Themen. Eine Abstimmung der Termine erforderte Absprachen zwischen den Ebenen."
+    },
+    {
+        "titel": "Zugängliche Wahllokale und Wahlunterlagen",
+        "ziel": "Zur Abstimmung steht, ob alle Wahllokale und Wahlunterlagen barrierefrei gestaltet werden müssen.",
+        "begruendung": "Seit 2019 sind Menschen in Vollbetreuung wahlberechtigt; Barrieren bestehen weiterhin bei Zugänglichkeit von Wahlräumen, Stimmzettelschablonen und Informationen in leichter Sprache. Die Bundeswahlordnung verlangt, barrierefreie Wahlräume anzustreben. Betroffen sind Kommunen als Wahlorganisatoren und Verbände der Behindertenhilfe."
+    },
+    {
+        "titel": "Neutralitätspflicht bei der Öffentlichkeitsarbeit der Regierung",
+        "ziel": "Entschieden wird, ob Regeln für die Öffentlichkeitsarbeit von Regierungsmitgliedern gesetzlich festgelegt werden.",
+        "begruendung": "Das Bundesverfassungsgericht hat mehrfach entschieden, dass Regierungsmitglieder in amtlicher Funktion die Chancengleichheit der Parteien wahren müssen; die Abgrenzung zwischen Amt und Parteirolle erfolgt bislang durch Rechtsprechung. Betroffen sind Auftritte, Interviews und Öffentlichkeitskampagnen der Ministerien. Eine gesetzliche Regelung berührte Meinungsfreiheit und Informationsauftrag."
+    },
+    {
+        "titel": "Vertrauensfrage und vorzeitige Neuwahlen",
+        "ziel": "Zur Abstimmung steht, ob der Bundestag sich mit Zweidrittelmehrheit selbst auflösen kann.",
+        "begruendung": "Neuwahlen sind derzeit nur über eine gescheiterte Vertrauensfrage oder eine gescheiterte Kanzlerwahl möglich; das Bundesverfassungsgericht hat die sogenannte unechte Vertrauensfrage unter Bedingungen gebilligt. Ein Selbstauflösungsrecht besteht in den Ländern. Eine Einführung erforderte eine Änderung des Grundgesetzes."
+    },
+    {
+        "titel": "Ehrenamtliche Schöffinnen und Schöffen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Auswahl und Entschädigung von Schöffen bundesweit vereinheitlicht werden.",
+        "begruendung": "Schöffen wirken an Strafverfahren mit und werden alle fünf Jahre über Vorschlagslisten der Gemeinden gewählt; die Zusammensetzung bildet die Bevölkerung nach Untersuchungen nur eingeschränkt ab. Entschädigungssätze richten sich nach dem Justizvergütungs- und -entschädigungsgesetz. Betroffen sind Bewerberzahlen, Freistellung durch Arbeitgeber und Schulungen."
+    },
+    {
+        "titel": "Prüfung der Rechenschaftsberichte der Parteien",
+        "ziel": "Zur Abstimmung steht, ob die Prüfung der Parteifinanzen auf eine unabhängige Stelle übertragen wird.",
+        "begruendung": "Die Rechenschaftsberichte prüfen Wirtschaftsprüfer im Auftrag der Parteien, die Bundestagsverwaltung führt eine formale Kontrolle durch und setzt Sanktionen fest. Die Staatengruppe gegen Korruption des Europarats hat wiederholt eine unabhängigere Kontrolle empfohlen. Betroffen sind Sanktionsverfahren, Veröffentlichungsfristen und Sponsoring."
+    },
+    {
+        "titel": "Sendezeiten für Wahlwerbung der Parteien",
+        "ziel": "Entschieden wird, ob die Verteilung von Wahlwerbezeiten im Rundfunk neu geregelt wird.",
+        "begruendung": "Öffentlich-rechtliche und private Sender müssen Parteien Sendezeit einräumen, die nach der Bedeutung der Partei abgestuft wird; Verweigerungen sind nur bei offensichtlich strafbaren Inhalten zulässig. Onlinewerbung ist davon nicht erfasst und unterliegt der europäischen Verordnung über politische Werbung. Betroffen sind Chancengleichheit, Rundfunkrecht der Länder und Wahlkampfführung."
+    },
+    {
+        "titel": "Repräsentative Wahlstatistik bei Bundestagswahlen",
+        "ziel": "Zur Abstimmung steht, ob die repräsentative Wahlstatistik ausgeweitet wird.",
+        "begruendung": "Bei Bundestagswahlen werden in ausgewählten Bezirken Stimmzettel nach Geschlecht und Altersgruppen ausgewertet; das Wahlgeheimnis wird durch Mindestgrößen der Stichprobe gewahrt. Erkenntnisse über Wahlverhalten nach sozialer Lage stammen sonst aus Nachwahlbefragungen. Eine Ausweitung berührte Wahlorganisation, Datenschutz und die Aussagekraft der Ergebnisse."
+    }
+]

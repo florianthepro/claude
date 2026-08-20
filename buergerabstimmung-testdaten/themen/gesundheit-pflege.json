@@ -55,12 +55,12 @@
         "begruendung": "Das Bundesverfassungsgericht hat 2020 das Verbot der geschäftsmäßigen Förderung der Selbsttötung für nichtig erklärt und ein Recht auf selbstbestimmtes Sterben anerkannt; eine gesetzliche Neuregelung ist im Bundestag zweimal gescheitert. Derzeit gelten allgemeine Vorschriften des Straf-, Betäubungsmittel- und Berufsrechts. Gegenstand einer Regelung wären Beratungsangebote, Fristen und der Zugang zu Arzneimitteln."
     },
     {
-        "titel": "Apothekenreform und Betrieb von Zweigapotheken",
-        "ziel": "Gegenstand der Abstimmung ist, ob Filialapotheken künftig zeitweise ohne anwesende Apothekerin oder anwesenden Apotheker betrieben werden dürfen.",
-        "begruendung": "Die Apothekenbetriebsordnung verlangt bislang die persönliche Leitung durch approbiertes Personal. Ein Reformentwurf sah Zweigapotheken mit telepharmazeutischer Anbindung, eine Umverteilung des Fixhonorars und mehr Impfangebote vor. Hintergrund ist die rückläufige Zahl der Apotheken, besonders im ländlichen Raum."
+        "titel": "Beitragssatzstabilisierung in der gesetzlichen Krankenversicherung",
+        "ziel": "Zur Abstimmung steht, ob die Ausgaben der Krankenkassen zur Stabilisierung der Beitragssätze gesetzlich begrenzt werden.",
+        "begruendung": "Das Gesetz zur Stabilisierung der Beitragssätze war im Juli 2026 Gegenstand kontroverser Beratungen im Bundestag; vorgesehen sind Ausgabenbegrenzungen bei Krankenhäusern, Arzneimitteln und Verwaltung. Die kassenindividuellen Zusatzbeiträge sind zuletzt deutlich gestiegen. Alternativen sind ein höherer Bundeszuschuss oder Einschnitte im Leistungskatalog."
     },
     {
-        "titel": "Reform der Notfallversorgung durch integrierte Notfallzentren",
+        "titel": "Integrierte Notfallzentren in der Notfallversorgung",
         "ziel": "Zur Abstimmung steht, ob Notaufnahmen und ärztlicher Bereitschaftsdienst in integrierten Notfallzentren zusammengeführt werden.",
         "begruendung": "Notfallversorgung ist heute auf Rettungsdienst der Länder, Krankenhäuser und den kassenärztlichen Bereitschaftsdienst verteilt; ein Reformentwurf sieht gemeinsame Tresen, ein Ersteinschätzungsverfahren und eine erweiterte telefonische Steuerung über die Rufnummern 116 117 und 112 vor. Ziel ist die Zuweisung in die jeweils passende Versorgungsstufe. Betroffen sind Zuständigkeiten von Bund, Ländern und Kassenärztlichen Vereinigungen."
     },
@@ -73,11 +73,6 @@
         "titel": "Preisbildung für neue Arzneimittel",
         "ziel": "Zur Abstimmung steht, ob die Preisleitplanken für patentgeschützte Arzneimittel beibehalten werden.",
         "begruendung": "Nach dem Arzneimittelmarktneuordnungsgesetz wird der Erstattungsbetrag nach einer Nutzenbewertung zwischen Herstellern und Spitzenverband der Krankenkassen verhandelt; das Finanzstabilisierungsgesetz hat zusätzliche Obergrenzen und einen Herstellerabschlag eingeführt. Im ersten Jahr gilt weiterhin der Herstellerpreis. Die Regelungen wirken auf Ausgaben der Kassen und auf Markteinführungen."
-    },
-    {
-        "titel": "Nachweispflicht der Masernimpfung in Gemeinschaftseinrichtungen",
-        "ziel": "Gegenstand der Abstimmung ist, ob die Masernimpfpflicht für Gemeinschaftseinrichtungen bestehen bleibt.",
-        "begruendung": "Das Masernschutzgesetz verlangt seit 2020 einen Immunitätsnachweis für Kinder in Kitas und Schulen sowie für dort und in medizinischen Einrichtungen Tätige; das Bundesverfassungsgericht hat die Regelung 2022 bestätigt. Bei fehlendem Nachweis können Betretungsverbote und Bußgelder verhängt werden. Der Vollzug liegt bei den Gesundheitsämtern."
     },
     {
         "titel": "Werbebeschränkungen für Tabak- und Nikotinprodukte",
@@ -110,7 +105,7 @@
         "begruendung": "Die Zahl der Kreißsäle ist seit Jahren rückläufig; Anfahrtswege haben sich in ländlichen Regionen verlängert. Die Krankenhausreform sieht Mindestvorhaltezahlen je Leistungsgruppe und Ausnahmen zur Sicherstellung der Erreichbarkeit vor. Hebammenkreißsäle und Geburtshäuser werden gesondert vergütet."
     },
     {
-        "titel": "Verbindliche Ziele der nationalen Präventionsstrategie",
+        "titel": "Verbindliche Ziele der Präventionsstrategie im Gesundheitswesen",
         "ziel": "Zur Abstimmung steht, ob die Nationale Präventionsstrategie mit verbindlichen Zielwerten und eigener Finanzierung unterlegt wird.",
         "begruendung": "Das Präventionsgesetz verpflichtet die Sozialversicherungsträger zu Ausgaben für Prävention in Lebenswelten und Betrieben; die Nationale Präventionskonferenz stimmt die Strategie ab. Verbindliche Zielwerte etwa zu Bewegung, Ernährung oder Tabakkonsum bestehen nicht. Eine Verbindlichkeit berührte Zuständigkeiten von Bund, Ländern, Kommunen und Kassen."
     }

@@ -30,7 +30,7 @@
         "begruendung": "Die Länder erheben den Sprachstand in unterschiedlichem Alter und mit unterschiedlichen Verfahren; verbindliche Vorkurse bestehen nur in einem Teil der Länder. Bildungsstudien weisen auf erhebliche Unterschiede in den sprachlichen Voraussetzungen zu Schulbeginn hin. Zuständig sind die Länder; der Bund könnte sich nur über Programme beteiligen."
     },
     {
-        "titel": "Elternunabhängige Förderung nach dem Bundesausbildungsförderungsgesetz",
+        "titel": "Elternunabhängige Ausbildungsförderung nach dem BAföG",
         "ziel": "Zur Abstimmung steht, ob die Ausbildungsförderung nach dem Bundesausbildungsförderungsgesetz unabhängig vom Einkommen der Eltern gewährt wird.",
         "begruendung": "Die Förderung wird derzeit überwiegend nach dem Einkommen der Eltern bemessen und je zur Hälfte als Zuschuss und als zinsloses Darlehen gewährt; elternunabhängige Förderung ist nur in Ausnahmefällen möglich. Der Anteil geförderter Studierender ist seit Jahren rückläufig. Eine Umstellung erhöhte die Ausgaben von Bund und Ländern erheblich."
     },
@@ -50,12 +50,12 @@
         "begruendung": "Der Zukunftsvertrag löste 2021 den Hochschulpakt ab und stellt dauerhafte Mittel bereit, die die Länder kofinanzieren; die Verwendung berichten die Länder in Umsetzungsvereinbarungen. Ein erheblicher Teil des wissenschaftlichen Personals ist befristet beschäftigt. Bedingungen berührten die Hochschulautonomie und die Zuständigkeit der Länder."
     },
     {
-        "titel": "Reform der Befristungsregeln im Wissenschaftszeitvertragsgesetz",
+        "titel": "Befristungen nach dem Wissenschaftszeitvertragsgesetz in der Postdoc-Phase",
         "ziel": "Zur Abstimmung steht, ob die zulässige Befristungsdauer nach der Promotion verkürzt und an eine Anschlusszusage gebunden wird.",
         "begruendung": "Das Gesetz erlaubt Befristungen von je sechs Jahren vor und nach der Promotion, in der Medizin länger; Drittmittelbefristungen kommen hinzu. Eine Novelle sieht kürzere Postdoc-Phasen mit Mindestvertragslaufzeiten vor. Betroffen sind Karrierewege, Personalplanung der Hochschulen und Drittmittelprojekte."
     },
     {
-        "titel": "Fortführung der Exzellenzstrategie von Bund und Ländern",
+        "titel": "Fortführung der Exzellenzstrategie an Hochschulen",
         "ziel": "Gegenstand der Abstimmung ist, ob die Exzellenzstrategie von Bund und Ländern in der bisherigen Form fortgeführt wird.",
         "begruendung": "Die Strategie fördert Exzellenzcluster und Exzellenzuniversitäten dauerhaft über die Deutsche Forschungsgemeinschaft und den Wissenschaftsrat; die Mittel tragen Bund und Länder gemeinsam. Kritik richtet sich auf die Konzentration der Mittel auf wenige Standorte. Eine Änderung erforderte eine neue Bund-Länder-Vereinbarung nach Artikel 91b des Grundgesetzes."
     },
@@ -100,14 +100,9 @@
         "begruendung": "Tierversuche sind nach dem Tierschutzgesetz genehmigungspflichtig und nur zulässig, wenn keine Alternative verfügbar ist; die europäische Richtlinie nennt den vollständigen Ersatz als langfristiges Ziel. Der Bund fördert Alternativmethoden über eigene Programme. Ein Ausstiegsplan berührte Grundlagenforschung, Arzneimittelzulassung und europäisches Recht."
     },
     {
-        "titel": "Einsatz künstlicher Intelligenz an Schulen",
+        "titel": "Regeln für KI-Anwendungen im Unterricht",
         "ziel": "Zur Abstimmung steht, ob für den Einsatz von KI-Anwendungen im Unterricht bundesweit einheitliche Regeln festgelegt werden.",
         "begruendung": "Datenschutz, Prüfungsrecht und Lehrplanfragen liegen bei den Ländern; einzelne Länder stellen eigene Lernplattformen bereit oder untersagen bestimmte Dienste. Die europäische KI-Verordnung stuft Anwendungen im Bildungsbereich teilweise als Hochrisiko ein. Betroffen sind Leistungsbewertung, Datenverarbeitung von Minderjährigen und Lehrkräftefortbildung."
-    },
-    {
-        "titel": "Ständiger Bildungsrat für die Schulentwicklung",
-        "ziel": "Entschieden wird, ob ein gemeinsames Gremium von Bund und Ländern verbindliche Empfehlungen zur Schulentwicklung abgibt.",
-        "begruendung": "Die Einrichtung eines Nationalen Bildungsrats wurde 2020 nach dem Widerstand einzelner Länder aufgegeben; seither koordiniert die Kultusministerkonferenz mit wissenschaftlicher Beratung. Ein neues Gremium berührte die Kulturhoheit der Länder und die Verbindlichkeit von Empfehlungen. Eine Grundgesetzänderung wäre für bindende Beschlüsse erforderlich."
     },
     {
         "titel": "Verankerung der Berufsorientierung an allgemeinbildenden Schulen",

@@ -1,0 +1,112 @@
+[
+    {
+        "titel": "Gemeinsame Agrarpolitik nach dem Jahr 2027",
+        "ziel": "Zur Abstimmung steht, ob Deutschland die Zusammenlegung der Agrarmittel mit anderen Fonds im EU-Haushalt unterstützt.",
+        "begruendung": "Die Kommission hat für den nächsten mehrjährigen Finanzrahmen vorgeschlagen, Agrar-, Struktur- und Regionalmittel in nationalen Plänen zu bündeln; Agrarverbände befürchten eine Absenkung der Direktzahlungen. Die zweite Säule finanziert Umwelt-, Tierwohl- und Regionalmaßnahmen. Über den Rahmen entscheiden Rat und Europäisches Parlament einstimmig beziehungsweise mit Zustimmung."
+    },
+    {
+        "titel": "Hofnachfolge und Niederlassung von Junglandwirten",
+        "ziel": "Entschieden wird, ob Neu- und Junglandwirte bevorzugten Zugang zu Flächen und Förderung erhalten.",
+        "begruendung": "Ein erheblicher Teil der Betriebe hat keine geklärte Nachfolge; Kaufpreise und Pachten für landwirtschaftliche Flächen sind stark gestiegen. Die Gemeinsame Agrarpolitik sieht eine Junglandwirteprämie und Niederlassungsbeihilfen vor. Betroffen sind Bodenmarkt, Kreditzugang und die Betriebsgrößenentwicklung."
+    },
+    {
+        "titel": "Vorsorge gegen Tierseuchen",
+        "ziel": "Zur Abstimmung steht, ob Bund und Länder eine gemeinsame Reserve für Tierseuchenlagen aufbauen.",
+        "begruendung": "Ausbrüche von Afrikanischer Schweinepest, Geflügelpest, Blauzungenkrankheit und Maul- und Klauenseuche haben Sperrzonen, Keulungen und Exportbeschränkungen ausgelöst; zuständig sind die Veterinärbehörden der Länder, unterstützt vom Friedrich-Loeffler-Institut. Tierseuchenkassen tragen einen Teil der Entschädigungen. Betroffen sind Betriebe, Handel und Wildtiermanagement."
+    },
+    {
+        "titel": "Pflichtimpfungen gegen Tierseuchen in der Nutztierhaltung",
+        "ziel": "Gegenstand der Abstimmung ist, ob Schutzimpfungen gegen bestimmte Tierseuchen verpflichtend werden.",
+        "begruendung": "Impfungen können Ausbrüche eindämmen, führen aber je nach Rechtslage zu Handelsbeschränkungen, weil geimpfte Tiere serologisch nicht immer von infizierten unterscheidbar sind. Die europäische Tiergesundheitsverordnung regelt Voraussetzungen und Statusfragen. Betroffen sind Exportmärkte, Kosten und Tierhalter."
+    },
+    {
+        "titel": "Lebendtiertransporte in Nicht-EU-Staaten",
+        "ziel": "Zur Abstimmung steht, ob Transporte lebender Tiere in Staaten außerhalb der Europäischen Union untersagt werden.",
+        "begruendung": "Mehrere Bundesländer haben Genehmigungen für Sammeltransporte in bestimmte Zielstaaten versagt; die Zuständigkeit liegt bei den Veterinärbehörden auf Grundlage der europäischen Tiertransportverordnung. Ein Verordnungsvorschlag der Kommission sieht kürzere Transportzeiten und Temperaturgrenzen vor. Betroffen sind Zuchtvieh-Exporte, Kontrollen und Rechtssicherheit."
+    },
+    {
+        "titel": "Verpflichtende Videoaufzeichnung in Schlachtbetrieben",
+        "ziel": "Entschieden wird, ob in Schlachthöfen eine verpflichtende Videoaufzeichnung eingeführt wird.",
+        "begruendung": "Wiederholte Verstöße gegen Tierschutzvorgaben wurden durch verdeckte Aufnahmen bekannt; die amtliche Überwachung liegt bei den Ländern. Einzelne Betriebe setzen Kameras freiwillig ein. Eine Pflicht berührte Beschäftigtendatenschutz, Aufbewahrungsfristen und Zugriffsrechte der Behörden."
+    },
+    {
+        "titel": "Frist für die Geschlechtsbestimmung im Bruthei",
+        "ziel": "Zur Abstimmung steht, ob die Geschlechtsbestimmung vor dem siebten Bebrütungstag verbindlich vorgeschrieben wird.",
+        "begruendung": "Das Töten männlicher Küken ist seit 2022 verboten; verbreitet ist die Geschlechtsbestimmung im Ei, für die eine Frist zur Verschiebung auf einen früheren Zeitpunkt vorgesehen war und mehrfach angepasst wurde. Alternativen sind Bruderhahnaufzucht und Zweinutzungsrassen. Betroffen sind Brütereien, Eierpreise und Importe."
+    },
+    {
+        "titel": "Weidegang von Milchkühen und Kennzeichnung",
+        "ziel": "Gegenstand der Abstimmung ist, ob Weidegang gefördert und in der Kennzeichnung ausgewiesen wird.",
+        "begruendung": "Der Anteil weidender Milchkühe ist rückläufig, weil Herdengrößen wachsen und hofnahe Flächen fehlen; einzelne Länder und Molkereien zahlen Weideprämien. Die Tierhaltungskennzeichnung erfasst Rinder bislang nicht. Betroffen sind Grünlanderhalt, Milchpreise und Stallbaugenehmigungen."
+    },
+    {
+        "titel": "Einsatz von Antibiotika in der Tierhaltung",
+        "ziel": "Zur Abstimmung steht, ob die Abgabe von Reserveantibiotika an Tierhalter weiter eingeschränkt wird.",
+        "begruendung": "Das Tierarzneimittelgesetz und die europäische Verordnung verlangen die Erfassung von Behandlungshäufigkeiten und Reduktionspläne bei Überschreitung von Kennzahlen; die abgegebenen Mengen sind seit 2011 deutlich gesunken. Resistenzen werden auch beim Menschen nachgewiesen. Betroffen sind Tierärzte, Mastbetriebe und Kontrollbehörden."
+    },
+    {
+        "titel": "Umbaufristen für Kastenstände in der Sauenhaltung",
+        "ziel": "Entschieden wird, ob die Übergangsfristen für den Umbau von Kastenständen verlängert werden.",
+        "begruendung": "Die Tierschutz-Nutztierhaltungsverordnung schreibt seit 2021 mehr Platz im Deckzentrum und im Abferkelbereich vor, mit Übergangsfristen bis 2029 beziehungsweise 2036. Viele Betriebe schieben Investitionen wegen unklarer Marktperspektive und Genehmigungsfragen auf. Betroffen sind Baurecht, Förderung und die Zahl der Sauenhalter."
+    },
+    {
+        "titel": "Waldumbau und Honorierung von Klimaleistungen",
+        "ziel": "Zur Abstimmung steht, ob Waldbesitzer für Klimaschutzleistungen dauerhaft honoriert werden.",
+        "begruendung": "Nach Dürre, Stürmen und Borkenkäferbefall sind große Flächen wiederzubewalden; Förderprogramme unterstützen klimaangepasste Mischwälder. Eine Honorierung von Ökosystemleistungen wurde als dauerhafte Zahlung je Hektar eingeführt und ist an Kriterien gebunden. Betroffen sind Privat- und Körperschaftswald, Holzmarkt und Kohlenstoffspeicherung."
+    },
+    {
+        "titel": "Gute fachliche Praxis der Waldbewirtschaftung",
+        "ziel": "Gegenstand der Abstimmung ist, ob bundesweite Vorgaben zur guten fachlichen Praxis der Waldbewirtschaftung eingeführt werden.",
+        "begruendung": "Das Bundeswaldgesetz stammt aus dem Jahr 1975 und überlässt die Bewirtschaftungsregeln weitgehend den Ländern; ein Novellierungsentwurf mit Vorgaben zu Kahlschlägen, Bodenschutz und Totholz wurde kontrovers beraten. Wald bedeckt knapp ein Drittel der Landesfläche. Betroffen sind Waldeigentümer, Forstbetriebe und Naturschutz."
+    },
+    {
+        "titel": "Abschussplanung und Munition im Jagdrecht",
+        "ziel": "Zur Abstimmung steht, ob Abschussplanung und Munitionsvorgaben bundeseinheitlich geregelt werden.",
+        "begruendung": "Das Bundesjagdgesetz stammt in wesentlichen Teilen aus dem Jahr 1952; Novellierungsversuche zu Wildschadensregelungen, Jagdzeiten und bleifreier Munition sind gescheitert. Waldumbau und Wildbestände stehen in Wechselwirkung. Zuständig sind Bund und Länder im Rahmen der konkurrierenden Gesetzgebung."
+    },
+    {
+        "titel": "Zulassung alter und regionaler Saatgutsorten",
+        "ziel": "Entschieden wird, ob die Zulassung alter und regionaler Sorten erleichtert wird.",
+        "begruendung": "Saatgut darf nur in Verkehr gebracht werden, wenn die Sorte zugelassen ist; für Erhaltungssorten und Amateursorten bestehen erleichterte Verfahren mit Mengenbegrenzungen. Ein europäischer Verordnungsvorschlag zu Pflanzenvermehrungsmaterial wird beraten. Betroffen sind Züchter, Bio-Landbau und genetische Vielfalt."
+    },
+    {
+        "titel": "Bewässerung landwirtschaftlicher Flächen",
+        "ziel": "Zur Abstimmung steht, ob der Ausbau der Feldbewässerung gefördert und wasserrechtlich geregelt wird.",
+        "begruendung": "Trockenperioden haben die Nachfrage nach Bewässerung erhöht; Entnahmen bedürfen einer wasserrechtlichen Erlaubnis der Länder, die in Trockenzeiten eingeschränkt wird. Die Nationale Wasserstrategie sieht eine Priorisierung der Nutzungen vor. Betroffen sind Sonderkulturen, Grundwasserstände und Wiederverwendung von gereinigtem Abwasser."
+    },
+    {
+        "titel": "Risikovorsorge gegen Wetterschäden",
+        "ziel": "Gegenstand der Abstimmung ist, ob Mehrgefahrenversicherungen für Betriebe staatlich bezuschusst werden.",
+        "begruendung": "Steuerliche Risikoausgleichsrücklagen erlauben es Betrieben, Gewinne aus guten Jahren zurückzustellen; Versicherungen gegen Dürre und Starkregen sind wegen der Prämienhöhe wenig verbreitet. Mehrere Mitgliedstaaten bezuschussen Prämien aus Agrarmitteln. Betroffen sind Betriebsrisiken, Beihilferecht und die staatliche Ad-hoc-Hilfe nach Extremwetter."
+    },
+    {
+        "titel": "Hygienevorschriften für Hofläden und Direktvermarktung",
+        "ziel": "Zur Abstimmung steht, ob Hygiene- und Bauvorschriften für kleine Direktvermarkter vereinfacht werden.",
+        "begruendung": "Hofläden, Automaten und Marktstände unterliegen denselben Kennzeichnungs- und Hygienevorgaben wie größere Betriebe; Bauvorhaben im Außenbereich sind genehmigungsbedürftig. Direktvermarktung erhöht die Wertschöpfung im Betrieb. Betroffen sind Lebensmittelsicherheit, Kontrollaufwand und Baurecht."
+    },
+    {
+        "titel": "Verhandlungsrechte landwirtschaftlicher Erzeugergemeinschaften",
+        "ziel": "Entschieden wird, ob Erzeugergemeinschaften erweiterte Rechte bei Preisverhandlungen erhalten.",
+        "begruendung": "Das Kartellrecht erlaubt Erzeugerorganisationen unter Voraussetzungen die gemeinsame Vermarktung; die Verhandlungsposition gegenüber Verarbeitung und Handel gilt dennoch als schwach. Die Gemeinsame Marktorganisation enthält Sonderregeln für Milch und Obst. Betroffen sind Erzeugerpreise, Wettbewerbsaufsicht und Vertragsgestaltung."
+    },
+    {
+        "titel": "Verträge zwischen Molkereien und Milcherzeugern",
+        "ziel": "Zur Abstimmung steht, ob Milchlieferverträge künftig Menge, Preis und Laufzeit verbindlich festlegen müssen.",
+        "begruendung": "Die Gemeinsame Marktorganisation erlaubt den Mitgliedstaaten, verbindliche Vertragsinhalte vorzuschreiben; in Deutschland gilt bislang überwiegend die Andienungspflicht in Genossenschaften mit nachträglicher Preisfestsetzung. Ein Verordnungsentwurf wurde mehrfach beraten. Betroffen sind Molkereien, Milcherzeuger und Preisschwankungen."
+    },
+    {
+        "titel": "Schutz von Bienen und Imkerei",
+        "ziel": "Gegenstand der Abstimmung ist, ob ein nationales Monitoring für Bestäuberinsekten eingeführt wird.",
+        "begruendung": "Das Insektenschutzgesetz und die Aktionsprogramme von Bund und Ländern enthalten Maßnahmen zu Lebensräumen und Pflanzenschutz; belastbare Zeitreihen zu Wildbienen und anderen Bestäubern fehlen weitgehend. Die europäische Bestäuberinitiative sieht ein Monitoring vor. Betroffen sind Landwirtschaft, Imkerei und Obstbau."
+    },
+    {
+        "titel": "Bundesmittel für die landwirtschaftliche Sozialversicherung",
+        "ziel": "Zur Abstimmung steht, ob der Bundeszuschuss zur landwirtschaftlichen Sozialversicherung erhöht wird.",
+        "begruendung": "Die Sozialversicherung für Landwirtschaft, Forsten und Gartenbau umfasst Alterssicherung, Kranken-, Pflege- und Unfallversicherung und wird zu einem erheblichen Teil aus Bundesmitteln finanziert; Ursache ist das ungünstige Verhältnis von Beitragszahlenden zu Leistungsempfängern. Die Zuschüsse sind jährlich im Haushalt veranschlagt. Betroffen sind Beitragshöhe und Betriebskosten."
+    },
+    {
+        "titel": "Digitalisierung landwirtschaftlicher Betriebe",
+        "ziel": "Entschieden wird, ob Landwirte Anspruch auf Zugang zu den Daten ihrer Maschinen erhalten.",
+        "begruendung": "Moderne Landmaschinen erzeugen Ertrags-, Boden- und Maschinendaten, deren Auswertung überwiegend über Herstellerplattformen erfolgt; der europäische Data Act begründet Zugangsrechte für Nutzende. Bund und Länder fördern digitale Experimentierfelder. Betroffen sind Interoperabilität, Wettbewerb zwischen Anbietern und Datenschutz für Betriebsdaten."
+    }
+]

@@ -1,0 +1,122 @@
+[
+    {
+        "titel": "Nutzung privater Mobiltelefone an Schulen",
+        "ziel": "Zur Abstimmung steht, ob die private Nutzung von Smartphones an Schulen bundesweit einheitlich eingeschränkt wird.",
+        "begruendung": "Mehrere Länder haben Verbote oder Einschränkungen für Grund- und weiterführende Schulen erlassen, andere überlassen die Regelung den Schulkonferenzen. Studien der Bildungsforschung berichten Wirkungen auf Konzentration, Mobbing und Unterrichtsstörungen. Die Schulhoheit liegt bei den Ländern; der Bund könnte allenfalls Empfehlungen aussprechen."
+    },
+    {
+        "titel": "Verbindliche Mindeststandards im Lesen, Schreiben und Rechnen",
+        "ziel": "Entschieden wird, ob das Erreichen der Mindeststandards am Ende der Grundschulzeit verbindlich überprüft wird.",
+        "begruendung": "Der IQB-Bildungstrend weist aus, dass ein erheblicher Anteil der Viertklässler die Mindeststandards verfehlt; Bildungsstandards der Kultusministerkonferenz sind Orientierung, nicht Prüfungsmaßstab. Verbindliche Überprüfung berührte Versetzungsregeln, Förderangebote und Personalbedarf. Zuständig sind die Länder."
+    },
+    {
+        "titel": "Inklusion und Zukunft der Förderschulen",
+        "ziel": "Zur Abstimmung steht, ob der gemeinsame Unterricht als Regelfall festgeschrieben und Förderschulen schrittweise aufgelöst werden.",
+        "begruendung": "Die UN-Behindertenrechtskonvention verlangt ein inklusives Bildungssystem; der zuständige Fachausschuss hat Deutschland wiederholt zum Abbau paralleler Förderschulstrukturen aufgefordert. Die Quote inklusiv beschulter Kinder unterscheidet sich stark zwischen den Ländern. Betroffen sind Personalausstattung, Barrierefreiheit und Elternwahlrecht."
+    },
+    {
+        "titel": "Schulabsentismus und Rückkehr in den Unterricht",
+        "ziel": "Gegenstand der Abstimmung ist, ob ein bundesweites Programm gegen dauerhaftes Schulversäumnis aufgelegt wird.",
+        "begruendung": "Die Zahl der Schülerinnen und Schüler ohne Abschluss und die Fälle länger andauernder Schulverweigerung sind seit der Pandemie gestiegen; belastbare bundesweite Zahlen fehlen. Maßnahmen reichen von Schulsozialarbeit über Bußgelder bis zu multiprofessionellen Teams. Zuständig sind Länder und Schulträger."
+    },
+    {
+        "titel": "Bedarfsprognose und Studienplätze für das Lehramt",
+        "ziel": "Zur Abstimmung steht, ob Länder ihre Lehramtsstudienplätze an eine gemeinsame Bedarfsprognose binden.",
+        "begruendung": "Die Kultusministerkonferenz veröffentlicht Modellrechnungen zu Einstellungsbedarf und Absolventenzahlen; die Kapazitätsplanung erfolgt jedoch je Land und Hochschule. Fächer- und regionenspezifische Lücken bestehen fort. Eine Bindung berührte Hochschulautonomie und Kapazitätsrecht."
+    },
+    {
+        "titel": "Ausstattung der beruflichen Schulen",
+        "ziel": "Entschieden wird, ob der Bund ein Investitionsprogramm für Berufsschulen auflegt.",
+        "begruendung": "Berufsschulen sind Teil des dualen Systems und liegen in der Zuständigkeit von Ländern und Schulträgern; Verbände verweisen auf veraltete Werkstätten, unbesetzte Lehrerstellen und Fahrzeiten in ländlichen Regionen. Der Bund fördert bislang über Programme wie das Berufsbildungszentren-Programm. Ein Investitionsprogramm berührte Artikel 104c des Grundgesetzes."
+    },
+    {
+        "titel": "Eignungsverfahren und Studienabbruchquote an Hochschulen",
+        "ziel": "Zur Abstimmung steht, ob Studiengänge verbindliche Eignungs- und Orientierungsverfahren einführen müssen.",
+        "begruendung": "Die Abbruchquote liegt im Bachelorstudium nach Erhebungen bei rund einem Viertel bis einem Drittel, mit deutlichen Unterschieden zwischen Fächern. Orientierungsstudium, Self-Assessments und verpflichtende Beratungsgespräche werden erprobt. Betroffen sind Hochschulzugang, Kapazitätsrecht und der Übergang in die berufliche Bildung."
+    },
+    {
+        "titel": "Studienstarthilfe für Studierende aus einkommensschwachen Haushalten",
+        "ziel": "Gegenstand der Abstimmung ist, ob die einmalige Studienstarthilfe erhöht und ausgeweitet wird.",
+        "begruendung": "Die Starthilfe wird seit 2024 einmalig an Studienanfängerinnen und -anfänger gezahlt, die bestimmte Sozialleistungen beziehen; sie ist antragsabhängig und wird nicht auf andere Leistungen angerechnet. Sie soll Kosten für Umzug, Laptop und Semesterbeitrag abdecken. Die Kosten trägt der Bund gemeinsam mit den Ländern."
+    },
+    {
+        "titel": "Wissenschaftsfreiheit und Transparenz der Drittmittel",
+        "ziel": "Zur Abstimmung steht, ob Hochschulen Drittmittelverträge mit Unternehmen veröffentlichen müssen.",
+        "begruendung": "Drittmittel machen einen erheblichen Teil der Hochschulfinanzierung aus; Transparenzregeln bestehen in einzelnen Ländern und in Selbstverpflichtungen. Artikel 5 des Grundgesetzes schützt Forschung und Lehre. Eine Veröffentlichungspflicht berührte Betriebsgeheimnisse, Vertragsgestaltung und die Einwerbung von Mitteln."
+    },
+    {
+        "titel": "Forschungssicherheit bei internationalen Kooperationen",
+        "ziel": "Entschieden wird, ob Kooperationen mit Einrichtungen aus bestimmten Staaten einer Prüfpflicht unterliegen.",
+        "begruendung": "Leitfäden von Hochschulrektorenkonferenz und Forschungsorganisationen empfehlen Risikoprüfungen bei sicherheitsrelevanten Themen; eine gesetzliche Pflicht besteht nicht. Betroffen sind Dual-Use-Forschung, Gastwissenschaftler und Datenzugriffe. Eine Prüfpflicht berührte Wissenschaftsfreiheit und internationale Zusammenarbeit."
+    },
+    {
+        "titel": "Bundesagentur für Sprunginnovationen und ihr Freiheitsgesetz",
+        "ziel": "Zur Abstimmung steht, ob die Agentur für Sprunginnovationen dauerhaft mit erweiterten Freiheiten ausgestattet wird.",
+        "begruendung": "Die Agentur fördert seit 2019 risikoreiche Vorhaben mit hohem Anwendungspotenzial und wurde durch ein eigenes Freiheitsgesetz von Teilen des Haushalts- und Vergaberechts ausgenommen. Erfolge zeigen sich erst über längere Zeiträume. Betroffen sind parlamentarische Kontrolle, Mittelbindung und Beteiligungsrechte des Bundes."
+    },
+    {
+        "titel": "Ausgaben für Forschung und Entwicklung",
+        "ziel": "Gegenstand der Abstimmung ist, ob das Ziel von 3,5 Prozent des Bruttoinlandsprodukts für Forschung gesetzlich verankert wird.",
+        "begruendung": "Bund und Länder haben das Ziel politisch vereinbart; erreicht werden derzeit etwa drei Prozent, wovon rund zwei Drittel auf die Wirtschaft entfallen. Eine gesetzliche Bindung berührte die Haushaltshoheit von Bundestag und Landtagen. Der Pakt für Forschung und Innovation sichert den außeruniversitären Einrichtungen jährliche Aufwüchse."
+    },
+    {
+        "titel": "Tenure-Track-Professuren als Regelweg",
+        "ziel": "Zur Abstimmung steht, ob die Juniorprofessur mit Tenure Track zum Regelzugang zur Professur wird.",
+        "begruendung": "Das Bund-Länder-Programm hat rund 1000 Tenure-Track-Professuren gefördert; die Habilitation und Berufungen aus der Privatwirtschaft bestehen daneben fort. Die Auslauffinanzierung liegt bei den Ländern. Betroffen sind Karriereplanung, Qualitätssicherung der Zwischenevaluation und Stellenpläne der Hochschulen."
+    },
+    {
+        "titel": "Verhandlungen über Publikationsgebühren wissenschaftlicher Verlage",
+        "ziel": "Entschieden wird, ob die öffentliche Hand Obergrenzen für Publikationsgebühren festlegt.",
+        "begruendung": "Konsortialverträge bündeln die Verhandlungen deutscher Einrichtungen mit großen Verlagen und verbinden Lesezugang und offenes Publizieren; die Kosten je Artikel sind zuletzt gestiegen. Fördermittelgeber verlangen zunehmend offenen Zugang. Betroffen sind Bibliotheksetats, Zeitschriftenauswahl und die Sichtbarkeit deutscher Forschung."
+    },
+    {
+        "titel": "Bildungssparen und persönliche Weiterbildungskonten",
+        "ziel": "Zur Abstimmung steht, ob Erwerbstätige ein staatlich gefördertes Weiterbildungskonto erhalten.",
+        "begruendung": "Bestehende Instrumente sind Aufstiegs-BAföG, Bildungsgutscheine der Arbeitsagentur und Landesprämien; ein persönliches, portables Konto besteht nicht. Frankreich und Singapur haben vergleichbare Modelle eingeführt. Betroffen wären Finanzierung, Anerkennung von Anbietern und die Rolle der Betriebe."
+    },
+    {
+        "titel": "MINT-Bildung und Nachwuchsgewinnung",
+        "ziel": "Gegenstand der Abstimmung ist, ob ein gemeinsames Bund-Länder-Programm für Mathematik, Informatik, Naturwissenschaft und Technik aufgelegt wird.",
+        "begruendung": "Der MINT-Aktionsplan des Bundes fördert außerschulische Angebote und Netzwerke; Lehrkräftemangel besteht in diesen Fächern besonders ausgeprägt. Der Anteil von Frauen in technischen Studiengängen liegt weiterhin niedrig. Zuständig für Lehrpläne und Einstellungen sind die Länder."
+    },
+    {
+        "titel": "Politische Bildung als eigenständiges Schulfach",
+        "ziel": "Zur Abstimmung steht, ob politische Bildung in allen Schulformen als eigenständiges Fach verankert wird.",
+        "begruendung": "Umfang und Bezeichnung des Fachs unterscheiden sich zwischen Ländern und Schulformen erheblich, an berufsbildenden Schulen ist der Anteil besonders gering. Der Beutelsbacher Konsens verlangt Überwältigungsverbot und Kontroversität. Zuständig sind die Länder; der Bund wirkt über die Bundeszentrale für politische Bildung."
+    },
+    {
+        "titel": "Digitale Lernmittel und landeseigene Lernplattformen",
+        "ziel": "Entschieden wird, ob Schulen verpflichtend datenschutzkonforme Plattformen der öffentlichen Hand nutzen.",
+        "begruendung": "Mehrere Länder betreiben eigene Schulportale, andere setzen auf Angebote kommerzieller Anbieter; Datenschutzaufsichten haben einzelne Lösungen beanstandet. Die Schulträger tragen Betriebs- und Supportkosten. Betroffen sind Interoperabilität, Fortbildung und die Verfügbarkeit von Lernmitteln."
+    },
+    {
+        "titel": "Betreuungsschlüssel für die schulpsychologische Versorgung",
+        "ziel": "Zur Abstimmung steht, ob ein Betreuungsschlüssel für Schulpsychologie festgelegt wird.",
+        "begruendung": "Fachverbände empfehlen eine Fachkraft je 5000 Schülerinnen und Schüler; die tatsächliche Relation liegt in den meisten Ländern deutlich darüber. Aufgaben sind Krisenintervention, Beratung von Lehrkräften und Prävention. Zuständig sind die Länder, die Finanzierung erfolgt aus Landeshaushalten."
+    },
+    {
+        "titel": "Wohnheimplätze der Studierendenwerke in Hochschulstädten",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Bund den Bau von Studierendenwohnheimen dauerhaft fördert.",
+        "begruendung": "Die Unterbringungsquote der Studierendenwerke liegt bundesweit im niedrigen zweistelligen Prozentbereich; das Programm Junges Wohnen stellt Bundesmittel über die soziale Wohnraumförderung bereit. Mieten in Hochschulstädten sind zuletzt deutlich gestiegen. Betroffen sind Länder, Studierendenwerke und Bauträger."
+    },
+    {
+        "titel": "Zahl der Studienplätze in der Humanmedizin",
+        "ziel": "Zur Abstimmung steht, ob die Zahl der Studienplätze in der Humanmedizin deutlich erhöht wird.",
+        "begruendung": "Die Zahl der Plätze ist seit Jahren nahezu unverändert, während Bewerberzahlen und Ersatzbedarf in der ambulanten Versorgung steigen; ein Studienplatz in der Medizin ist vergleichsweise teuer. Der Masterplan Medizinstudium 2020 sieht Reformen von Auswahl und Ausbildung vor. Zuständig sind die Länder als Träger der Hochschulmedizin."
+    },
+    {
+        "titel": "Dauerhafte Finanzierung der Forschungsdateninfrastruktur",
+        "ziel": "Entschieden wird, ob die Nationale Forschungsdateninfrastruktur über die Aufbauphase hinaus finanziert wird.",
+        "begruendung": "Bund und Länder fördern seit 2019 Konsortien, die Forschungsdaten fachspezifisch erschließen und dauerhaft verfügbar halten; die Aufbauförderung ist befristet. Der europäische Forschungsdatenraum baut auf nationalen Strukturen auf. Betroffen sind Datenqualität, Nachnutzung und die Betriebskosten der Einrichtungen."
+    },
+    {
+        "titel": "Bildungsplattform und digitale Bildungsräume",
+        "ziel": "Zur Abstimmung steht, ob eine bundesweite Plattform Bildungsangebote und Nachweise zusammenführt.",
+        "begruendung": "Ein Vorhaben zur Vernetzung digitaler Bildungsangebote wurde 2023 in veränderter Form fortgeführt; Kernstück ist ein Ausweis für digitale Bildungsnachweise. Zuständigkeiten liegen bei Ländern, Kammern und Hochschulen. Betroffen sind Datenschutz, Interoperabilität und die Anerkennung von Zertifikaten."
+    },
+    {
+        "titel": "Grundbildung und Alphabetisierung Erwachsener",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Alphabetisierungsförderung für Erwachsene dauerhaft finanziert wird.",
+        "begruendung": "Die LEO-Studie schätzt die Zahl gering literalisierter Erwachsener auf mehrere Millionen; Bund und Länder haben eine Dekade für Alphabetisierung und Grundbildung vereinbart, deren Laufzeit befristet war. Angebote erbringen überwiegend Volkshochschulen. Betroffen sind Erwerbschancen, Verwaltungszugang und Weiterbildungsstrukturen."
+    }
+]

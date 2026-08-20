@@ -11,8 +11,8 @@
     },
     {
         "titel": "Rechtsanspruch auf Schutz und Beratung bei häuslicher Gewalt",
-        "ziel": "Zur Abstimmung steht, ob ein bundesweiter Rechtsanspruch auf einen Platz im Frauenhaus mit Bundesbeteiligung an den Kosten geschaffen wird.",
-        "begruendung": "Das Gewalthilfegesetz sieht einen Rechtsanspruch auf Schutz und Beratung ab 2032 sowie eine befristete Bundesbeteiligung an den Kosten vor; Träger und Finanzierung liegen bei Ländern und Kommunen. Die Istanbul-Konvention verpflichtet Deutschland zu einer flächendeckenden Versorgung. Derzeit fehlen nach Angaben der Fachverbände mehrere tausend Plätze."
+        "ziel": "Zur Abstimmung steht, ob der Rechtsanspruch auf einen Platz im Frauenhaus vor 2032 in Kraft tritt.",
+        "begruendung": "Das Gewalthilfegesetz sieht einen Rechtsanspruch auf Schutz und Beratung ab 2032 sowie eine befristete Bundesbeteiligung an den Kosten vor; Träger und Finanzierung liegen bei Ländern und Kommunen. Ergänzend ist seit Juli 2026 die elektronische Fußfessel zum Schutz vor häuslicher Gewalt möglich. Die Istanbul-Konvention verpflichtet Deutschland zu einer flächendeckenden Versorgung."
     },
     {
         "titel": "Verjährung bei sexualisierter Gewalt gegen Kinder",
@@ -23,11 +23,6 @@
         "titel": "Absenkung des Strafmündigkeitsalters im Strafgesetzbuch",
         "ziel": "Zur Abstimmung steht, ob die Strafmündigkeit vom vollendeten 14. auf das vollendete 12. Lebensjahr abgesenkt wird.",
         "begruendung": "Kinder unter 14 Jahren sind nach dem Strafgesetzbuch schuldunfähig; auf sie sind das Achte Buch Sozialgesetzbuch und familiengerichtliche Maßnahmen anwendbar. Die UN-Kinderrechtskonvention und der zugehörige Ausschuss empfehlen ein Mindestalter von nicht unter 14 Jahren. Diskutiert werden zudem Erziehungsmaßregeln und geschlossene Unterbringung."
-    },
-    {
-        "titel": "Wiederaufnahme des Strafverfahrens zuungunsten Freigesprochener",
-        "ziel": "Entschieden wird, wie das Verfahren nach dem Wegfall der Wiederaufnahmeregelung neu gestaltet wird.",
-        "begruendung": "Eine 2021 eingeführte Regelung erlaubte die Wiederaufnahme bei neuen Beweismitteln in Fällen von Mord und Völkermord; das Bundesverfassungsgericht hat sie 2023 wegen Verstoßes gegen das Verbot der Doppelbestrafung und das Rückwirkungsverbot für nichtig erklärt. Seither gilt wieder die frühere Rechtslage. Eine Neuregelung müsste sich an Artikel 103 Absatz 3 des Grundgesetzes messen lassen."
     },
     {
         "titel": "Verbandssanktionenrecht für Straftaten aus Unternehmen",
@@ -45,7 +40,7 @@
         "begruendung": "Das Selbstbestimmungsgesetz hat 2024 das Transsexuellengesetz abgelöst; erforderlich sind eine Erklärung mit dreimonatiger Anmeldefrist und eine Versicherung der Ernsthaftigkeit, Gutachten entfallen. Für Minderjährige gelten abgestufte Regelungen mit Zustimmung der Sorgeberechtigten. Das Gesetz enthält Übergangs- und Sonderregelungen, etwa zum Hausrecht und zum Spannungs- und Verteidigungsfall."
     },
     {
-        "titel": "Reform des Allgemeinen Gleichbehandlungsgesetzes",
+        "titel": "Klagefristen im Allgemeinen Gleichbehandlungsgesetz",
         "ziel": "Entschieden wird, ob Klagefristen verlängert und ein Verbandsklagerecht bei Diskriminierung eingeführt werden.",
         "begruendung": "Das Gesetz von 2006 schützt vor Benachteiligung unter anderem wegen Herkunft, Geschlecht, Religion, Behinderung, Alter und sexueller Identität; Ansprüche sind binnen zwei Monaten geltend zu machen. Antidiskriminierungsstelle und Fachverbände schlagen längere Fristen, ein Verbandsklagerecht und die Aufnahme weiterer Merkmale vor. Betroffen wären Arbeits-, Miet- und Zivilrecht."
     },
@@ -80,7 +75,7 @@
         "begruendung": "Das Hinweisgeberschutzgesetz setzt seit 2023 die europäische Richtlinie um und schützt Meldungen zu bestimmten Rechtsverstößen; Unternehmen ab 50 Beschäftigten müssen interne Meldestellen einrichten. Anonyme Meldungen sollen bearbeitet werden, ein Anspruch darauf besteht nicht. Eine Ausweitung berührte Beweislastregeln und Sanktionen."
     },
     {
-        "titel": "Reform des Rechtsdienstleistungsrechts für Legal-Tech-Anbieter",
+        "titel": "Rechtsdienstleistungen durch Legal-Tech-Anbieter",
         "ziel": "Zur Abstimmung steht, ob Legal-Tech-Anbieter Rechtsdienstleistungen im gleichen Umfang wie Anwältinnen und Anwälte erbringen dürfen.",
         "begruendung": "Das Rechtsdienstleistungsgesetz erlaubt registrierten Inkassodienstleistern die außergerichtliche Forderungseinziehung; der Bundesgerichtshof hat den Rahmen mehrfach ausgelegt. Anwältinnen und Anwälte unterliegen Berufsrecht, Erfolgshonorarschranken und Verschwiegenheitspflichten. Eine Angleichung berührte Verbraucherschutz und Zugang zum Recht bei Massenverfahren."
     },
@@ -90,7 +85,7 @@
         "begruendung": "Ein Eckpunktepapier sah eine registrierte Verantwortungsgemeinschaft mit Modulen etwa zu Auskunftsrechten in Gesundheitsfragen, Zusammenleben und Beistand vor; sie soll neben Ehe und Lebenspartnerschaft treten. Erb- und steuerrechtliche Wirkungen waren nicht vorgesehen. Betroffen wären Melderecht, Krankenhausrecht und Betreuungsverfügungen."
     },
     {
-        "titel": "Reform des Namensrechts und Doppelnamen",
+        "titel": "Doppelnamen im Namensrecht von Ehepaaren und Kindern",
         "ziel": "Zur Abstimmung steht, ob Doppelnamen für Ehepaare und Kinder in weiterem Umfang zugelassen bleiben.",
         "begruendung": "Seit Mai 2025 können Ehegatten einen echten Doppelnamen führen und Kinder die Namen beider Eltern erhalten; zudem wurden Regelungen für Namensänderungen nach Scheidung und für Angehörige nationaler Minderheiten angepasst. Zuvor waren Doppelnamen nur eingeschränkt möglich. Betroffen sind Personenstandsrecht und Melderegister."
     },

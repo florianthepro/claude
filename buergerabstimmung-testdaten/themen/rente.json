@@ -1,8 +1,8 @@
 [
     {
-        "titel": "Haltelinie beim Rentenniveau von 48 Prozent",
-        "ziel": "Zur Abstimmung steht, ob das Sicherungsniveau der gesetzlichen Rente vor Steuern dauerhaft bei mindestens 48 Prozent festgeschrieben wird.",
-        "begruendung": "Das Sicherungsniveau setzt die Standardrente nach 45 Beitragsjahren ins Verhältnis zum Durchschnittsentgelt; ohne Haltelinie sinkt es nach den Vorausberechnungen der Rentenversicherung. Eine dauerhafte Festschreibung wirkt auf Beitragssatz und Bundeszuschuss. Zuständig ist der Bundesgesetzgeber."
+        "titel": "Haltelinie beim Rentenniveau über 2031 hinaus",
+        "ziel": "Zur Abstimmung steht, ob die Haltelinie von 48 Prozent über das Jahr 2031 hinaus verlängert wird.",
+        "begruendung": "Das Rentenpaket schreibt das Sicherungsniveau vor Steuern bis 2031 auf 48 Prozent fest; die Mehrkosten trägt überwiegend der Bundeshaushalt. Ohne Anschlussregelung sinkt das Niveau nach den Vorausberechnungen der Rentenversicherung. Eine Verlängerung wirkt auf Beitragssatz, Bundeszuschuss und Altersgrenze."
     },
     {
         "titel": "Kopplung der Regelaltersgrenze an die Lebenserwartung",
@@ -15,9 +15,9 @@
         "begruendung": "Das Generationenkapital sollte über Darlehen des Bundes und Vermögensübertragungen einen Kapitalstock aufbauen, dessen Erträge ab Mitte der 2030er Jahre den Beitragssatz dämpfen; verwaltet wird er von einer Stiftung. Die Mittel stammen aus kreditfinanzierten Zuführungen, die auf die Schuldenregel angerechnet werden. Der Kapitalstock bleibt vom Rentenanspruch getrennt."
     },
     {
-        "titel": "Altersrente für besonders langjährig Versicherte",
-        "ziel": "Gegenstand der Abstimmung ist, ob die abschlagsfreie Rente nach 45 Beitragsjahren in der bisherigen Form erhalten bleibt.",
-        "begruendung": "Versicherte mit 45 Jahren an Beitrags- und Anrechnungszeiten können derzeit zwei Jahre vor der Regelaltersgrenze ohne Abschläge in Rente gehen; die Altersgrenze steigt jahrgangsweise. Die Regelung wird häufig in Anspruch genommen und wirkt auf das Arbeitskräfteangebot. Die Kosten trägt die Rentenversicherung."
+        "titel": "Abschaffung der Altersrente für besonders langjährig Versicherte",
+        "ziel": "Entschieden wird, ob die abschlagsfreie Rente nach 45 Beitragsjahren für künftige Jahrgänge abgeschafft wird.",
+        "begruendung": "Versicherte mit 45 Jahren an Beitrags- und Anrechnungszeiten können bislang zwei Jahre vor der Regelaltersgrenze ohne Abschläge in Rente gehen; die Altersgrenze steigt jahrgangsweise. Die Bundesregierung hat die Abschaffung in ihre Rentenreform aufgenommen, in Umfragen überwiegt die Ablehnung. Die Regelung wird häufig in Anspruch genommen und wirkt auf das Arbeitskräfteangebot."
     },
     {
         "titel": "Zuschläge und Abschläge bei Erwerbsminderungsrenten",
@@ -35,12 +35,12 @@
         "begruendung": "Beamtinnen und Beamte erhalten Versorgung nach dem Beamtenversorgungsgesetz, Abgeordnete nach dem Abgeordnetengesetz; beide Systeme sind steuerfinanziert. Eine Einbeziehung wirkte erst langfristig, da erworbene Anwartschaften geschützt sind, und berührte Artikel 33 des Grundgesetzes. Kurzfristig stiegen die Einnahmen der Rentenversicherung, langfristig auch die Ausgaben."
     },
     {
-        "titel": "Ausweitung der Mütterrente für Geburten vor 1992",
-        "ziel": "Gegenstand der Abstimmung ist, ob für vor 1992 geborene Kinder drei Jahre Kindererziehungszeit anerkannt werden.",
-        "begruendung": "Für Geburten ab 1992 werden drei Jahre angerechnet, für frühere Geburten zweieinhalb Jahre. Eine Angleichung erhöht die Renten überwiegend von Frauen der älteren Jahrgänge. Die Kindererziehungszeiten werden aus Beitragsmitteln gezahlt und über den Bundeszuschuss teilweise erstattet."
+        "titel": "Frühstartrente für Kinder und Jugendliche",
+        "ziel": "Zur Abstimmung steht, ob der Staat für Kinder ab dem sechsten Lebensjahr monatlich in ein gebundenes Altersvorsorgedepot einzahlt.",
+        "begruendung": "Die Frühstartrente ist im Koalitionsvertrag angelegt und soll für jedes Kind von 6 bis 18 Jahren einen monatlichen Betrag in ein kapitalgedecktes Depot einzahlen, das bis zum Rentenalter gebunden bleibt. Ein Gesetzentwurf ist für den Herbst 2026 angekündigt. Zu regeln sind Anbieterauswahl, Anlagevorschriften und die Besteuerung der Auszahlung."
     },
     {
-        "titel": "Reform der staatlich geförderten privaten Altersvorsorge",
+        "titel": "Altersvorsorgedepot als Nachfolge der Riester-Rente",
         "ziel": "Zur Abstimmung steht, ob die Riester-Förderung durch ein Altersvorsorgedepot ohne Garantiepflicht ersetzt wird.",
         "begruendung": "Bestehende Riester-Verträge verlangen eine Beitragsgarantie, was die Anlage in renditestärkere Wertpapiere begrenzt; die Zahl der Verträge geht seit Jahren zurück. Ein Gesetzentwurf sah ein gefördertes Depot mit Zulagen, freier Anlagewahl und Auszahlplänen vor. Bestandsverträge sollten unberührt bleiben."
     },

@@ -40,9 +40,9 @@
         "begruendung": "Das nach dem Energiewirtschaftsgesetz genehmigte Kernnetz soll bis 2032 mehrere tausend Kilometer Leitungen verbinden, überwiegend durch Umstellung bestehender Erdgasleitungen. Die Anfangsverluste werden über ein Amortisationskonto und eine Bundesgarantie abgefedert. Die Nationale Wasserstoffstrategie ordnet Erzeugung, Import und Verwendung."
     },
     {
-        "titel": "Bundeszuschuss zu den Übertragungsnetzentgelten im Strompreis",
-        "ziel": "Zur Abstimmung steht, ob der Bund die Übertragungsnetzentgelte dauerhaft aus dem Haushalt bezuschusst.",
-        "begruendung": "Die Netzentgelte tragen die Kosten für Ausbau, Betrieb und Engpassmanagement der Stromnetze und werden über den Strompreis auf die Verbraucher umgelegt. Ein Bundeszuschuss senkt den Strompreis, belastet aber den Haushalt und ist beihilferechtlich zu prüfen. Die Höhe der Entgelte genehmigt die Bundesnetzagentur."
+        "titel": "Fortführung des Bundeszuschusses zu den Übertragungsnetzentgelten",
+        "ziel": "Entschieden wird, ob der seit 2026 gezahlte Bundeszuschuss zu den Übertragungsnetzentgelten über das laufende Jahr hinaus fortgeführt wird.",
+        "begruendung": "Seit Januar 2026 senkt ein Zuschuss aus dem Bundeshaushalt die Übertragungsnetzentgelte; zugleich ist die Gasspeicherumlage entfallen. Die Entlastung ist im Haushalt jeweils für ein Jahr veranschlagt und muss neu beschlossen werden. Die Höhe der Entgelte genehmigt die Bundesnetzagentur."
     },
     {
         "titel": "Bundesweite Vereinheitlichung der Stromnetzentgelte",
@@ -80,12 +80,12 @@
         "begruendung": "Das Wärmeplanungsgesetz verpflichtet Kommunen, bis Mitte 2026 beziehungsweise Mitte 2028 je nach Einwohnerzahl einen Wärmeplan aufzustellen und Gebiete für Wärmenetze oder dezentrale Versorgung auszuweisen. Die Pläne entfalten keine unmittelbare Pflicht für Eigentümer, bestimmen aber den Zeitpunkt strengerer Vorgaben beim Heizungstausch. Der Bund beteiligt sich über Mittel an die Länder."
     },
     {
-        "titel": "65-Prozent-Vorgabe für erneuerbare Energien bei neuen Heizungen",
-        "ziel": "Zur Abstimmung steht, ob die Vorgabe des Gebäudeenergiegesetzes, neue Heizungen zu mindestens 65 Prozent mit erneuerbarer Energie zu betreiben, bestehen bleibt.",
-        "begruendung": "Die Vorgabe gilt seit 2024 unmittelbar in Neubaugebieten und im Bestand erst nach Vorliegen der kommunalen Wärmeplanung; zahlreiche Übergangsfristen und Härtefallregelungen sind vorgesehen. Erfüllungsoptionen sind unter anderem Wärmepumpe, Fernwärme, Biomasse und Hybridlösungen. Bestehende Heizungen dürfen weiter betrieben und repariert werden."
+        "titel": "Gebäudemodernisierungsgesetz als Nachfolger des Heizungsgesetzes",
+        "ziel": "Zur Abstimmung steht, ob die 65-Prozent-Vorgabe für neue Heizungen durch eine Kohlendioxid-Bilanz des gesamten Gebäudes ersetzt wird.",
+        "begruendung": "Der Regierungsentwurf für ein Gebäudemodernisierungsgesetz wurde im Juni 2026 in erster Lesung beraten und löst die technikbezogene Vorgabe des Gebäudeenergiegesetzes durch eine Gesamtbetrachtung der Emissionen ab. Bestehende Heizungen dürfen weiter betrieben und repariert werden. Zu klären sind Übergangsfristen, Nachweisverfahren und das Verhältnis zur kommunalen Wärmeplanung."
     },
     {
-        "titel": "Höhe der Förderung für den Heizungstausch",
+        "titel": "Zuschusshöhe bei der Bundesförderung für den Heizungstausch",
         "ziel": "Entschieden wird, ob die Zuschüsse der Bundesförderung für effiziente Gebäude beim Heizungstausch in der bisherigen Höhe fortgeführt werden.",
         "begruendung": "Die Förderung besteht aus einer Grundförderung sowie Zuschlägen für einkommensschwächere Haushalte, den frühzeitigen Austausch und besonders effiziente Anlagen; die Summe ist gedeckelt. Finanziert wird sie aus dem Klima- und Transformationsfonds. Die Bewilligung erfolgt über die Kreditanstalt für Wiederaufbau."
     },
@@ -95,12 +95,12 @@
         "begruendung": "Das produzierende Gewerbe und die Landwirtschaft erhalten bereits eine Entlastung bis zum Mindeststeuersatz der europäischen Energiesteuerrichtlinie; für Haushalte und übrige Betriebe gilt der Regelsatz. Eine allgemeine Absenkung senkte den Strompreis und die Steuereinnahmen des Bundes. Die Stromsteuer ist eine Bundessteuer."
     },
     {
-        "titel": "Ausbauziel für die Offshore-Windenergie",
+        "titel": "Ausbauziel von 70 Gigawatt für Windenergie auf See",
         "ziel": "Gegenstand der Abstimmung ist, ob die Ausbauziele des Windenergie-auf-See-Gesetzes von 70 Gigawatt bis 2045 beibehalten werden.",
         "begruendung": "Das Gesetz nennt Zwischenziele von 30 Gigawatt bis 2030 und 40 Gigawatt bis 2035. Der Ausbau hängt an Netzanbindungen, Hafenkapazitäten, Errichterschiffen und Fachkräften; Ausschreibungen erfolgen teils ohne Förderung mit Zahlungen an den Bund. Betroffen sind zudem Schifffahrtswege, Fischerei und Meeresnaturschutz."
     },
     {
-        "titel": "Verlängerung der Förderung der Kraft-Wärme-Kopplung",
+        "titel": "Zuschläge für Kraft-Wärme-Kopplung nach 2030",
         "ziel": "Zur Abstimmung steht, ob die Förderung nach dem Kraft-Wärme-Kopplungsgesetz über das Jahr 2030 hinaus verlängert wird.",
         "begruendung": "Das Gesetz fördert Anlagen, die gleichzeitig Strom und Wärme erzeugen, über Zuschläge auf den erzeugten Strom; die Förderung ist bis 2030 befristet. Kraft-Wärme-Kopplung deckt einen erheblichen Teil der Fernwärmeerzeugung. Eine Verlängerung müsste die Umstellung auf klimaneutrale Brennstoffe berücksichtigen und beihilferechtlich genehmigt werden."
     },

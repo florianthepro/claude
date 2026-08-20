@@ -1,0 +1,112 @@
+[
+    {
+        "titel": "Aufarbeitung der Kolonialgeschichte und Sammlungsgut",
+        "ziel": "Zur Abstimmung steht, ob der Bund die Aufarbeitung der Kolonialgeschichte mit einem eigenen Programm unterlegt.",
+        "begruendung": "Die Kulturstaatsministerin oder der Kulturstaatsminister hat für den Herbst 2026 ein Papier zu den zentralen Handlungsfeldern angekündigt; bisherige Schritte betreffen Provenienzforschung, Rückgaben und Bildungsarbeit. Verhandlungen mit Herkunftsgesellschaften laufen bilateral. Betroffen sind Museen der Länder und Kommunen, Universitäten und die Erinnerungskultur."
+    },
+    {
+        "titel": "Schiedsgericht für NS-verfolgungsbedingt entzogenes Kulturgut",
+        "ziel": "Entschieden wird, ob Entscheidungen des Schiedsgerichts für Restitutionsfälle verbindlich werden.",
+        "begruendung": "An die Stelle der Beratenden Kommission ist ein Schiedsgericht getreten, das von einer Seite angerufen werden kann; die Washingtoner Prinzipien von 1998 sind völkerrechtlich unverbindlich. Ansprüche sind zivilrechtlich häufig verjährt. Betroffen sind Museen, Erbengemeinschaften und private Sammlungen."
+    },
+    {
+        "titel": "Schutz von Kulturgut vor Abwanderung",
+        "ziel": "Zur Abstimmung steht, ob die Ausfuhrgenehmigungen für national wertvolles Kulturgut gelockert werden.",
+        "begruendung": "Das Kulturgutschutzgesetz von 2016 verlangt Genehmigungen für die Ausfuhr ab bestimmten Alters- und Wertgrenzen und schützt eingetragene Objekte; der Kunsthandel kritisiert Aufwand und Standortnachteile, Museen verweisen auf den Schutz von Sammlungen. Zugleich dient das Gesetz der Bekämpfung des Handels mit Raubgrabungsgut. Zuständig sind Länder und Bund gemeinsam."
+    },
+    {
+        "titel": "Finanzierung von Theatern und Orchestern",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Bund sich an den Kosten kommunaler Theater und Orchester beteiligt.",
+        "begruendung": "Bühnen und Klangkörper werden überwiegend von Ländern und Kommunen getragen; steigende Tarif- und Energiekosten führen zu Spartenschließungen und Fusionen. Der Bund fördert bislang einzelne Einrichtungen und Programme. Eine dauerhafte Beteiligung berührte die Kulturhoheit der Länder."
+    },
+    {
+        "titel": "Kulturpass für junge Menschen",
+        "ziel": "Zur Abstimmung steht, ob der Kulturpass für 18-Jährige fortgeführt und ausgeweitet wird.",
+        "begruendung": "Der Kulturpass stellte ein Guthaben für Bücher, Konzerte, Kinobesuche und Museen bereit; das Budget wurde nach der Einführung mehrfach gekürzt. Ziel war die Belebung der Kulturbranche und die Gewinnung eines jungen Publikums. Betroffen sind Haushaltsmittel, teilnehmende Anbieter und die Auswertung der Nutzung."
+    },
+    {
+        "titel": "Mindesthonorare in der öffentlichen Kulturförderung",
+        "ziel": "Entschieden wird, ob Bundesförderung an die Zahlung von Mindesthonoraren gebunden wird.",
+        "begruendung": "Ein erheblicher Teil freischaffender Künstlerinnen und Künstler erzielt Einkommen unterhalb des Durchschnitts; Verbände haben Honoraruntergrenzen empfohlen. Der Bund hat Mindesthonorare in einzelnen Programmen zur Bedingung gemacht. Betroffen sind Projektbudgets, Zahl geförderter Vorhaben und Länderprogramme."
+    },
+    {
+        "titel": "Musikfonds und Spielstätten für Livemusik",
+        "ziel": "Zur Abstimmung steht, ob Musikfonds und Programme für Livemusik dauerhaft finanziert werden.",
+        "begruendung": "Der Musikfonds und Programme wie Neustart Kultur haben Produktionen und Spielstätten unterstützt; die Mittel werden jährlich im Haushalt festgelegt. Streamingerlöse verteilen sich stark ungleich auf die Interpreten. Betroffen sind Clubs, Festivals, Labels und Musikschaffende."
+    },
+    {
+        "titel": "Leistungsschutzrecht und Vergütung durch Plattformen",
+        "ziel": "Gegenstand der Abstimmung ist, ob Verlage und Urheber eine gesetzlich festgelegte Mindestvergütung von Plattformen erhalten.",
+        "begruendung": "Das Urheberrechts-Diensteanbieter-Gesetz und das Presseleistungsschutzrecht setzen die europäische Urheberrechtsrichtlinie um; Vergütungen werden zwischen Verwertungsgesellschaften und Plattformen ausgehandelt und sind Gegenstand von Schiedsverfahren. Auch Trainingsdaten für KI-Systeme berühren die Frage. Betroffen sind Presseverlage, Journalisten und Suchmaschinen."
+    },
+    {
+        "titel": "Sicherheit von Journalistinnen und Journalisten",
+        "ziel": "Zur Abstimmung steht, ob ein bundesweites Schutzkonzept für Journalistinnen und Journalisten eingeführt wird.",
+        "begruendung": "Erhebungen weisen eine steigende Zahl von Angriffen bei Versammlungen und im Netz aus; ein Verhaltenskodex von Innenministerkonferenz und Verbänden regelt die Zusammenarbeit mit der Polizei. Der Europäische Medienfreiheitsakt verlangt Schutz journalistischer Quellen und Unabhängigkeit. Betroffen sind Polizeitraining, Strafverfolgung und Auskunftsrechte."
+    },
+    {
+        "titel": "Untertitel und Audiodeskription in Medienangeboten",
+        "ziel": "Entschieden wird, ob Untertitel, Gebärdensprache und Audiodeskription in festen Quoten vorgeschrieben werden.",
+        "begruendung": "Der Medienstaatsvertrag verpflichtet Rundfunkanbieter zu einem stetigen Ausbau barrierefreier Angebote, ohne konkrete Quoten; die Umsetzung unterscheidet sich zwischen öffentlich-rechtlichen und privaten Anbietern erheblich. Der Barrierefreiheitsstärkungsgesetz erfasst audiovisuelle Mediendienste. Betroffen sind Produktionskosten, Live-Angebote und Mediatheken."
+    },
+    {
+        "titel": "Verweildauer öffentlich-rechtlicher Inhalte im Netz",
+        "ziel": "Zur Abstimmung steht, ob beitragsfinanzierte Inhalte dauerhaft und frei nutzbar bereitgestellt werden.",
+        "begruendung": "Der Medienstaatsvertrag hat starre Depublikationsfristen weitgehend abgeschafft; Rechte an Musik, Filmen und Bildern begrenzen die Verweildauer weiterhin. Freie Lizenzen würden Nachnutzung in Bildung und Wissenschaft ermöglichen. Betroffen sind Rechteinhaber, Produzenten und private Medienanbieter."
+    },
+    {
+        "titel": "Sportwettenwerbung in Rundfunk und Stadien",
+        "ziel": "Gegenstand der Abstimmung ist, ob Sportwettenwerbung in Rundfunk und Stadien untersagt wird.",
+        "begruendung": "Der Glücksspielstaatsvertrag begrenzt Werbung zeitlich und inhaltlich, ein Verbot besteht nicht; Trikot- und Bandenwerbung ist im Profisport verbreitet. Italien und weitere Staaten haben umfassende Werbeverbote erlassen. Betroffen sind Vereine, Ligen, Anbieter und Spielerschutz."
+    },
+    {
+        "titel": "Einsatzgrenzen und Sperrsystem im Glücksspiel",
+        "ziel": "Zur Abstimmung steht, ob Einsatzgrenzen und Sperrsystem im Glücksspiel verschärft werden.",
+        "begruendung": "Der Staatsvertrag von 2021 hat Online-Glücksspiel unter Auflagen erlaubt, darunter ein anbieterübergreifendes Sperrsystem und ein monatliches Einzahlungslimit; die Gemeinsame Glücksspielbehörde der Länder führt die Aufsicht. Ein erheblicher Teil des Marktes entfällt weiterhin auf nicht lizenzierte Anbieter. Betroffen sind Suchtprävention, Steueraufkommen und Zahlungsdienstleister."
+    },
+    {
+        "titel": "Tägliche Sportstunde an Schulen",
+        "ziel": "Entschieden wird, ob eine tägliche Bewegungszeit an Grundschulen verbindlich eingeführt wird.",
+        "begruendung": "Studien weisen auf abnehmende motorische Fähigkeiten und Bewegungszeiten bei Kindern hin; der Sportunterricht fällt nach Erhebungen der Verbände häufig aus. Lehrpläne und Stundentafeln liegen bei den Ländern. Betroffen sind Sportstätten, Lehrkräfte und Kooperationen mit Vereinen."
+    },
+    {
+        "titel": "Qualitätsstandards für Baukultur bei öffentlichen Bauten",
+        "ziel": "Zur Abstimmung steht, ob Bund und Länder verbindliche Qualitätsstandards für öffentliche Bauvorhaben vereinbaren.",
+        "begruendung": "Die Bundesstiftung Baukultur legt alle zwei Jahre einen Bericht vor; Wettbewerbsverfahren und Gestaltungsbeiräte sind nicht überall vorgeschrieben. Baukultur betrifft Ortsbilder, Umbau statt Abriss und öffentliche Räume. Zuständig sind Bauherren von Bund, Ländern und Kommunen."
+    },
+    {
+        "titel": "Erhöhte Absetzungen für Baudenkmale",
+        "ziel": "Gegenstand der Abstimmung ist, ob die erhöhte Abschreibung für Baudenkmale ausgeweitet wird.",
+        "begruendung": "Das Einkommensteuergesetz erlaubt für Sanierungskosten an Baudenkmalen und in Sanierungsgebieten erhöhte Absetzungen über mehrere Jahre; Voraussetzung ist eine Bescheinigung der Denkmalbehörde. Sanierungskosten liegen regelmäßig über denen von Neubauten. Betroffen sind Eigentümer, Ortskerne und Steueraufkommen."
+    },
+    {
+        "titel": "Zuständigkeiten in der staatlichen Kulturförderung",
+        "ziel": "Zur Abstimmung steht, ob die Kulturförderung des Bundes auf Einrichtungen von nationaler Bedeutung begrenzt wird.",
+        "begruendung": "Kultur ist Ländersache; der Bund fördert dennoch zahlreiche Einrichtungen, Programme und Stiftungen. Kritik richtet sich auf unklare Abgrenzung und Mischfinanzierungen, Befürworter verweisen auf gesamtstaatliche Repräsentation. Betroffen sind Museen, Gedenkstätten und Festivals."
+    },
+    {
+        "titel": "Digitalisierung des kulturellen Erbes",
+        "ziel": "Entschieden wird, ob Museen, Archive und Bibliotheken zur digitalen Erschließung ihrer Bestände verpflichtet werden.",
+        "begruendung": "Die Deutsche Digitale Bibliothek bündelt Bestände zahlreicher Einrichtungen; der Anteil digitalisierter Objekte ist gering und die Erschließungstiefe unterschiedlich. Urheberrechtlich geschützte Werke und verwaiste Werke begrenzen die Veröffentlichung. Betroffen sind Personal, Speicherinfrastruktur und Nachnutzung in Forschung und Bildung."
+    },
+    {
+        "titel": "Buchhandlungen und Verlage in der Fläche",
+        "ziel": "Zur Abstimmung steht, ob unabhängige Buchhandlungen und Verlage dauerhaft gefördert werden.",
+        "begruendung": "Der Deutsche Buchhandlungspreis und Verlagsprämien zeichnen kleine Betriebe aus; eine strukturelle Förderung besteht nicht, die Zahl der Buchhandlungen ist rückläufig. Die Buchpreisbindung sichert einheitliche Endpreise. Betroffen sind Ortszentren, Leseförderung und Vielfalt des Angebots."
+    },
+    {
+        "titel": "Förderkriterien in der öffentlichen Kulturförderung",
+        "ziel": "Gegenstand der Abstimmung ist, ob Zuwendungen an Bekenntnisse zu Verfassungswerten geknüpft werden.",
+        "begruendung": "Einzelne Länder und Kommunen haben Förderbedingungen mit Klauseln zu Diskriminierung und Antisemitismus eingeführt; Gerichte haben Formulierungen teilweise beanstandet. Artikel 5 des Grundgesetzes schützt die Kunstfreiheit, zugleich besteht keine Pflicht zur Förderung. Betroffen sind Zuwendungsrecht, Jurys und Kulturschaffende."
+    },
+    {
+        "titel": "Freie Ensembles und kleine Bühnen",
+        "ziel": "Zur Abstimmung steht, ob ein Bundesprogramm für freie Gruppen und kleine Spielstätten aufgelegt wird.",
+        "begruendung": "Freie Ensembles, Off-Theater und Clubs arbeiten überwiegend projektfinanziert und ohne institutionelle Förderung; Neustart-Programme liefen aus. Steigende Miet- und Energiekosten treffen kleine Häuser besonders. Betroffen sind Länder- und Kommunalförderung, Spielstätten und Nachwuchs."
+    },
+    {
+        "titel": "Musikclubs als Anlagen für kulturelle Zwecke",
+        "ziel": "Entschieden wird, ob Musikclubs baurechtlich als Kultur- statt als Vergnügungsstätten eingeordnet werden.",
+        "begruendung": "Die Baunutzungsverordnung ordnet Clubs bislang den Vergnügungsstätten zu, was Ansiedlung in Kern- und Mischgebieten erschwert und Nachbarschaftskonflikte um Lärm verschärft. Der Bundestag hat eine Einordnung als Anlage für kulturelle Zwecke beraten. Betroffen sind Bestandsclubs, Stadtentwicklung und Immissionsschutz."
+    }
+]

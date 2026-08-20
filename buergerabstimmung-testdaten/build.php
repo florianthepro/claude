@@ -16,7 +16,7 @@ declare(strict_types=1);
 
 const AUTOR_PRAEFIX   = 'seed-';
 const ZEITZONE        = 'Europe/Berlin';
-const THEMEN_SOLL     = 500;
+const THEMEN_SOLL     = 1000;
 const STREUUNG_TAGE   = 240;   // Themen werden ueber so viele Tage rueckwaerts verteilt
 const LAUFZEIT_MIN    = 45;    // frueheste Frist, in Tagen ab heute
 const LAUFZEIT_MAX    = 330;   // spaeteste Frist, in Tagen ab heute
@@ -72,7 +72,9 @@ function themen_laden(string $ordner): array
     $themen = [];
     $titel = [];
     foreach ($dateien as $datei) {
-        $slug = basename($datei, '.json');
+        // Eine Kategorie darf auf mehrere Dateien verteilt sein: wohnen.json,
+        // wohnen.2.json und so weiter. Der Slug ist der Teil vor dem ersten Punkt.
+        $slug = explode('.', basename($datei))[0];
         $roh = json_decode((string) file_get_contents($datei), true);
         if (!is_array($roh)) {
             fehler('unlesbares JSON in ' . basename($datei) . ': ' . json_last_error_msg());

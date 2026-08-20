@@ -5,14 +5,14 @@
         "begruendung": "Nach dem Mindestlohngesetz schlägt eine paritätisch besetzte Kommission alle zwei Jahre eine Anpassung vor, die die Bundesregierung durch Verordnung in Kraft setzt; sie orientiert sich nachlaufend an der Tarifentwicklung. Die europäische Mindestlohnrichtlinie nennt 60 Prozent des Medianlohns als Referenzwert. Eine gesetzliche Festsetzung berührte die Tarifautonomie."
     },
     {
-        "titel": "Karenzzeit und Schonvermögen beim Bürgergeld",
-        "ziel": "Entschieden wird, ob die Karenzzeit für Wohnkosten und Vermögen im Bürgergeld beibehalten wird.",
-        "begruendung": "Im ersten Bezugsjahr werden die tatsächlichen Kosten der Unterkunft übernommen und Vermögen bis zu festgelegten Beträgen nicht angerechnet; danach gelten die Angemessenheitsgrenzen der Kommune. Die Regelung soll den Verlust der Wohnung in der Anfangszeit verhindern. Der Gesetzgeber berät über eine Neuordnung der Grundsicherung für Arbeitsuchende."
+        "titel": "Vermögensfreibeträge in der neuen Grundsicherung",
+        "ziel": "Zur Abstimmung steht, ob die mit der Grundsicherung abgesenkten Vermögensfreibeträge und der Wegfall der Karenzzeit bestehen bleiben.",
+        "begruendung": "Mit der Umstellung des Bürgergeldes auf die Grundsicherung zum 1. Juli 2026 ist die einjährige Karenzzeit für Wohnkosten und Vermögen entfallen, die Freibeträge wurden abgesenkt. Die Angemessenheitsgrenzen der Kommunen für die Unterkunft greifen damit von Beginn des Bezugs an. Sozialverbände haben verfassungsrechtliche Bedenken angemeldet, die Bundesregierung verweist auf die beabsichtigte Aktivierungswirkung."
     },
     {
-        "titel": "Leistungsminderungen bei Verletzung der Mitwirkungspflichten",
-        "ziel": "Zur Abstimmung steht, ob Leistungsminderungen im Bürgergeld bei wiederholter Ablehnung zumutbarer Arbeit ausgeweitet werden.",
-        "begruendung": "Das Bundesverfassungsgericht hat 2019 Minderungen über 30 Prozent für unvereinbar mit dem Grundrecht auf ein menschenwürdiges Existenzminimum erklärt und Härtefallregelungen verlangt. Das Zweite Buch Sozialgesetzbuch sieht seither gestufte Minderungen und einen Sonderfall der vollständigen Verweigerung vor. Die Kosten der Unterkunft sind von Minderungen grundsätzlich ausgenommen."
+        "titel": "Vollständiger Leistungsentzug bei wiederholter Arbeitsverweigerung",
+        "ziel": "Entschieden wird, ob der vollständige Entzug der Regelleistung bei wiederholter Verweigerung zumutbarer Arbeit beibehalten wird.",
+        "begruendung": "Das Bundesverfassungsgericht hat 2019 Minderungen über 30 Prozent für unvereinbar mit dem Grundrecht auf ein menschenwürdiges Existenzminimum erklärt und Härtefallregelungen verlangt. Die Grundsicherung sieht seit Juli 2026 gestufte Minderungen bis zum vollständigen Wegfall der Regelleistung vor; die Kosten der Unterkunft bleiben davon ausgenommen. Gegen die Neuregelung sind Klagen angekündigt."
     },
     {
         "titel": "Erleichterte Allgemeinverbindlicherklärung von Tarifverträgen",
@@ -33,11 +33,6 @@
         "titel": "Rechtsanspruch auf mobile Arbeit",
         "ziel": "Zur Abstimmung steht, ob Beschäftigte einen Anspruch auf Erörterung und teilweise Ausübung mobiler Arbeit erhalten.",
         "begruendung": "Ein gesetzlicher Anspruch besteht bislang nicht; mobile Arbeit wird über Betriebsvereinbarungen und Arbeitsverträge geregelt. Das Betriebsverfassungsgesetz gibt dem Betriebsrat ein Mitbestimmungsrecht bei der Ausgestaltung. Zu klären wären Arbeitsschutz, Unfallversicherung, Erreichbarkeit und Kostenerstattung."
-    },
-    {
-        "titel": "Erprobung der Vier-Tage-Woche",
-        "ziel": "Gegenstand der Abstimmung ist, ob der Bund Modellvorhaben zur Vier-Tage-Woche bei vollem Lohnausgleich fördert.",
-        "begruendung": "Arbeitszeitverkürzungen werden in Deutschland überwiegend tarifvertraglich vereinbart, etwa in der Stahlindustrie und im öffentlichen Dienst. Pilotprojekte in mehreren Ländern haben Wirkungen auf Gesundheit, Produktivität und Personalgewinnung untersucht. Eine staatliche Förderung berührte Tarifautonomie und Haushaltsmittel."
     },
     {
         "titel": "Verdienstgrenze für geringfügige Beschäftigung",
@@ -95,9 +90,9 @@
         "begruendung": "Die Berufskrankheiten-Verordnung listet überwiegend körperliche Erkrankungen; die Aufnahme neuer Tatbestände empfiehlt der Ärztliche Sachverständigenbeirat auf Grundlage epidemiologischer Erkenntnisse. Posttraumatische Belastungsstörungen werden bislang teils über Arbeitsunfälle anerkannt. Eine Aufnahme wirkte auf Leistungen der gesetzlichen Unfallversicherung und die Beiträge der Berufsgenossenschaften."
     },
     {
-        "titel": "Vermittlungsvorrang vor Weiterbildung in der Arbeitsförderung",
-        "ziel": "Gegenstand der Abstimmung ist, ob die Vermittlung in Arbeit wieder Vorrang vor der Förderung längerer Qualifizierung erhält.",
-        "begruendung": "Mit dem Bürgergeldgesetz wurde der Vermittlungsvorrang aufgehoben, um abschlussbezogene Weiterbildungen zu ermöglichen; ergänzend gibt es ein Weiterbildungsgeld und einen Bürgergeldbonus. Eine Rückkehr zum Vorrang verkürzte Maßnahmezeiten und veränderte die Steuerung der Jobcenter. Betroffen sind vor allem Personen ohne Berufsabschluss."
+        "titel": "Vermittlungsvorrang vor Weiterbildung in der Grundsicherung",
+        "ziel": "Zur Abstimmung steht, ob der mit der Grundsicherung wieder eingeführte Vermittlungsvorrang bestehen bleibt.",
+        "begruendung": "Das Bürgergeldgesetz hatte den Vorrang der Vermittlung 2023 aufgehoben, um abschlussbezogene Weiterbildungen zu ermöglichen. Mit der Grundsicherung gilt seit Juli 2026 wieder, dass die Vermittlung in Arbeit und Ausbildung Vorrang vor längeren Qualifizierungen hat. Betroffen sind vor allem Personen ohne Berufsabschluss und die Steuerung der Jobcenter."
     },
     {
         "titel": "Ausbildungsgarantie und Umlage zur Finanzierung der Ausbildung",

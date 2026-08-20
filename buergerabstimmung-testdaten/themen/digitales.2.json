@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Agenda zur Modernisierung des Staates",
+        "ziel": "Zur Abstimmung steht, ob Verwaltungsverfahren des Bundes nach festen Fristen vollständig neu gestaltet werden.",
+        "begruendung": "Die Bundesregierung hat Wettbewerbsfähigkeit und Staatsmodernisierung zum Schwerpunkt einer Kabinettklausur gemacht; vorgesehen sind Rechtsbereinigung, Standardabbau und die Bündelung von Zuständigkeiten. Frühere Programme wie die Digitalstrategie sind ohne verbindliche Fristen geblieben. Betroffen sind Ressorts, Länder und kommunale Vollzugsbehörden."
+    },
+    {
+        "titel": "Digitalcheck auf Vollzugstauglichkeit von Gesetzen",
+        "ziel": "Entschieden wird, ob Gesetzentwürfe verpflichtend auf digitale Vollzugstauglichkeit geprüft werden.",
+        "begruendung": "Seit 2023 prüfen die Ressorts Regelungsvorhaben anhand eines Digitalchecks auf Schriftformerfordernisse, Datenwiederverwendung und Automatisierbarkeit; die Prüfung ist Teil der Gemeinsamen Geschäftsordnung, nicht des Gesetzes. Der Normenkontrollrat berichtet über die Anwendung. Eine gesetzliche Verankerung berührte Verfahrensdauer und Ressorthoheit."
+    },
+    {
+        "titel": "Digitale Verfahren als Standard im Verwaltungsverfahrensrecht",
+        "ziel": "Zur Abstimmung steht, ob das Verwaltungsverfahrensgesetz die elektronische Bearbeitung zum Regelfall macht.",
+        "begruendung": "Das Verwaltungsverfahrensgesetz geht weiterhin vom Papierverfahren aus; elektronische Kommunikation ist zugelassen, aber nicht Standard. Zahlreiche Fachgesetze verlangen Schriftform oder persönliches Erscheinen. Eine Umstellung berührte Zustellung, Aktenführung und Rechtsbehelfsbelehrungen."
+    },
+    {
+        "titel": "Einsatz künstlicher Intelligenz in der Verwaltung",
+        "ziel": "Gegenstand der Abstimmung ist, ob KI-gestützte Entscheidungen in Verwaltungsverfahren zugelassen und gekennzeichnet werden.",
+        "begruendung": "Vollautomatisierte Verwaltungsakte sind nur zulässig, soweit ein Gesetz sie erlaubt und kein Ermessen besteht; die KI-Verordnung stuft Anwendungen in der Verwaltung teilweise als Hochrisiko ein. Bislang werden Sprachmodelle vor allem für Recherche und Textentwürfe erprobt. Betroffen sind Begründungspflichten, Rechtsschutz und Datenschutz."
+    },
+    {
+        "titel": "Scoring und Bonitätsbewertung im Datenschutzrecht",
+        "ziel": "Zur Abstimmung steht, ob Regeln zu Scoring und automatisierter Bonitätsbewertung verschärft werden.",
+        "begruendung": "Der Europäische Gerichtshof hat 2023 entschieden, dass ein Score bereits eine automatisierte Entscheidung darstellen kann, wenn Dritte ihm maßgebliche Bedeutung beimessen; Speicherfristen bei Auskunfteien wurden angepasst. Eine Novelle des Bundesdatenschutzgesetzes ist angekündigt. Betroffen sind Kreditvergabe, Mietverhältnisse und Mobilfunkverträge."
+    },
+    {
+        "titel": "Zugang zu Daten vernetzter Produkte",
+        "ziel": "Entschieden wird, wie Zugangsrechte zu Daten vernetzter Produkte national ausgestaltet werden.",
+        "begruendung": "Der Data Act gilt seit September 2025 und gibt Nutzenden Zugriff auf die von ihren Geräten erzeugten Daten sowie das Recht, sie an Dritte weiterzugeben; ein Durchführungsgesetz regelt Zuständigkeiten und Sanktionen. Betroffen sind Fahrzeuge, Landmaschinen, Haustechnik und Industrieanlagen. Streitpunkte sind Geschäftsgeheimnisse und Entgelte für die Bereitstellung."
+    },
+    {
+        "titel": "Sektorale Datenräume und Datentreuhänder",
+        "ziel": "Zur Abstimmung steht, ob der Bund den Aufbau sektoraler Datenräume dauerhaft fördert.",
+        "begruendung": "Datenräume für Mobilität, Gesundheit, Landwirtschaft und Industrie sollen den Austausch zwischen Unternehmen und Verwaltung ermöglichen; Grundlage sind das Daten-Governance-Gesetz und europäische Rahmenwerke. Treuhandmodelle sollen Vertrauen schaffen, sind aber bislang wenig verbreitet. Betroffen sind Standards, Betriebskosten und Wettbewerbsrecht."
+    },
+    {
+        "titel": "Regeln für Torwächter auf digitalen Märkten",
+        "ziel": "Gegenstand der Abstimmung ist, ob Deutschland eine strengere Durchsetzung gegenüber großen Plattformen unterstützt.",
+        "begruendung": "Der Digital Markets Act verpflichtet benannte Torwächter unter anderem zu Interoperabilität, Wahlbildschirmen und Verzicht auf Selbstbevorzugung; die Durchsetzung liegt bei der Europäischen Kommission. Das deutsche Wettbewerbsrecht kennt daneben die Missbrauchsaufsicht über Unternehmen mit überragender marktübergreifender Bedeutung. Betroffen sind App-Vertrieb, Werbemärkte und Suchdienste."
+    },
+    {
+        "titel": "Elektronische Signatur und Schriftform in der Verwaltung",
+        "ziel": "Zur Abstimmung steht, ob die qualifizierte elektronische Signatur durch einfachere Nachweise ersetzt werden kann.",
+        "begruendung": "Zahlreiche Verwaltungsverfahren verlangen Schriftform, die elektronisch nur durch qualifizierte Signatur, De-Mail-Ersatz oder Nutzerkonto mit elektronischem Identitätsnachweis gewahrt wird. Die Verbreitung qualifizierter Signaturen bei Privatpersonen ist gering. Betroffen sind Anträge, Widersprüche und Vertragsabschlüsse mit Behörden."
+    },
+    {
+        "titel": "Einheitliches Nutzerkonto für Betriebe und Selbstständige",
+        "ziel": "Entschieden wird, ob Unternehmen alle Verwaltungsleistungen über ein einheitliches Organisationskonto abwickeln.",
+        "begruendung": "Das Unternehmenskonto beruht auf dem ELSTER-Zertifikat und wird schrittweise für Bundes- und Landesleistungen geöffnet; parallel entsteht die einheitliche Wirtschaftsnummer auf Basis der Steuernummer. Mehrfachregistrierungen bei Kammern, Ämtern und Portalen bestehen fort. Betroffen sind Registervernetzung, Vollmachten und Datenschutz."
+    },
+    {
+        "titel": "Digitalfunk der Behörden und Organisationen mit Sicherheitsaufgaben",
+        "ziel": "Zur Abstimmung steht, ob das Nachfolgesystem des Behördendigitalfunks mit Breitbanddiensten aufgebaut wird.",
+        "begruendung": "Der bestehende Digitalfunk überträgt im Wesentlichen Sprache; für Videoübertragung, Lagebilder und Sensordaten fehlt Breitbandkapazität. Diskutiert werden eigene Frequenzen, die Mitnutzung kommerzieller Netze und der Zeitplan bis zur Ablösung. Träger ist die Bundesanstalt für den Digitalfunk gemeinsam mit den Ländern."
+    },
+    {
+        "titel": "Satellitenkommunikation und Ausfallsicherheit der Netze",
+        "ziel": "Gegenstand der Abstimmung ist, ob eine staatlich gesicherte Satellitenverbindung als Rückfallebene aufgebaut wird.",
+        "begruendung": "Das europäische Programm IRIS² soll ab den 2030er Jahren sichere Konnektivität bereitstellen; derzeit greifen Behörden im Krisenfall auf kommerzielle Anbieter zurück. Störungen an Seekabeln und Mobilfunkmasten haben die Abhängigkeit sichtbar gemacht. Betroffen sind Kosten, Souveränität und Interoperabilität mit Partnern."
+    },
+    {
+        "titel": "Gewinnung von IT-Fachkräften für Behörden",
+        "ziel": "Zur Abstimmung steht, ob für IT-Berufe im öffentlichen Dienst eigene Entgeltregelungen geschaffen werden.",
+        "begruendung": "Tarifvertrag und Besoldungsordnung sehen begrenzte Zulagen vor; Behörden konkurrieren mit der Privatwirtschaft um Fachkräfte und vergeben Aufgaben häufig an externe Dienstleister. Der Bundesrechnungshof hat die Abhängigkeit von Beratungsleistungen wiederholt beanstandet. Betroffen sind Tarifsystematik, Laufbahnrecht und Vergabepraxis."
+    },
+    {
+        "titel": "Ablösung veralteter Fachverfahren in der Verwaltung",
+        "ziel": "Entschieden wird, ob der Bund ein Programm zur Ablösung veralteter IT-Fachverfahren auflegt.",
+        "begruendung": "Zahlreiche Verfahren in Steuer-, Sozial- und Registerverwaltung beruhen auf jahrzehntealten Systemen; Fachpersonal für die zugrunde liegenden Programmiersprachen wird knapp. Modernisierungen sind aufwendig, weil Fachrecht und Software eng verzahnt sind. Betroffen sind Betriebssicherheit, Kosten und die Umsetzbarkeit neuer Gesetze."
+    },
+    {
+        "titel": "Digitale Teilhabe älterer Menschen",
+        "ziel": "Zur Abstimmung steht, ob der Bund flächendeckend Unterstützungsangebote für digitale Anwendungen bereitstellt.",
+        "begruendung": "Erhebungen zeigen, dass ein erheblicher Teil der über 70-Jährigen das Internet nicht oder selten nutzt; zugleich verlagern sich Bank-, Verwaltungs- und Gesundheitsleistungen ins Netz. Bestehende Angebote wie Digitalbotschafter und Mehrgenerationenhäuser sind regional unterschiedlich verbreitet. Betroffen sind Kommunen, Verbände und die Barrierefreiheit von Anwendungen."
+    },
+    {
+        "titel": "Anspruch auf analoge Zugangswege zu Verwaltungsleistungen",
+        "ziel": "Gegenstand der Abstimmung ist, ob ein Recht auf persönliche oder schriftliche Antragstellung festgeschrieben wird.",
+        "begruendung": "Mit der Digitalisierung werden Schalterzeiten reduziert und Verfahren auf Onlinezugang umgestellt; das Onlinezugangsgesetz verpflichtet zur digitalen Bereitstellung, ohne analoge Wege ausdrücklich zu sichern. Betroffen sind Menschen ohne Internetzugang, mit Behinderungen oder Sprachbarrieren. Eine Regelung berührte Personaleinsatz und Erreichbarkeit."
+    },
+    {
+        "titel": "Fonds für offene Basistechnologien der IT-Sicherheit",
+        "ziel": "Zur Abstimmung steht, ob der Fonds für offene Basistechnologien dauerhaft finanziert wird.",
+        "begruendung": "Der Sovereign Tech Fund unterstützt Wartung und Sicherheit weit verbreiteter Open-Source-Komponenten, auf denen öffentliche und private Systeme aufbauen. Die Mittel werden bislang jährlich im Bundeshaushalt veranschlagt. Betroffen sind IT-Sicherheit, Abhängigkeiten von einzelnen Anbietern und europäische Kooperation."
+    },
+    {
+        "titel": "Cybersicherheit kommunaler Verwaltungen",
+        "ziel": "Entschieden wird, ob Kommunen zu Mindeststandards der IT-Sicherheit verpflichtet und dabei unterstützt werden.",
+        "begruendung": "Angriffe auf Kommunalverwaltungen und kommunale Rechenzentren haben mehrfach Bürgerdienste über Wochen lahmgelegt; das NIS-2-Umsetzungsgesetz erfasst Kommunen nur, soweit Landesrecht dies vorsieht. Das Bundesamt für Sicherheit in der Informationstechnik darf Länder und Kommunen bislang nur eingeschränkt unterstützen. Betroffen sind Zuständigkeiten, Kosten und Personal."
+    },
+    {
+        "titel": "Elektronische Rechnung im Geschäftsverkehr",
+        "ziel": "Zur Abstimmung steht, ob die Fristen zur verpflichtenden elektronischen Rechnung für kleine Unternehmen verlängert werden.",
+        "begruendung": "Seit 2025 müssen Unternehmen elektronische Rechnungen empfangen können; die Pflicht zum Versand greift gestuft bis 2028. Grundlage ist das Wachstumschancengesetz in Verbindung mit europäischen Vorgaben zur Mehrwertsteuer im digitalen Zeitalter. Betroffen sind Software, Archivierung und Betriebsabläufe kleiner Betriebe."
+    },
+    {
+        "titel": "Interoperabilität und einheitliche Schnittstellen der Behörden",
+        "ziel": "Gegenstand der Abstimmung ist, ob Standards des IT-Planungsrats für Länder und Kommunen verbindlich werden.",
+        "begruendung": "Der IT-Planungsrat beschließt Interoperabilitätsstandards, deren Anwendung überwiegend auf Selbstbindung beruht; die europäische Verordnung über ein interoperables Europa setzt zusätzliche Vorgaben. Uneinheitliche Schnittstellen erschweren die Nachnutzung von Onlinediensten. Betroffen sind Landeshoheit, Beschaffungen und Zeitpläne."
+    },
+    {
+        "titel": "Zulassung und Aufsicht für Kryptodienstleister",
+        "ziel": "Zur Abstimmung steht, ob die Aufsicht über Kryptodienstleister verschärft wird.",
+        "begruendung": "Die europäische Verordnung über Märkte für Kryptowerte gilt seit 2024 vollständig und verlangt Zulassung, Eigenkapital und Verwahrungsregeln; die Aufsicht führt in Deutschland die Bundesanstalt für Finanzdienstleistungsaufsicht. Übergangsfristen für Bestandsanbieter laufen aus. Betroffen sind Anlegerschutz, Geldwäscheprävention und Standortfragen."
+    },
+    {
+        "titel": "Digitale Archivierung von Verwaltungsdaten",
+        "ziel": "Entschieden wird, ob für elektronische Verwaltungsunterlagen einheitliche Aufbewahrungs- und Übernahmeregeln gelten.",
+        "begruendung": "Das Bundesarchivgesetz und die Archivgesetze der Länder regeln Anbietung und Übernahme; digitale Formate erfordern Migration, Lesbarkeit über Jahrzehnte und Aussonderungskonzepte in den Fachverfahren. Ohne einheitliche Vorgaben drohen Überlieferungslücken. Betroffen sind Archive, Behörden und die Nachvollziehbarkeit staatlichen Handelns."
+    },
+    {
+        "titel": "Vergabe öffentlicher IT-Aufträge in Losen",
+        "ziel": "Zur Abstimmung steht, ob öffentliche IT-Vergaben stärker in kleine Lose und offene Standards aufgeteilt werden.",
+        "begruendung": "Große Rahmenverträge erleichtern die Beschaffung, binden Behörden aber langfristig an einzelne Anbieter; das Vergaberecht verlangt grundsätzlich eine Aufteilung in Fach- und Teillose. Wechselkosten und fehlende Datenportabilität erschweren einen Anbieterwechsel. Betroffen sind Mittelstand, Betriebssicherheit und Beschaffungskosten."
+    }
+]

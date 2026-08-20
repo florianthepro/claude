@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Investitionszuschüsse statt Einspeisevergütung für neue Anlagen",
+        "ziel": "Zur Abstimmung steht, ob neue Solar- und Windanlagen statt einer Einspeisevergütung einen einmaligen Investitionszuschuss erhalten.",
+        "begruendung": "Der Monitoringbericht zur Energiewende hat eine Umstellung der Förderung vorgeschlagen, um die Ausgaben des Klima- und Transformationsfonds zu begrenzen und die Anlagen stärker am Markt auszurichten. Bestandsanlagen behielten ihre Vergütungszusage über 20 Jahre. Betroffen sind Finanzierungsmodelle, Direktvermarktung und die Ausbaugeschwindigkeit."
+    },
+    {
+        "titel": "Kapazitätsmechanismus für gesicherte Kraftwerksleistung",
+        "ziel": "Entschieden wird, ob gesicherte Kraftwerksleistung künftig über einen zentralen Kapazitätsmarkt vergütet wird.",
+        "begruendung": "Der Strommarkt vergütet bislang nur gelieferte Energie; mit wachsendem Anteil wetterabhängiger Erzeugung stellt sich die Frage nach der Finanzierung selten laufender Reservekraftwerke. Optionen sind ein zentraler Kapazitätsmarkt, dezentrale Leistungsnachweise oder eine Kombination mit Ausschreibungen. Eine Einführung bedarf der beihilferechtlichen Genehmigung der Europäischen Kommission."
+    },
+    {
+        "titel": "Netzentgelte für Erzeuger und Verbraucher",
+        "ziel": "Zur Abstimmung steht, ob Erzeugungsanlagen künftig an den Netzkosten beteiligt werden.",
+        "begruendung": "Netzentgelte tragen in Deutschland allein die Entnehmer; in mehreren europäischen Staaten zahlen auch Einspeiser einen Anteil. Die Bundesnetzagentur hat die Systematik in Festlegungsverfahren überprüft, unter anderem zu Baukostenzuschüssen und zeitvariablen Entgelten. Eine Umstellung wirkte auf Standortwahl von Anlagen und auf die Kostenverteilung zwischen Regionen."
+    },
+    {
+        "titel": "Dynamische Stromtarife und Rollout intelligenter Messsysteme",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Einbau intelligenter Messsysteme beschleunigt und für weitere Haushalte verpflichtend wird.",
+        "begruendung": "Seit 2025 müssen alle Lieferanten dynamische Tarife anbieten; deren Nutzung setzt ein intelligentes Messsystem voraus, dessen Einbau nur oberhalb bestimmter Verbrauchsschwellen oder bei steuerbaren Einrichtungen vorgeschrieben ist. Das Messstellenbetriebsgesetz regelt Fristen und Preisobergrenzen. Betroffen sind Netzbetreiber, Messstellenbetreiber und Datenschutz."
+    },
+    {
+        "titel": "Steuerbare Verbrauchseinrichtungen im Verteilnetz",
+        "ziel": "Zur Abstimmung steht, ob die Regeln zur netzorientierten Steuerung von Wärmepumpen und Ladepunkten ausgeweitet werden.",
+        "begruendung": "Seit 2024 dürfen Netzbetreiber die Leistung neuer steuerbarer Verbrauchseinrichtungen bei drohender Überlastung vorübergehend reduzieren; im Gegenzug erhalten Betreiber reduzierte Netzentgelte. Die Regelung gilt für Wärmepumpen, Ladepunkte, Klimaanlagen und Speicher. Eine Ausweitung berührte Bestandsanlagen, Mindestleistungen und die Zumutbarkeit für Nutzende."
+    },
+    {
+        "titel": "Netzanschluss und Entgelte für Großbatteriespeicher",
+        "ziel": "Entschieden wird, ob Speicher dauerhaft von Netzentgelten befreit und beim Netzanschluss bevorzugt werden.",
+        "begruendung": "Die Baukostenzuschuss- und Entgeltbefreiung für Speicher ist befristet; zugleich liegen Netzanschlussbegehren in erheblichem Umfang vor. Speicher können Erzeugungsspitzen aufnehmen und Netzengpässe verringern, konkurrieren aber mit anderen Anschlussnehmern um Kapazität. Die Ausgestaltung erfolgt über das Energiewirtschaftsgesetz und Festlegungen der Bundesnetzagentur."
+    },
+    {
+        "titel": "Anschlussregelung für bestehende Biogasanlagen",
+        "ziel": "Zur Abstimmung steht, ob Bestandsanlagen der Biogaserzeugung eine verlängerte Förderung für flexible Stromerzeugung erhalten.",
+        "begruendung": "Für viele Anlagen läuft die 20-jährige Vergütung aus; das Biomassepaket hat Ausschreibungsmengen und Flexibilitätszuschläge angepasst. Biogas kann steuerbar einspeisen und Wärme für Nahwärmenetze liefern, steht aber in Flächenkonkurrenz zur Nahrungsmittelerzeugung. Betroffen sind Landwirtschaft, Wärmeversorgung und Ausschreibungsdesign."
+    },
+    {
+        "titel": "Importstrategie für Wasserstoff und Wasserstoffderivate",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Bund Wasserstoffimporte über langfristige Abnahmegarantien absichert.",
+        "begruendung": "Die Importstrategie geht davon aus, dass ein überwiegender Teil des Bedarfs eingeführt wird; das Instrument H2Global versteigert Lieferverträge und gleicht die Differenz zum Marktpreis aus. Aufbau von Terminals, Ammoniakspaltern und Leitungen steht am Anfang. Betroffen sind Industriestandorte, Haushaltsmittel und Lieferländer."
+    },
+    {
+        "titel": "Anforderungen an die Herstellung von grünem Wasserstoff",
+        "ziel": "Zur Abstimmung steht, ob die Kriterien für erneuerbaren Wasserstoff aus Nicht-Biomasse gelockert werden.",
+        "begruendung": "Delegierte Rechtsakte zur Erneuerbare-Energien-Richtlinie verlangen Zusätzlichkeit des Stroms, zeitliche und räumliche Korrelation zur Erzeugung; ab 2030 gilt eine stündliche Zuordnung. Die Anforderungen bestimmen, welcher Wasserstoff auf Quoten angerechnet und gefördert werden darf. Betroffen sind Elektrolyseprojekte, Raffinerien und Stahlwerke."
+    },
+    {
+        "titel": "Beschleunigung von Vorhaben der tiefen Geothermie",
+        "ziel": "Entschieden wird, ob Geothermievorhaben ein überragendes öffentliches Interesse zuerkannt und Verfahren verkürzt werden.",
+        "begruendung": "Das Geothermiebeschleunigungsgesetz sieht kürzere Fristen, Genehmigungsfiktionen und erleichterte Erkundung vor; Bergrecht und Wasserrecht bleiben anwendbar. Geothermie kann Wärmenetze grundlastfähig versorgen, erfordert aber hohe Vorabinvestitionen und Fündigkeitsrisiken. Betroffen sind Kommunen, Stadtwerke und Anwohnerbelange."
+    },
+    {
+        "titel": "Bundesförderung für effiziente Wärmenetze",
+        "ziel": "Zur Abstimmung steht, ob die Förderung für den Bau und die Umstellung von Wärmenetzen aufgestockt wird.",
+        "begruendung": "Das Programm fördert Neubau, Verdichtung und Dekarbonisierung von Wärmenetzen mit Zuschüssen zu Investitions- und Betriebskosten; Fernwärme deckt derzeit etwa 14 Prozent des Wärmebedarfs. Das Wärmeplanungsgesetz verlangt bis 2030 einen wachsenden Anteil erneuerbarer Wärme in den Netzen. Betroffen sind Stadtwerke, Anschlussnehmer und Preisaufsicht."
+    },
+    {
+        "titel": "Fusionsforschung und eigener Rechtsrahmen",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Bund den Bau eines Fusionskraftwerks mit einem eigenen Rechtsrahmen unterstützt.",
+        "begruendung": "Die Bundesregierung hat ein Förderprogramm und ein eigenes Fusionsgesetz außerhalb des Atomrechts angekündigt; Fusionsanlagen erzeugen keinen hochradioaktiven Abfall im Sinne der Spaltungstechnik, unterliegen aber dem Strahlenschutz. Ein Kraftwerksbetrieb wird von Fachleuten frühestens für die 2040er Jahre erwartet. Betroffen sind Forschungshaushalt, Genehmigungsrecht und Standortfragen."
+    },
+    {
+        "titel": "Netzanschluss und Abwärmenutzung von Rechenzentren",
+        "ziel": "Zur Abstimmung steht, ob Rechenzentren zur Nutzung ihrer Abwärme und zu Effizienzstandards verpflichtet bleiben.",
+        "begruendung": "Das Energieeffizienzgesetz schreibt Rechenzentren Mindestwerte für die Energieverbrauchseffektivität, Anteile erneuerbaren Stroms und ab bestimmten Größen die Abwärmenutzung vor. Der Strombedarf der Branche wächst mit dem Ausbau von Anwendungen künstlicher Intelligenz. Betroffen sind Netzanschlusskapazitäten, Standortwettbewerb und Wärmenetze."
+    },
+    {
+        "titel": "Differenzverträge für erneuerbare Erzeugungsanlagen",
+        "ziel": "Entschieden wird, ob große Wind- und Solarparks über zweiseitige Differenzverträge gefördert werden.",
+        "begruendung": "Die europäische Strommarktreform sieht für neu geförderte Anlagen zweiseitige Differenzverträge vor, bei denen Erzeuger Erlöse oberhalb eines Referenzpreises zurückzahlen. Deutschland fördert bislang über gleitende Marktprämien. Eine Umstellung wirkte auf Finanzierungskosten, Strompreise und die Erlöse des Bundeshaushalts."
+    },
+    {
+        "titel": "Bestandsschutz und Austauschpflicht für Ölheizungen",
+        "ziel": "Zur Abstimmung steht, ob für Ölheizungen ein Enddatum für den Betrieb festgelegt wird.",
+        "begruendung": "Das Gebäudeenergiegesetz verbietet den Betrieb von Heizkesseln, die älter als 30 Jahre sind, mit Ausnahmen für Niedertemperatur- und Brennwertkessel sowie selbst genutzte Ein- und Zweifamilienhäuser; ein allgemeines Enddatum besteht bislang nur mittelbar über die Vorgabe für neue Anlagen. Rund ein Viertel der Wohnungen wird mit Öl beheizt. Betroffen sind Eigentümer, Heizungsbau und Förderprogramme."
+    },
+    {
+        "titel": "Bundesbedarfsplan und Beschleunigung des Stromnetzausbaus",
+        "ziel": "Gegenstand der Abstimmung ist, ob der Bundesbedarfsplan an einen verringerten Netzausbaubedarf angepasst wird.",
+        "begruendung": "Der Netzentwicklungsplan der Übertragungsnetzbetreiber wird alle zwei Jahre fortgeschrieben und von der Bundesnetzagentur bestätigt; daraus folgt der gesetzliche Bedarfsplan. Ein verändertes Verbrauchs- und Erzeugungsszenario kann einzelne Vorhaben entbehrlich machen. Die Investitionen wirken über die Netzentgelte auf den Strompreis."
+    },
+    {
+        "titel": "Agri-Photovoltaik auf landwirtschaftlichen Flächen",
+        "ziel": "Zur Abstimmung steht, ob Anlagen mit gleichzeitiger landwirtschaftlicher Nutzung im Außenbereich privilegiert werden.",
+        "begruendung": "Das Baugesetzbuch privilegiert Freiflächenanlagen bislang nur in begrenzten Fällen; Agri-Photovoltaik erhält im Erneuerbare-Energien-Gesetz eigene Ausschreibungssegmente und Boni. Die Flächen bleiben förderfähig nach der Gemeinsamen Agrarpolitik, wenn die Bewirtschaftung fortgeführt wird. Betroffen sind Flächenkonkurrenz, Pachtpreise und Ortsbild."
+    },
+    {
+        "titel": "Ausschreibungen für Offshore-Windenergie mit Zahlungen an den Bund",
+        "ziel": "Entschieden wird, ob das Ausschreibungsverfahren ohne Förderung mit Zahlungen an den Bund geändert wird.",
+        "begruendung": "In nicht zentral voruntersuchten Flächen konkurrieren Bieter über Zahlungen an den Bund; mehrere Ausschreibungen blieben zuletzt ohne Gebote oder wurden zurückgegeben. Kritik richtet sich auf die Belastung der Projektkalkulation und die Weitergabe der Kosten über Strompreise. Die Erlöse fließen überwiegend in die Senkung der Netzentgelte und in den Meeresnaturschutz."
+    },
+    {
+        "titel": "Beteiligung von Kommunen und Bürgern an Windparks",
+        "ziel": "Zur Abstimmung steht, ob die Beteiligung der Standortgemeinden an Windparks bundesweit verpflichtend wird.",
+        "begruendung": "Das Erneuerbare-Energien-Gesetz erlaubt Betreibern eine freiwillige Zahlung an Gemeinden im Umkreis von 2,5 Kilometern; mehrere Länder haben verpflichtende Beteiligungsgesetze erlassen. Bürgerenergiegesellschaften sind in Ausschreibungen privilegiert. Eine bundesweite Pflicht berührte Projektkalkulation, Akzeptanz und die Ausgestaltung der Landesregelungen."
+    },
+    {
+        "titel": "Vorgaben zur Befüllung der Gasspeicher",
+        "ziel": "Gegenstand der Abstimmung ist, ob die gesetzlichen Füllstandsvorgaben für Gasspeicher beibehalten werden.",
+        "begruendung": "Das Energiewirtschaftsgesetz und die europäische Speicherverordnung schreiben Mindestfüllstände zu festen Stichtagen vor; die Gasspeicherumlage zur Finanzierung der Beschaffung ist zum Januar 2026 entfallen und wird aus dem Bundeshaushalt getragen. Starre Vorgaben können die Beschaffung in Zeiten hoher Sommerpreise verteuern. Betroffen sind Marktgebietsverantwortliche, Speicherbetreiber und Endkunden."
+    },
+    {
+        "titel": "Netzreserve und Reservekraftwerke außerhalb des Marktes",
+        "ziel": "Zur Abstimmung steht, ob die Netzreserve dauerhaft im heutigen Umfang vorgehalten wird.",
+        "begruendung": "Die Bundesnetzagentur ermittelt jährlich den Reservebedarf für Netzengpässe; die Kraftwerke sind stillgelegt oder nur für den Abruf verfügbar und werden über Netzentgelte finanziert. Mit dem Kohleausstieg und dem Netzausbau verändert sich der Bedarf. Betroffen sind Betreiber, Kosten und Emissionen bei Abruf."
+    },
+    {
+        "titel": "Umstellung von Gasverteilnetzen auf Wasserstoff",
+        "ziel": "Entschieden wird, ob die Umstellung einzelner Verteilnetze auf Wasserstoff gefördert wird.",
+        "begruendung": "Das Energiewirtschaftsgesetz sieht Netzentwicklungspläne für Wasserstoff und die gemeinsame Regulierung von Gas- und Wasserstoffnetzen vor; für die Wärmeversorgung von Haushalten gilt Wasserstoff nach den meisten Studien als teure Option. Das Wärmeplanungsgesetz verlangt für Wasserstoffgebiete verbindliche Fahrpläne. Betroffen sind Netzbetreiber, Hauseigentümer und kommunale Planung."
+    },
+    {
+        "titel": "Entlastung energieintensiver Betriebe von Umlagen und Abgaben",
+        "ziel": "Zur Abstimmung steht, ob die besondere Ausgleichsregelung und die Strompreiskompensation zusammengeführt werden.",
+        "begruendung": "Energieintensive Unternehmen können von Umlagen teilweise befreit werden und erhalten Ausgleich für indirekte Kosten des Emissionshandels; die Verfahren laufen getrennt beim Bundesamt für Wirtschaft und Ausfuhrkontrolle. Die Abgrenzung der begünstigten Branchen folgt europäischen Beihilfeleitlinien. Eine Zusammenführung berührte Antragsaufwand, Prüfkriterien und die Verteilung der Kosten."
+    }
+]

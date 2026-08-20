@@ -1,0 +1,117 @@
+[
+    {
+        "titel": "Träger der Luftsicherheitskontrollen an Flughäfen",
+        "ziel": "Zur Abstimmung steht, ob die Luftsicherheitskontrollen wieder in staatliche Hand überführt werden.",
+        "begruendung": "Die Bundespolizei beauftragt private Dienstleister mit der Durchführung der Kontrollen; an einzelnen Standorten haben Flughafengesellschaften die Organisation übernommen. Wartezeiten, Personalfluktuation und Qualifizierung sind wiederkehrende Kritikpunkte. Die Aufgabe folgt aus dem Luftsicherheitsgesetz und europäischen Vorgaben."
+    },
+    {
+        "titel": "Befugnisse und Personal der Zollverwaltung",
+        "ziel": "Entschieden wird, ob Zoll und Finanzkontrolle Schwarzarbeit mit zusätzlichem Personal und Befugnissen ausgestattet werden.",
+        "begruendung": "Ein Gesetzentwurf zur Stärkung der Zollverwaltung ist für den Herbst 2026 angekündigt; er soll Ermittlungsbefugnisse bei Schwarzarbeit, Mindestlohnverstößen und Zollkriminalität erweitern. Der Zoll ist zugleich für Sanktionsdurchsetzung und Warenkontrollen zuständig. Betroffen sind Personalgewinnung, Datenzugriffe und Zusammenarbeit mit den Ländern."
+    },
+    {
+        "titel": "Bundesamt zur Bekämpfung von Finanzkriminalität",
+        "ziel": "Zur Abstimmung steht, ob Ermittlung, Aufsicht und Geldwäscheverdachtsmeldungen in einer Bundesbehörde gebündelt werden.",
+        "begruendung": "Das Finanzkriminalitätsbekämpfungsgesetz sieht ein Bundesamt vor, das Ermittlungen in bedeutenden Fällen führt und die Zentralstelle für Finanztransaktionsuntersuchungen einbindet. Bislang liegen Zuständigkeiten bei Zoll, Landeskriminalämtern und Aufsichtsbehörden der Länder nebeneinander. Betroffen sind Föderalismus, Datenzugriffe und Personalaufbau."
+    },
+    {
+        "titel": "Aufsicht über Geldwäscheprävention im Nichtfinanzsektor",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Aufsicht über Immobilienmakler, Notare und Güterhändler zentralisiert wird.",
+        "begruendung": "Im Nichtfinanzsektor führen mehr als 300 Stellen der Länder die Aufsicht; internationale Prüfberichte haben uneinheitliche Standards und geringe Kontrolldichte bemängelt. Die europäische Geldwäscheverordnung und die neue Aufsichtsbehörde AMLA setzen ab 2027 einheitliche Vorgaben. Betroffen sind Berufskammern, Kontrollaufwand und Bußgeldverfahren."
+    },
+    {
+        "titel": "Kronzeugenregelung bei organisierter Kriminalität",
+        "ziel": "Zur Abstimmung steht, ob die Strafmilderung für Aufklärungshilfe ausgeweitet wird.",
+        "begruendung": "Das Strafgesetzbuch erlaubt Strafmilderung oder Absehen von Strafe, wenn Täter zur Aufklärung schwerer Straftaten beitragen; die Anwendung ist an einen Zusammenhang mit der eigenen Tat gebunden. Ermittlungsbehörden verweisen auf abgeschottete Strukturen in Clan- und Bandenkriminalität. Betroffen sind Beweiswürdigung, Zeugenschutz und Verfahrensdauer."
+    },
+    {
+        "titel": "Einsatz von Vertrauenspersonen durch Polizei und Dienste",
+        "ziel": "Entschieden wird, ob Auswahl, Führung und Kontrolle von Vertrauenspersonen gesetzlich geregelt werden.",
+        "begruendung": "Der Einsatz von V-Personen und verdeckten Ermittlern beruht bei der Polizei auf der Strafprozessordnung, bei den Nachrichtendiensten auf den Dienstgesetzen; Auswahlkriterien und Abbruchgründe sind überwiegend in Dienstvorschriften geregelt. Untersuchungsausschüsse haben wiederholt Regelungslücken benannt. Betroffen sind Beweisverwertung, Gefahrenabwehr und parlamentarische Kontrolle."
+    },
+    {
+        "titel": "Bestandsdatenauskunft und Auskunftsersuchen der Sicherheitsbehörden",
+        "ziel": "Zur Abstimmung steht, ob Auskünfte über Anschlussinhaber an höhere Eingriffsschwellen gebunden werden.",
+        "begruendung": "Das Bundesverfassungsgericht hat die Regelungen zur Bestandsdatenauskunft 2020 in Teilen für verfassungswidrig erklärt und eine Neufassung verlangt; seither gelten differenzierte Voraussetzungen je nach Datenart. Die Zahl der Auskunftsersuchen liegt jährlich im Millionenbereich. Betroffen sind Telekommunikationsanbieter, Ermittlungspraxis und Richtervorbehalte."
+    },
+    {
+        "titel": "Automatisierte Datenanalyse bei der Polizei",
+        "ziel": "Gegenstand der Abstimmung ist, ob die automatisierte Zusammenführung polizeilicher Datenbestände bundesweit zugelassen wird.",
+        "begruendung": "Das Bundesverfassungsgericht hat 2023 Landesregelungen zur automatisierten Datenanalyse für zu unbestimmt erklärt und enge Voraussetzungen formuliert; einzelne Länder setzen entsprechende Software auf angepasster Grundlage ein. Diskutiert werden Eigenentwicklungen und Abhängigkeiten von Anbietern. Betroffen sind Grundrechte Unbeteiligter, Protokollierung und Aufsicht."
+    },
+    {
+        "titel": "Musterpolizeigesetz mit einheitlichen Eingriffsbefugnissen",
+        "ziel": "Zur Abstimmung steht, ob Bund und Länder ein gemeinsames Musterpolizeigesetz beschließen.",
+        "begruendung": "Eingriffsbefugnisse, Aufenthaltsverbote, Präventivgewahrsam und Videoüberwachung sind in 17 Polizeigesetzen unterschiedlich geregelt; Innenministerkonferenz und Fachkommissionen haben Musterentwürfe erarbeitet. Für die Datenverarbeitung gelten europarechtliche Mindeststandards. Eine Vereinheitlichung berührte die Polizeihoheit der Länder."
+    },
+    {
+        "titel": "Meldepflicht bei Lösegeldzahlungen nach Cyberangriffen",
+        "ziel": "Entschieden wird, ob Unternehmen Zahlungen nach Erpressungsangriffen melden müssen.",
+        "begruendung": "Das Bundesamt für Sicherheit in der Informationstechnik rät von Zahlungen ab; eine Meldepflicht besteht nur für Sicherheitsvorfälle nach dem NIS-2-Umsetzungsgesetz, nicht für Zahlungen. Ohne Meldungen fehlen Erkenntnisse über Tätergruppen und Zahlungswege. Betroffen sind Versicherungsschutz, Strafverfolgung und Reputationsrisiken."
+    },
+    {
+        "titel": "Verfassungstreue von Beamtinnen und Beamten",
+        "ziel": "Zur Abstimmung steht, ob Entfernungsverfahren bei verfassungsfeindlichen Bestrebungen beschleunigt werden.",
+        "begruendung": "Das Disziplinarrecht des Bundes erlaubt seit 2024 die Entfernung aus dem Dienst durch Verfügung statt durch Klage; die gerichtliche Überprüfung bleibt möglich. Für Bewerberinnen und Bewerber bestehen Regelanfragen bei den Verfassungsschutzbehörden in einzelnen Ländern. Betroffen sind Beamtenrecht, Beweisanforderungen und Rechtsschutz."
+    },
+    {
+        "titel": "Demokratiefördergesetz für Träger der Extremismusprävention",
+        "ziel": "Gegenstand der Abstimmung ist, ob Projekte gegen Extremismus dauerhaft statt in Förderperioden finanziert werden.",
+        "begruendung": "Das Bundesprogramm Demokratie leben fördert Träger in mehrjährigen Perioden; ein Demokratiefördergesetz scheiterte in der vorigen Wahlperiode. Streitpunkte sind Kriterien für Zuwendungsempfänger, Extremismusklauseln und die Abgrenzung staatlicher Neutralität. Betroffen sind Träger, Kommunen und Planungssicherheit."
+    },
+    {
+        "titel": "Bodycams im Einsatz der Bundespolizei",
+        "ziel": "Zur Abstimmung steht, ob Aufnahmen aus Bodycams auch in Wohnungen zulässig sind.",
+        "begruendung": "Das Bundespolizeigesetz erlaubt Aufnahmen bislang an öffentlich zugänglichen Orten; Einsätze wegen häuslicher Gewalt finden regelmäßig in Wohnungen statt. Artikel 13 des Grundgesetzes schützt die Unverletzlichkeit der Wohnung. Betroffen sind Beweissicherung, Eigensicherung und Speicherfristen."
+    },
+    {
+        "titel": "Datei Gewalttäter Sport und Stadionverbote",
+        "ziel": "Entschieden wird, ob die Speicherung in der Datei Gewalttäter Sport gesetzlich geregelt wird.",
+        "begruendung": "Die Verbunddatei wird beim Bundeskriminalamt geführt und beruht auf einer Verordnung; Speicherungen erfolgen teils ohne Verurteilung, die Betroffenen erfahren davon häufig nur mittelbar. Stadionverbote sprechen die Vereine auf zivilrechtlicher Grundlage aus. Betroffen sind Datenschutz, Rechtsschutz und die Zusammenarbeit mit dem Ligaverband."
+    },
+    {
+        "titel": "Verkauf und Nutzung von Feuerwerk",
+        "ziel": "Zur Abstimmung steht, ob der private Verkauf von Feuerwerk der Kategorie zwei bundesweit untersagt wird.",
+        "begruendung": "Die Erste Sprengstoffverordnung erlaubt den Verkauf an drei Tagen vor dem Jahreswechsel; Kommunen können Verbotszonen ausweisen. Angeführt werden Verletzungen, Einsätze von Rettungskräften, Feinstaub und Abfall, dagegen Brauchtum und wirtschaftliche Folgen für Hersteller und Handel. Zuständig ist der Bund über das Sprengstoffrecht."
+    },
+    {
+        "titel": "Schutz von Großveranstaltungen und öffentlichen Plätzen",
+        "ziel": "Gegenstand der Abstimmung ist, ob bauliche Schutzmaßnahmen für Veranstaltungen verbindlich vorgeschrieben werden.",
+        "begruendung": "Nach Anschlägen mit Fahrzeugen haben Kommunen Poller, Sperren und Zufahrtskontrollen eingerichtet; Vorgaben und Kostentragung sind uneinheitlich geregelt. Veranstalter tragen Sicherheitskosten, die Gefahrenabwehr obliegt den Ländern. Betroffen sind Volksfeste, Weihnachtsmärkte und Sportveranstaltungen."
+    },
+    {
+        "titel": "Schutz jüdischer Einrichtungen",
+        "ziel": "Zur Abstimmung steht, ob der Bund die Sicherungskosten jüdischer Einrichtungen dauerhaft mitträgt.",
+        "begruendung": "Synagogen, Schulen und Gemeindezentren werden von den Ländern polizeilich geschützt; bauliche Sicherung wird teilweise über Bundesprogramme gefördert. Antisemitische Straftaten sind nach der polizeilichen Kriminalstatistik deutlich gestiegen. Betroffen sind Zuständigkeiten, Haushaltsmittel und Prävention."
+    },
+    {
+        "titel": "Gemeinsames Kompetenzzentrum für den Bevölkerungsschutz",
+        "ziel": "Entschieden wird, ob das gemeinsame Kompetenzzentrum eigene Weisungsbefugnisse im Krisenfall erhält.",
+        "begruendung": "Das Zentrum bündelt seit 2022 Lagebilder und Ressourcenübersichten von Bund und Ländern; die Zuständigkeit für den Katastrophenschutz bleibt bei den Ländern, der Bund verantwortet den Zivilschutz. Nach der Flutkatastrophe 2021 wurde eine engere Verzahnung gefordert. Eine Weisungsbefugnis erforderte eine Änderung der Kompetenzordnung."
+    },
+    {
+        "titel": "Private Notvorräte und Selbsthilfefähigkeit",
+        "ziel": "Zur Abstimmung steht, ob der Bund eine Kampagne und Standards für private Notvorräte einführt.",
+        "begruendung": "Das Bundesamt für Bevölkerungsschutz und Katastrophenhilfe empfiehlt Vorräte für zehn Tage sowie Notgepäck und batteriebetriebene Radios; Umfragen zeigen geringe Verbreitung. Bei längeren Stromausfällen sind Wasserversorgung, Zahlungsverkehr und Kommunikation betroffen. Verbindliche Vorgaben für Privathaushalte bestehen nicht."
+    },
+    {
+        "titel": "Schutz von Unterseekabeln und Energieleitungen",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Überwachung von Kabeln und Pipelines in Nord- und Ostsee ausgeweitet wird.",
+        "begruendung": "Nach Beschädigungen an Datenkabeln und Pipelines wurden Patrouillen und Sensorik verstärkt; Zuständigkeiten verteilen sich auf Marine, Bundespolizei, Havariekommando und Betreiber. Die Anlagen liegen teilweise außerhalb der Hoheitsgewässer. Betroffen sind Seerecht, Beweissicherung und internationale Zusammenarbeit."
+    },
+    {
+        "titel": "Abwehr ausländischer Einflussnahme",
+        "ziel": "Zur Abstimmung steht, ob eine Registrierungspflicht für die Interessenvertretung ausländischer Staaten eingeführt wird.",
+        "begruendung": "Nachrichtendienste berichten über verdeckte Einflussoperationen, Desinformation und Anwerbeversuche; ein Register wie in einzelnen anderen Staaten besteht in Deutschland nicht. Das Lobbyregister erfasst die Vertretung fremder Staaten nur teilweise. Betroffen wären Vereine, Medien, Beratungsunternehmen und die Meinungsfreiheit."
+    },
+    {
+        "titel": "Erfassung politisch motivierter Kriminalität",
+        "ziel": "Entschieden wird, ob die Erfassung politisch motivierter Straftaten methodisch überarbeitet wird.",
+        "begruendung": "Straftaten werden nach dem Definitionssystem Politisch motivierte Kriminalität den Phänomenbereichen zugeordnet; Kritik richtet sich auf die Zuordnung nach Tatverdächtigen statt nach Betroffenenperspektive und auf Nachmeldungen. Die Zahlen prägen die politische Debatte über Extremismus. Betroffen sind Bundeskriminalamt, Landesbehörden und Forschung."
+    },
+    {
+        "titel": "Gemeinsame Standards der Polizeiausbildung",
+        "ziel": "Zur Abstimmung steht, ob Bund und Länder verbindliche Mindeststandards für die Polizeiausbildung vereinbaren.",
+        "begruendung": "Dauer, Zugangsvoraussetzungen und Inhalte unterscheiden sich zwischen den Polizeien; angesichts hoher Einstellungszahlen wurden Anforderungen teilweise angepasst. Themen wie Grundrechte, Deeskalation und interkulturelle Kompetenz sind unterschiedlich verankert. Zuständig sind die Länder, der Bund für die Bundespolizei."
+    }
+]

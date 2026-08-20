@@ -1,6 +1,6 @@
 [
     {
-        "titel": "Reform der Schuldenbremse im Grundgesetz",
+        "titel": "Investitionsregel in der Schuldenbremse des Grundgesetzes",
         "ziel": "Zur Abstimmung steht, ob die Schuldenbremse des Grundgesetzes um eine Investitionsregel erweitert wird.",
         "begruendung": "Artikel 109 und 115 des Grundgesetzes begrenzen die strukturelle Nettokreditaufnahme des Bundes auf 0,35 Prozent des Bruttoinlandsprodukts; die Länder dürfen grundsätzlich keine neuen Schulden aufnehmen. Eine Änderung 2025 hat Verteidigungsausgaben oberhalb einer Schwelle ausgenommen und den Ländern einen Spielraum eröffnet. Eine Investitionsregel erforderte erneut eine Zweidrittelmehrheit in Bundestag und Bundesrat."
     },
@@ -55,12 +55,12 @@
         "begruendung": "Beim Splittingverfahren wird das gemeinsame Einkommen hälftig geteilt und der Tarif darauf angewandt; der Vorteil steigt mit dem Einkommensunterschied. Das Bundesverfassungsgericht hat das Verfahren 1957 als Ausprägung des Schutzes von Ehe und Familie bestätigt. Eine Umstellung berührte Bestandsehen, Steuerklassen und Erwerbsanreize."
     },
     {
-        "titel": "Ermäßigter Umsatzsteuersatz für Speisen in der Gastronomie",
-        "ziel": "Gegenstand der Abstimmung ist, ob Speisen in der Gastronomie dauerhaft mit sieben Prozent besteuert werden.",
-        "begruendung": "Der ermäßigte Satz galt befristet von 2020 bis Ende 2023; ab 2026 ist eine dauerhafte Absenkung für Speisen vorgesehen, Getränke bleiben beim Regelsatz. Die Regelung mindert das Umsatzsteueraufkommen von Bund, Ländern und Kommunen. Betroffen sind Gastronomie, Lieferdienste und Gemeinschaftsverpflegung."
+        "titel": "Beibehaltung des ermäßigten Steuersatzes für Speisen in der Gastronomie",
+        "ziel": "Zur Abstimmung steht, ob der seit 2026 geltende ermäßigte Umsatzsteuersatz für Speisen in der Gastronomie beibehalten wird.",
+        "begruendung": "Seit Januar 2026 gilt für Speisen in der Gastronomie dauerhaft der ermäßigte Satz von sieben Prozent, Getränke bleiben beim Regelsatz. Die Regelung mindert das Umsatzsteueraufkommen von Bund, Ländern und Kommunen. Ob die Entlastung an die Gäste weitergegeben wird, ist Gegenstand der Beobachtung durch Verbände und Statistikbehörden."
     },
     {
-        "titel": "Grundsteuer nach der Reform",
+        "titel": "Hebesätze der Grundsteuer nach der Neubewertung",
         "ziel": "Zur Abstimmung steht, ob der Bund einheitliche Vorgaben für aufkommensneutrale Hebesätze macht.",
         "begruendung": "Seit 2025 gelten neue Bewertungsregeln nach dem Bundesmodell oder abweichenden Landesmodellen; die Hebesätze legen die Gemeinden fest. Einzelne Kommunen haben die Sätze angehoben, andere gesenkt, sodass die Belastung unterschiedlich ausfällt. Die Grundsteuer ist eine Gemeindesteuer und wird über die Nebenkosten häufig auf Mietende umgelegt."
     },
@@ -80,7 +80,7 @@
         "begruendung": "Nach geltendem Recht sind Veräußerungsgewinne aus privaten Veräußerungsgeschäften nach einem Jahr Haltedauer steuerfrei; der Bundesfinanzhof hat die Steuerpflicht innerhalb der Frist bestätigt. Ab 2026 melden Dienstleister Transaktionen nach der europäischen DAC8-Richtlinie. Eine Änderung berührte Freigrenzen und Nachweispflichten."
     },
     {
-        "titel": "Bund-Länder-Finanzbeziehungen",
+        "titel": "Finanzkraftausgleich zwischen den Ländern und Bundesergänzungszuweisungen",
         "ziel": "Zur Abstimmung steht, ob der Finanzkraftausgleich zwischen den Ländern neu geordnet wird.",
         "begruendung": "Seit 2020 erfolgt der Ausgleich über die Verteilung der Umsatzsteuer und Bundesergänzungszuweisungen; einzelne Geberländer haben Klage beim Bundesverfassungsgericht erhoben. Kommunale Finanzkraft und Einwohnerwertung fließen unterschiedlich ein. Eine Neuordnung erforderte eine Änderung des Finanzausgleichsgesetzes und gegebenenfalls des Grundgesetzes."
     },
@@ -103,11 +103,6 @@
         "titel": "Verbrauchsteuern auf Tabakerzeugnisse und alkoholische Getränke",
         "ziel": "Zur Abstimmung steht, ob die Steuersätze auf Tabakerzeugnisse und alkoholische Getränke angehoben werden.",
         "begruendung": "Die Tabaksteuer wird nach dem Tabaksteuermodernisierungsgesetz bis 2026 stufenweise erhöht und erfasst auch Substitute für E-Zigaretten; Bier, Schaumwein und Branntwein unterliegen eigenen Verbrauchsteuern, Wein wird nicht besteuert. Die Weltgesundheitsorganisation empfiehlt Preisinstrumente zur Konsumsteuerung. Betroffen sind Einnahmen des Bundes, Grenzhandel und illegale Märkte."
-    },
-    {
-        "titel": "Sonderabgabe auf krisenbedingte Zufallsgewinne",
-        "ziel": "Entschieden wird, ob krisenbedingte Zufallsgewinne dauerhaft mit einer Sonderabgabe belegt werden können.",
-        "begruendung": "Der EU-Energiekrisenbeitrag von 2022 belastete Gewinne im Öl-, Gas- und Kohlesektor befristet; die Abschöpfung von Zufallsgewinnen im Strommarkt lief 2023 aus. Eine dauerhafte Regelung müsste Bemessungsgrundlage, Auslösetatbestand und Verfassungsmäßigkeit klären. Betroffen wären Unternehmen mit außerordentlichen Preiseffekten."
     },
     {
         "titel": "Abgabe auf digitale Werbeleistungen",

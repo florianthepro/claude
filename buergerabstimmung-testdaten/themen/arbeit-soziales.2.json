@@ -1,0 +1,122 @@
+[
+    {
+        "titel": "Arbeitnehmerstatus und algorithmische Steuerung bei Plattformarbeit",
+        "ziel": "Zur Abstimmung steht, ob für Plattformbeschäftigte eine gesetzliche Vermutung der Arbeitnehmereigenschaft eingeführt wird.",
+        "begruendung": "Die Richtlinie über Plattformarbeit ist bis Dezember 2026 in nationales Recht zu überführen; sie verlangt eine widerlegbare Vermutung des Beschäftigungsverhältnisses bei entsprechenden Anhaltspunkten sowie Regeln zu algorithmischer Steuerung und Datenverarbeitung. Betroffen sind Liefer-, Fahr- und Reinigungsdienste sowie Onlineplattformen für Werkleistungen. Die Beweislast läge künftig bei der Plattform."
+    },
+    {
+        "titel": "Entgelttransparenz und Auskunftsrechte in Betrieben",
+        "ziel": "Entschieden wird, ob Unternehmen Gehaltsspannen in Stellenausschreibungen angeben und Entgeltunterschiede berichten müssen.",
+        "begruendung": "Die europäische Entgelttransparenzrichtlinie war bis Juni 2026 umzusetzen und verlangt Auskunftsrechte, Verbot von Fragen nach dem bisherigen Gehalt und Berichtspflichten ab bestimmten Betriebsgrößen; bei Abweichungen über fünf Prozent ist eine gemeinsame Entgeltbewertung durchzuführen. Das deutsche Entgelttransparenzgesetz reicht bislang nicht so weit. Betroffen sind Personalprozesse, Tarifsysteme und Beweislast in Klageverfahren."
+    },
+    {
+        "titel": "Höhe der Mindestausbildungsvergütung im Berufsbildungsgesetz",
+        "ziel": "Zur Abstimmung steht, ob die Mindestausbildungsvergütung an die Entwicklung des Mindestlohns gekoppelt wird.",
+        "begruendung": "Das Berufsbildungsgesetz schreibt seit 2020 Mindestbeträge je Ausbildungsjahr vor, die jährlich anhand der durchschnittlichen Vergütungen fortgeschrieben werden; zum Januar 2026 stieg der Betrag im ersten Lehrjahr auf 724 Euro. Tarifverträge können abweichen. Eine Kopplung an den Mindestlohn berührte Ausbildungsbereitschaft und Branchenunterschiede."
+    },
+    {
+        "titel": "Statusfeststellung bei Honorarkräften in Bildung und Pflege",
+        "ziel": "Gegenstand der Abstimmung ist, ob für Honorartätigkeiten in Bildung, Musikschulen und Gesundheitswesen eigene Kriterien gelten.",
+        "begruendung": "Das Bundessozialgericht hat 2022 für Musikschullehrkräfte und 2023 für Honorarärzte regelmäßig abhängige Beschäftigung angenommen; Träger fürchten Nachforderungen von Sozialversicherungsbeiträgen. Eine Übergangsregelung für Lehrkräfte gilt befristet. Betroffen sind Volkshochschulen, Musikschulen, Kliniken und Sportvereine."
+    },
+    {
+        "titel": "Psychische Gefährdungsbeurteilung im Arbeitsschutz",
+        "ziel": "Zur Abstimmung steht, ob eine eigene Verordnung zu psychischer Belastung am Arbeitsplatz erlassen wird.",
+        "begruendung": "Das Arbeitsschutzgesetz verpflichtet Arbeitgeber seit 2013 ausdrücklich zur Beurteilung psychischer Belastungen; Aufsichtsbehörden stellen bei Kontrollen häufig fehlende oder unvollständige Beurteilungen fest. Eine Verordnung könnte Verfahren, Kennzahlen und Maßnahmen konkretisieren. Betroffen sind Betriebsgrößen, Beratungsangebote und Kontrolldichte."
+    },
+    {
+        "titel": "Schwellenwerte des allgemeinen Kündigungsschutzes",
+        "ziel": "Entschieden wird, ob der allgemeine Kündigungsschutz erst ab einer höheren Beschäftigtenzahl gilt.",
+        "begruendung": "Das Kündigungsschutzgesetz gilt in Betrieben mit mehr als zehn Beschäftigten nach sechs Monaten Betriebszugehörigkeit; darunter greifen nur allgemeine zivilrechtliche Grenzen und besondere Schutzvorschriften. Eine Anhebung erleichterte Einstellungen in Kleinbetrieben und verringerte zugleich den Bestandsschutz. Sonderkündigungsschutz für Schwangere, Schwerbehinderte und Betriebsräte bliebe unberührt."
+    },
+    {
+        "titel": "Befristung von Arbeitsverträgen ohne Sachgrund",
+        "ziel": "Zur Abstimmung steht, ob die sachgrundlose Befristung abgeschafft oder auf einen kürzeren Zeitraum begrenzt wird.",
+        "begruendung": "Das Teilzeit- und Befristungsgesetz erlaubt bislang eine Befristung ohne Sachgrund bis zu zwei Jahren mit dreimaliger Verlängerung, in neu gegründeten Unternehmen länger. Im öffentlichen Dienst und in der Wissenschaft gelten Sonderregeln. Eine Abschaffung berührte Einstellungspraxis, Vertretungsbedarf und Erprobungsphasen."
+    },
+    {
+        "titel": "Gesetzliche Regeln für Arbeitskämpfe in der Daseinsvorsorge",
+        "ziel": "Gegenstand der Abstimmung ist, ob für Streiks in Verkehr, Energie und Gesundheit Ankündigungsfristen und Notdienste vorgeschrieben werden.",
+        "begruendung": "Das Arbeitskampfrecht ist in Deutschland nicht gesetzlich geregelt, sondern von der Rechtsprechung des Bundesarbeitsgerichts ausgeformt; Notdienstvereinbarungen werden zwischen den Tarifparteien geschlossen. Wirtschaftsverbände fordern feste Fristen und Schlichtungspflichten, Gewerkschaften verweisen auf Artikel 9 des Grundgesetzes. Betroffen wären Bahn, Luftverkehr, Nahverkehr und Kliniken."
+    },
+    {
+        "titel": "Tarifeinheit bei konkurrierenden Tarifverträgen",
+        "ziel": "Zur Abstimmung steht, ob das Tarifeinheitsgesetz aufgehoben wird.",
+        "begruendung": "Das Gesetz von 2015 sieht vor, dass bei kollidierenden Tarifverträgen im Betrieb nur der Vertrag der mitgliederstärkeren Gewerkschaft gilt; das Bundesverfassungsgericht hat es 2017 mit Maßgaben für vereinbar mit dem Grundgesetz erklärt. Betroffen sind vor allem Berufsgruppengewerkschaften in Verkehr und Gesundheitswesen. Eine Aufhebung berührte Tarifpluralität und Streikhäufigkeit."
+    },
+    {
+        "titel": "Digitale Betriebsratswahlen und Online-Betriebsversammlungen",
+        "ziel": "Entschieden wird, ob Betriebsratswahlen dauerhaft auch elektronisch durchgeführt werden dürfen.",
+        "begruendung": "Das Betriebsrätemodernisierungsgesetz hat Video- und Telefonkonferenzen für Sitzungen und Versammlungen unter Bedingungen zugelassen, elektronische Wahlen jedoch nicht. Die Wahlbeteiligung und die Zahl betriebsratsfähiger Betriebe ohne Gremium sind Gegenstand von Untersuchungen. Zu regeln wären Wahlgeheimnis, Manipulationsschutz und Zugang für Beschäftigte ohne Bildschirmarbeitsplatz."
+    },
+    {
+        "titel": "Digitales Zugangsrecht der Gewerkschaften zu Betrieben",
+        "ziel": "Zur Abstimmung steht, ob Gewerkschaften ein Recht auf Zugang zu den betrieblichen Kommunikationssystemen erhalten.",
+        "begruendung": "Das Betriebsverfassungsgesetz kennt ein Zugangsrecht zum Betriebsgelände, nicht aber zu Intranet und dienstlichen E-Mail-Adressen; die Rechtsprechung hat Einzelfälle unterschiedlich beurteilt. Mit mobiler Arbeit verlagert sich die Ansprache in digitale Kanäle. Betroffen sind Datenschutz, Hausrecht und die Tarifbindung."
+    },
+    {
+        "titel": "Vermittlung Geflüchteter in Arbeit und Ausbildung",
+        "ziel": "Gegenstand der Abstimmung ist, ob Beratung, Sprachkurse und Vermittlung für Geflüchtete in einer Stelle gebündelt werden.",
+        "begruendung": "Zuständig sind derzeit Jobcenter, Agenturen für Arbeit, Ausländerbehörden, Kammern und Sprachkursträger nebeneinander; das Programm Job-Turbo soll die Vermittlung nach Abschluss des Integrationskurses beschleunigen. Die Beschäftigungsquote steigt mit der Aufenthaltsdauer. Eine Bündelung berührte Trägerstrukturen, Datenschutz und Zuständigkeiten der Länder."
+    },
+    {
+        "titel": "Altersteilzeit und gleitender Ausstieg aus dem Erwerbsleben",
+        "ziel": "Zur Abstimmung steht, ob die geförderte Altersteilzeit wieder eingeführt wird.",
+        "begruendung": "Die Förderung durch die Bundesagentur für Arbeit ist 2009 ausgelaufen; Altersteilzeit wird seither tarifvertraglich oder betrieblich vereinbart, häufig im Blockmodell. Alternativen sind Teilrente, Flexirente und Langzeitkonten. Eine Wiedereinführung berührte Beitragsmittel, Arbeitskräfteangebot und Personalplanung."
+    },
+    {
+        "titel": "Lebensarbeitszeitkonten und ihre Übertragbarkeit",
+        "ziel": "Entschieden wird, ob Wertguthaben beim Arbeitgeberwechsel einfacher übertragen werden können.",
+        "begruendung": "Das Vierte Buch Sozialgesetzbuch regelt Wertguthaben mit Insolvenzsicherung; eine Übertragung ist auf den neuen Arbeitgeber oder die Deutsche Rentenversicherung Bund möglich, wird aber selten genutzt. Konten ermöglichen Freistellungen für Pflege, Weiterbildung oder vorgezogenen Ruhestand. Betroffen sind Anlagevorschriften, Verwaltungsaufwand und steuerliche Behandlung."
+    },
+    {
+        "titel": "Obergrenze für die Beiträge zur Sozialversicherung",
+        "ziel": "Zur Abstimmung steht, ob der Gesamtbeitrag zur Sozialversicherung auf 40 Prozent begrenzt wird.",
+        "begruendung": "Die Summe der Beitragssätze zu Renten-, Kranken-, Pflege- und Arbeitslosenversicherung liegt derzeit darüber und wird je zur Hälfte von Beschäftigten und Arbeitgebern getragen. Eine gesetzliche Obergrenze erforderte Leistungsanpassungen, höhere Steuerzuschüsse oder beides. Frühere Regierungen hatten vergleichbare Marken als politische Zielgröße gesetzt."
+    },
+    {
+        "titel": "Kosten der Eingliederungshilfe nach dem Bundesteilhabegesetz",
+        "ziel": "Gegenstand der Abstimmung ist, ob sich der Bund dauerhaft an den Kosten der Eingliederungshilfe beteiligt.",
+        "begruendung": "Die Eingliederungshilfe für Menschen mit Behinderungen tragen die Länder und überörtlichen Sozialhilfeträger; die Ausgaben sind seit der Reform von 2020 deutlich gestiegen. Der Bund beteiligt sich bislang über eine pauschale Entlastung. Eine dauerhafte Beteiligung berührte die Finanzverfassung und die Steuerung der Leistungen."
+    },
+    {
+        "titel": "Zugänglichkeit privater Güter und Dienstleistungen",
+        "ziel": "Zur Abstimmung steht, ob private Anbieter von Gütern und Dienstleistungen zur Barrierefreiheit verpflichtet werden.",
+        "begruendung": "Das Behindertengleichstellungsgesetz bindet nur öffentliche Stellen; das Barrierefreiheitsstärkungsgesetz erfasst seit 2025 bestimmte Produkte und Dienstleistungen. Die UN-Behindertenrechtskonvention verlangt Zugänglichkeit auch im privaten Bereich, der Staatenausschuss hat Deutschland dazu wiederholt geprüft. Betroffen wären Gastronomie, Handel, Praxen und Verkehrsmittel."
+    },
+    {
+        "titel": "Ermittlung der Regelbedarfe in der Grundsicherung",
+        "ziel": "Entschieden wird, ob die Regelbedarfe nach einem geänderten Verfahren neu berechnet werden.",
+        "begruendung": "Die Höhe leitet sich aus der Einkommens- und Verbrauchsstichprobe der unteren Einkommensgruppen ab und wird jährlich fortgeschrieben; das Bundesverfassungsgericht verlangt eine transparente, bedarfsgerechte Ermittlung. Kritik richtet sich auf Herausrechnungen einzelner Ausgabenpositionen und den Zeitverzug der Datengrundlage. Eine Änderung wirkte auf Grundsicherung, Sozialhilfe und Asylbewerberleistungen."
+    },
+    {
+        "titel": "Anspruch auf Schuldnerberatung für überschuldete Haushalte",
+        "ziel": "Zur Abstimmung steht, ob überschuldete Haushalte unabhängig vom Leistungsbezug Anspruch auf Beratung erhalten.",
+        "begruendung": "Schuldnerberatung wird überwiegend kommunal und von Wohlfahrtsverbänden erbracht; einen Anspruch haben derzeit im Wesentlichen Personen im Bezug von Grundsicherung. Wartezeiten von mehreren Monaten sind verbreitet. Ein allgemeiner Anspruch berührte kommunale Haushalte, Trägerstrukturen und das Verbraucherinsolvenzverfahren."
+    },
+    {
+        "titel": "Pflegezeit und Familienpflegezeit für Angehörige",
+        "ziel": "Gegenstand der Abstimmung ist, ob für die Pflege von Angehörigen eine Lohnersatzleistung eingeführt wird.",
+        "begruendung": "Pflegezeit- und Familienpflegezeitgesetz gewähren Freistellungsansprüche und ein zinsloses Darlehen, jedoch keine Entgeltersatzleistung; nur die kurzzeitige Arbeitsverhinderung wird über das Pflegeunterstützungsgeld abgedeckt. Ein unabhängiger Beirat hat ein Familienpflegegeld vorgeschlagen. Betroffen wären Pflegeversicherung, Arbeitgeber und Erwerbsverläufe überwiegend von Frauen."
+    },
+    {
+        "titel": "Beitragssatz und Rücklage der Arbeitslosenversicherung",
+        "ziel": "Zur Abstimmung steht, ob der Beitragssatz zur Arbeitslosenversicherung angehoben wird.",
+        "begruendung": "Die Bundesagentur für Arbeit finanziert Arbeitslosengeld, Kurzarbeitergeld, Vermittlung und Weiterbildung aus Beiträgen; die Rücklage wurde in den vergangenen Jahren stark beansprucht. Bei Defiziten springt ein Darlehen des Bundes ein. Eine Anhebung belastet Beschäftigte und Arbeitgeber je zur Hälfte."
+    },
+    {
+        "titel": "Kurzfristige Beschäftigung in der Saisonarbeit",
+        "ziel": "Entschieden wird, ob kurzfristig Beschäftigte in der Landwirtschaft voll sozialversicherungspflichtig werden.",
+        "begruendung": "Kurzfristige Beschäftigungen bis zu drei Monaten oder 70 Arbeitstagen im Jahr sind beitragsfrei in Renten-, Kranken- und Arbeitslosenversicherung; für Saisonkräfte besteht eine gesonderte Krankenversicherungspflicht seit 2022. Gewerkschaften verweisen auf fehlenden Schutz bei Krankheit und Unfall, Betriebe auf Erntekosten. Betroffen sind Sonderkulturen, Gastgewerbe und Veranstaltungswirtschaft."
+    },
+    {
+        "titel": "Werkverträge und Arbeitsschutz in der Fleischwirtschaft",
+        "ziel": "Zur Abstimmung steht, ob das Verbot von Werkverträgen in der Fleischwirtschaft auf weitere Branchen ausgeweitet wird.",
+        "begruendung": "Das Arbeitsschutzkontrollgesetz untersagt seit 2021 Werkverträge und Leiharbeit in Schlachtung und Zerlegung großer Betriebe und schreibt elektronische Arbeitszeiterfassung vor. Ähnliche Probleme werden für Bau, Logistik und Paketzustellung berichtet. Eine Ausweitung berührte Vertragsfreiheit, Kontrolldichte und Nachunternehmerhaftung."
+    },
+    {
+        "titel": "Rückkehr aus Teilzeit in Vollzeit",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Brückenteilzeit auf kleinere Betriebe ausgeweitet wird.",
+        "begruendung": "Seit 2019 haben Beschäftigte in Betrieben mit mehr als 45 Beschäftigten Anspruch auf befristete Teilzeit mit Rückkehr auf die frühere Arbeitszeit; in Betrieben bis 200 Beschäftigten gilt eine zusätzliche Zumutbarkeitsgrenze. Ein allgemeines Rückkehrrecht aus unbefristeter Teilzeit besteht nicht. Betroffen sind vor allem Frauen mit Betreuungsaufgaben und die Personalplanung kleiner Betriebe."
+    }
+]

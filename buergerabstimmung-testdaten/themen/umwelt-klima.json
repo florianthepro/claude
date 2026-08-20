@@ -10,7 +10,7 @@
         "begruendung": "Der nationale CO2-Preis fließt derzeit in den Klima- und Transformationsfonds und wird über Förderprogramme und die Absenkung der Stromumlagen verwendet. Ein Klimageld war im Koalitionsvertrag der vorigen Wahlperiode angelegt, wurde aber nicht ausgezahlt; ein Auszahlungsweg über die Steuer-Identifikationsnummer ist inzwischen aufgebaut. Die Entscheidung betrifft die Verwendung der Einnahmen, nicht die Höhe des CO2-Preises."
     },
     {
-        "titel": "Höhe des CO2-Preises im nationalen Brennstoffemissionshandel",
+        "titel": "CO2-Preis im Brennstoffemissionshandel für Wärme und Verkehr",
         "ziel": "Zur Abstimmung steht, ob der CO2-Preis für Wärme und Verkehr nach dem Brennstoffemissionshandelsgesetz über den bisherigen Pfad hinaus angehoben wird.",
         "begruendung": "Seit 2021 werden Emissionen aus Heiz- und Kraftstoffen über nationale Zertifikate bepreist; auf die Festpreisphase folgt ein Handel mit Preiskorridor. Der Preis wirkt unmittelbar auf Heizkosten, Kraftstoffpreise und die Erlöse des Klima- und Transformationsfonds. Ab 2027 tritt der europäische Emissionshandel für Gebäude und Verkehr an diese Stelle."
     },
@@ -35,11 +35,6 @@
         "begruendung": "Das Kohlendioxid-Speicherungsgesetz beschränkt die Speicherung bislang eng; die Carbon-Management-Strategie des Bundes sieht eine Öffnung vor allem für schwer vermeidbare Emissionen aus Industrie und Abfallverbrennung vor. Voraussetzung sind Leitungsnetze, Genehmigungsverfahren und eine Regelung der Langzeithaftung. Über die Speicherung an Land entscheiden nach dem Gesetzentwurf die Länder."
     },
     {
-        "titel": "Vorziehen des Kohleausstiegs auf 2030",
-        "ziel": "Gegenstand der Abstimmung ist, ob das gesetzliche Enddatum der Kohleverstromung bundesweit auf 2030 vorgezogen wird.",
-        "begruendung": "Das Kohleausstiegsgesetz nennt 2038 als spätestes Enddatum; für das Rheinische Revier ist 2030 vertraglich vereinbart, für die ostdeutschen Reviere nicht. Ein bundesweites Vorziehen berührt die Entschädigungsvereinbarungen, die Strukturhilfen der Reviere und den Nachweis gesicherter Kraftwerksleistung. Zuständig ist der Bund im Einvernehmen mit den betroffenen Ländern."
-    },
-    {
         "titel": "Fortführung des Aktionsprogramms Natürlicher Klimaschutz",
         "ziel": "Zur Abstimmung steht, ob das Aktionsprogramm Natürlicher Klimaschutz über die bisherige Laufzeit hinaus fortgeführt und weiter finanziert wird.",
         "begruendung": "Das Programm fördert Moore, Wälder, Auen, Böden und Grünflächen in Städten als natürliche Kohlenstoffspeicher und wird aus dem Klima- und Transformationsfonds finanziert. Der Sektor Landnutzung ist im Klimaschutzgesetz mit eigenen Senkenzielen hinterlegt, die derzeit verfehlt werden. Die Umsetzung liegt überwiegend bei Ländern und Kommunen."
@@ -60,7 +55,7 @@
         "begruendung": "Das Umweltbundesamt beziffert umweltschädliche Subventionen regelmäßig in dreistelliger Milliardenhöhe; dazu zählen unter anderem die Energiesteuerbefreiung für Kerosin, das Dieselprivileg und die Entfernungspauschale. Ein Abbau berührt Steuerrecht, internationale Abkommen und Ausgleich für betroffene Gruppen. Zuständig ist der Bundesgesetzgeber, teilweise gebunden an europäisches Recht."
     },
     {
-        "titel": "Nationale Kreislaufwirtschaftsstrategie mit verbindlichen Quoten",
+        "titel": "Kreislaufwirtschaftsstrategie mit verbindlichen Quoten",
         "ziel": "Zur Abstimmung steht, ob die Nationale Kreislaufwirtschaftsstrategie um verbindliche Quoten für Rezyklateinsatz und Rohstoffverbrauch ergänzt wird.",
         "begruendung": "Die 2024 beschlossene Strategie bündelt Ziele zur Senkung des Rohstoffverbrauchs und zur Schließung von Stoffkreisläufen, arbeitet aber überwiegend mit Zielwerten ohne unmittelbare Rechtsfolge. Verbindliche Quoten wirkten auf Produktdesign, Beschaffung und Abfallwirtschaft. Ein Teil der Anforderungen ergibt sich bereits aus der europäischen Ökodesign-Verordnung."
     },
@@ -90,7 +85,7 @@
         "begruendung": "Die Nationale Strategie zur biologischen Vielfalt nennt seit 2007 zwei Prozent Wildnisfläche und fünf Prozent natürliche Waldentwicklung als Ziele; erreicht ist bislang deutlich weniger. Verbindlichkeit setzte Flächenerwerb, Nutzungsverzicht und Ausgleich für Eigentümer voraus. Betroffen sind vor allem Bundesflächen, Truppenübungsplätze und Bergbaufolgelandschaften."
     },
     {
-        "titel": "Nationale Wasserstrategie und Vorrang der Trinkwasserversorgung",
+        "titel": "Wasserstrategie und Vorrang der Trinkwasserversorgung",
         "ziel": "Zur Abstimmung steht, ob der Vorrang der öffentlichen Trinkwasserversorgung bei Wasserknappheit gesetzlich festgeschrieben wird.",
         "begruendung": "Die Nationale Wasserstrategie von 2023 beschreibt Maßnahmen zur Sicherung der Wasserverfügbarkeit bis 2050, darunter eine Priorisierung der Nutzungen in Trockenzeiten. Das Wasserhaushaltsgesetz regelt Entnahmen bislang über wasserrechtliche Erlaubnisse der Länder. Eine bundesweite Rangfolge berührte Landwirtschaft, Industrie und Energieerzeugung."
     },

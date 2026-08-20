@@ -5,7 +5,7 @@
         "begruendung": "Der Europäische Gerichtshof hat die anlasslose Vorratsdatenspeicherung von Verkehrsdaten für unzulässig erklärt, eine befristete Speicherung von IP-Adressen zur Bekämpfung schwerer Kriminalität aber für möglich gehalten. Das Telekommunikationsgesetz enthält derzeit eine ausgesetzte Regelung; als Alternative wird das Quick-Freeze-Verfahren diskutiert. Betroffen sind Ermittlungen bei Darstellungen sexualisierter Gewalt gegen Kinder und Cyberkriminalität."
     },
     {
-        "titel": "Novelle des Bundespolizeigesetzes und neue Befugnisse",
+        "titel": "Aufgaben und Eingriffsrechte der Bundespolizei",
         "ziel": "Entschieden wird, ob die Befugnisse der Bundespolizei bei Kontrollen, Aufenthaltsermittlung und Drohneneinsatz erweitert werden.",
         "begruendung": "Das Bundespolizeigesetz stammt in wesentlichen Teilen aus dem Jahr 1994; mehrere Novellierungsversuche sind im Bundesrat gescheitert. Vorgesehen waren unter anderem Regelungen zu Bodycams, Drohnen, Aufenthaltsvorgaben und einer Rechtsgrundlage für Kontrollen im Grenzraum. Die Aufgabenverteilung zwischen Bundes- und Landespolizeien bleibt unberührt."
     },
@@ -70,9 +70,9 @@
         "begruendung": "Nach der Flutkatastrophe 2021 wurde Cell Broadcast eingeführt und ein Sirenenförderprogramm aufgelegt; der Aufbau liegt bei Ländern und Kommunen und ist unterschiedlich weit fortgeschritten. Das Modulare Warnsystem des Bundes verbindet die Kanäle. Eine einheitliche Vorhaltung berührte Zuständigkeiten und Dauerfinanzierung."
     },
     {
-        "titel": "Reform des Bundesamtes für Verfassungsschutz",
-        "ziel": "Zur Abstimmung steht, ob Befugnisse und Kontrolle des Bundesamtes für Verfassungsschutz neu geregelt werden.",
-        "begruendung": "Das Bundesverfassungsschutzgesetz regelt nachrichtendienstliche Mittel, Datenübermittlung und die Einstufung von Beobachtungsobjekten; das Bundesverfassungsgericht hat 2022 Übermittlungsvorschriften beanstandet. Die parlamentarische Kontrolle liegt beim Parlamentarischen Kontrollgremium und beim Unabhängigen Kontrollrat. Diskutiert werden Trennungsgebot, V-Personen-Einsatz und Berichtspflichten."
+        "titel": "Befugnisse und Kontrolle der Nachrichtendienste des Bundes",
+        "ziel": "Zur Abstimmung steht, ob Befugnisse und Kontrolle der Nachrichtendienste des Bundes neu geregelt werden.",
+        "begruendung": "Ein Gesetzentwurf zur Reform des Nachrichtendienstrechts ist für den Herbst 2026 angekündigt; das Bundesverfassungsgericht hat Übermittlungsvorschriften und Überwachungsbefugnisse mehrfach beanstandet. Betroffen sind Bundesamt für Verfassungsschutz, Bundesnachrichtendienst und Militärischer Abschirmdienst. Die parlamentarische Kontrolle liegt beim Parlamentarischen Kontrollgremium und beim Unabhängigen Kontrollrat."
     },
     {
         "titel": "Vereinsverbote gegen extremistische Organisationen",
@@ -100,9 +100,9 @@
         "begruendung": "Die Strafprozessordnung ermöglicht seit 2017 die selbstständige Einziehung, wenn ein Gegenstand aus einer rechtswidrigen Tat stammt; ein vollständiger Nachweis der Anlasstat ist nicht erforderlich. Eine Beweislastumkehr wäre ein weitergehender Schritt und berührte die Unschuldsvermutung. Diskutiert werden zudem Bargeldobergrenzen und ein Immobilienregister."
     },
     {
-        "titel": "Elektronische Aufenthaltsüberwachung von Gefährdern",
-        "ziel": "Zur Abstimmung steht, ob die elektronische Fußfessel für Gefährder auf weitere Fallgruppen erstreckt wird.",
-        "begruendung": "Das Bundeskriminalamtgesetz und Landesrecht erlauben die Aufenthaltsüberwachung bei terroristischen Gefahren sowie im Rahmen der Führungsaufsicht; die Anordnung trifft ein Gericht. Diskutiert wird eine Ausweitung auf Fälle häuslicher Gewalt, wie sie in Spanien praktiziert wird. Betroffen sind Verhältnismäßigkeit, technische Zuverlässigkeit und Zuständigkeit der Länder."
+        "titel": "Elektronische Aufenthaltsüberwachung von Gefährdern und Gewalttätern",
+        "ziel": "Zur Abstimmung steht, ob die elektronische Fußfessel auf weitere Fallgruppen erstreckt wird.",
+        "begruendung": "Seit Juli 2026 kann die elektronische Fußfessel auch zum Schutz vor häuslicher Gewalt angeordnet werden; im Gefahrenabwehrrecht besteht sie für terroristische Gefahren und in der Führungsaufsicht. Die Anordnung trifft jeweils ein Gericht. Betroffen sind Verhältnismäßigkeit, technische Zuverlässigkeit und die Zuständigkeit der Länder für den Vollzug."
     },
     {
         "titel": "Abwehr unbemannter Luftfahrzeuge",

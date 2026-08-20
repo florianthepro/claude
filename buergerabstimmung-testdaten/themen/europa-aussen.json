@@ -1,6 +1,6 @@
 [
     {
-        "titel": "Erweiterung der Europäischen Union",
+        "titel": "Aufnahme neuer Mitgliedstaaten in die Union",
         "ziel": "Zur Abstimmung steht, ob Deutschland die Aufnahme der Ukraine, der Republik Moldau und der Westbalkanstaaten unterstützt.",
         "begruendung": "Beitrittsverhandlungen setzen die Erfüllung der Kopenhagener Kriterien und die einstimmige Zustimmung aller Mitgliedstaaten voraus; die Ukraine und die Republik Moldau haben seit 2022 Kandidatenstatus. Die Kommission schlägt eine schrittweise Integration mit Zwischenschritten vor. Eine Erweiterung berührte Agrar- und Strukturfonds, Stimmgewichte und Entscheidungsverfahren."
     },
@@ -10,12 +10,12 @@
         "begruendung": "Beschlüsse der Gemeinsamen Außen- und Sicherheitspolitik erfordern nach Artikel 31 des EU-Vertrags grundsätzlich Einstimmigkeit; einzelne Mitgliedstaaten haben Sanktions- und Erklärungsbeschlüsse blockiert. Die Verträge sehen eine Brückenklausel vor, deren Anwendung selbst einstimmig beschlossen werden müsste. Betroffen wären Sanktionen, Erklärungen und Missionen."
     },
     {
-        "titel": "Eigenmittel und Finanzrahmen der Europäischen Union",
+        "titel": "Eigenmittel für den Haushalt der Union",
         "ziel": "Zur Abstimmung steht, ob die Union eigene Einnahmequellen erhält, um den mehrjährigen Finanzrahmen zu finanzieren.",
         "begruendung": "Der Haushalt der Union speist sich überwiegend aus Beiträgen der Mitgliedstaaten nach dem Bruttonationaleinkommen; als neue Eigenmittel werden Anteile am Emissionshandel, am Grenzausgleichsmechanismus und an Unternehmensgewinnen diskutiert. Eigenmittelbeschlüsse bedürfen der Ratifikation in allen Mitgliedstaaten. Betroffen sind Beitragslasten und die Rückzahlung gemeinsamer Anleihen."
     },
     {
-        "titel": "Gemeinsame europäische Kreditaufnahme",
+        "titel": "Anleihen der Union nach dem Aufbaufonds",
         "ziel": "Gegenstand der Abstimmung ist, ob die Union über den Aufbaufonds hinaus dauerhaft gemeinsame Anleihen begeben darf.",
         "begruendung": "Der Aufbaufonds NextGenerationEU beruht auf einer befristeten Ermächtigung; die Rückzahlung ist bis 2058 vorgesehen. Das Bundesverfassungsgericht hat die deutsche Zustimmung 2022 gebilligt und Grenzen für dauerhafte Verschuldung benannt. Eine Verstetigung berührte Haftungsfragen und die Haushaltsautonomie des Bundestages."
     },
@@ -60,7 +60,7 @@
         "begruendung": "Das Ziel geht auf eine Resolution der Vereinten Nationen zurück; Deutschland hat es in einzelnen Jahren erreicht, zuletzt lag die Quote darunter. In die Berechnung fließen auch Kosten für die Aufnahme Geflüchteter im Inland ein. Eine gesetzliche Bindung berührte die Haushaltshoheit des Bundestages."
     },
     {
-        "titel": "Reform des Sicherheitsrats der Vereinten Nationen",
+        "titel": "Ständiger deutscher Sitz im Sicherheitsrat",
         "ziel": "Zur Abstimmung steht, ob Deutschland weiterhin einen ständigen Sitz im Sicherheitsrat anstrebt.",
         "begruendung": "Die Gruppe der vier Staaten Deutschland, Japan, Indien und Brasilien fordert seit Jahren eine Erweiterung des Rates; eine Reform erforderte eine Charta-Änderung mit Zustimmung aller ständigen Mitglieder. Alternativ wird eine gemeinsame europäische Vertretung diskutiert. Deutschland war zuletzt 2019 und 2020 nichtständiges Mitglied."
     },
@@ -88,16 +88,6 @@
         "titel": "Änderung der europäischen Verträge",
         "ziel": "Entschieden wird, ob Deutschland die Einberufung eines Konvents zur Änderung der EU-Verträge unterstützt.",
         "begruendung": "Das Europäische Parlament hat auf Grundlage der Konferenz zur Zukunft Europas Vertragsänderungen vorgeschlagen, unter anderem zu Zuständigkeiten, Abstimmungsverfahren und Wahlrecht. Ein Konvent wird vom Europäischen Rat mit einfacher Mehrheit einberufen, Änderungen bedürfen der Ratifikation in allen Mitgliedstaaten. In Deutschland wäre ein Zustimmungsgesetz erforderlich."
-    },
-    {
-        "titel": "Sitz des Europäischen Parlaments",
-        "ziel": "Zur Abstimmung steht, ob Deutschland sich für einen einzigen Sitz des Europäischen Parlaments einsetzt.",
-        "begruendung": "Die Verträge legen Straßburg als Sitz mit zwölf Plenartagungen fest; Ausschüsse und weitere Sitzungen finden in Brüssel statt, das Generalsekretariat sitzt in Luxemburg. Der Rechnungshof hat die Kosten des Wanderns beziffert. Eine Änderung erforderte Einstimmigkeit der Mitgliedstaaten und eine Vertragsänderung."
-    },
-    {
-        "titel": "Beitrittsprozess der Türkei zur Europäischen Union",
-        "ziel": "Gegenstand der Abstimmung ist, ob die seit 2005 laufenden Beitrittsverhandlungen mit der Türkei formell beendet werden.",
-        "begruendung": "Die Verhandlungen liegen seit 2018 faktisch auf Eis; das Europäische Parlament hat wiederholt eine Aussetzung gefordert. Parallel bestehen die Zollunion, die Flüchtlingsvereinbarung von 2016 und eine enge sicherheitspolitische Zusammenarbeit in der NATO. Eine Beendigung erforderte einen einstimmigen Beschluss des Rates."
     },
     {
         "titel": "Ratifikation des internationalen Pandemieabkommens",

@@ -1,0 +1,112 @@
+[
+    {
+        "titel": "Abgleich von Name und Kontonummer bei Überweisungen",
+        "ziel": "Zur Abstimmung steht, ob der Abgleich von Name und Kontonummer auf alle Überweisungsarten ausgeweitet wird.",
+        "begruendung": "Seit Oktober 2025 müssen Zahlungsdienstleister im Euroraum vor einer Überweisung prüfen, ob Empfängername und IBAN zusammenpassen, und auf Abweichungen hinweisen; Echtzeitüberweisungen sind zudem zum Preis normaler Überweisungen anzubieten. Der Hinweis ist eine Warnung, keine Sperre. Betroffen sind Betrugsprävention, Haftungsfragen und Banken."
+    },
+    {
+        "titel": "Erstattung bei Betrug im Zahlungsverkehr",
+        "ziel": "Entschieden wird, ob Banken bei durch Täuschung veranlassten Überweisungen erstatten müssen.",
+        "begruendung": "Nach dem Bürgerlichen Gesetzbuch haften Institute für nicht autorisierte Zahlungen; bei selbst ausgelösten Überweisungen nach Täuschung besteht regelmäßig kein Anspruch. Ein Vorschlag zur Überarbeitung der europäischen Zahlungsdiensteregeln sieht Erstattungen bei Identitätsmissbrauch vor. Betroffen sind Schockanrufe, gefälschte Bankmitteilungen und Anlagebetrug."
+    },
+    {
+        "titel": "Ratenkauf und Kleinkredite in der Verbraucherkreditrichtlinie",
+        "ziel": "Zur Abstimmung steht, ob Kleinstkredite und Ratenzahlungsangebote den Regeln für Verbraucherkredite unterworfen werden.",
+        "begruendung": "Die überarbeitete Richtlinie ist bis November 2026 umzusetzen und erfasst auch zins- und gebührenfreie Ratenkäufe sowie Kredite unter 200 Euro; vorgesehen sind Informationspflichten, Bonitätsprüfung und Widerrufsrechte. Angebote nach dem Muster Jetzt kaufen, später zahlen sind stark verbreitet. Betroffen sind Onlinehandel, Zahlungsdienstleister und Überschuldungsrisiken."
+    },
+    {
+        "titel": "Bonitätsprüfung bei kurzfristigen Kleinkrediten",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Bonitätsprüfung bei kleinen und kurzfristigen Krediten verbindlich vorgeschrieben wird.",
+        "begruendung": "Kreditgeber müssen die Kreditwürdigkeit prüfen; bei geringen Beträgen und kurzen Laufzeiten sind die Anforderungen in der Praxis niedrig. Schuldnerberatungen berichten über Mehrfachverschuldung durch parallele Ratenkäufe. Betroffen sind Datenauskünfte, Ablehnungsquoten und der Zugang zu Krediten."
+    },
+    {
+        "titel": "Getrennter Abschluss von Restschuldversicherungen",
+        "ziel": "Zur Abstimmung steht, ob Restschuldversicherungen nur getrennt vom Kreditvertrag angeboten werden dürfen.",
+        "begruendung": "Seit 2022 gilt ein Provisionsdeckel und eine Woche Abstand zwischen Kredit- und Versicherungsabschluss; die Bundesanstalt für Finanzdienstleistungsaufsicht hatte hohe Vertriebskosten im Verhältnis zur Leistung beanstandet. Die Verträge sichern Kreditraten bei Arbeitslosigkeit, Krankheit oder Tod. Betroffen sind Kreditkosten, Vermittler und Versicherer."
+    },
+    {
+        "titel": "Ausgleichszahlungen bei Flugverspätungen und Annullierungen",
+        "ziel": "Entschieden wird, ob Deutschland höhere Verspätungsschwellen für Ausgleichszahlungen ablehnt.",
+        "begruendung": "Die geltende Verordnung gewährt Ausgleich ab drei Stunden Verspätung, gestaffelt nach Entfernung; ein Reformvorschlag sieht höhere Schwellen bei zugleich klareren Betreuungs- und Umbuchungsrechten vor. Ein erheblicher Teil der Ansprüche wird über Inkassodienste geltend gemacht. Betroffen sind Fluggesellschaften, Reisende und Schlichtungsstellen."
+    },
+    {
+        "titel": "Entschädigung von Fahrgästen bei Zugverspätungen",
+        "ziel": "Zur Abstimmung steht, ob Entschädigungen bei Zugverspätungen erhöht und automatisiert ausgezahlt werden.",
+        "begruendung": "Die europäische Fahrgastrechteverordnung sieht Erstattungen ab 60 Minuten Verspätung vor; Anträge sind bislang überwiegend selbst zu stellen. Bei außergewöhnlichen Umständen entfällt der Anspruch seit der Neufassung teilweise. Betroffen sind Eisenbahnunternehmen, Schlichtungsstelle und Fahrgäste im Pendelverkehr."
+    },
+    {
+        "titel": "Kennzeichnung von Werbung durch Influencer",
+        "ziel": "Gegenstand der Abstimmung ist, ob Werbekennzeichnung in sozialen Medien einheitlich vorgeschrieben wird.",
+        "begruendung": "Das Gesetz gegen den unlauteren Wettbewerb und der Medienstaatsvertrag verlangen die Trennung von Werbung und Inhalt; die Rechtsprechung hat Einzelfragen zu unbezahlten Markennennungen geklärt. Zuständig sind Landesmedienanstalten und Wettbewerbsverbände. Betroffen sind Reichweitenwerbung, Kinder als Zielgruppe und Affiliate-Links."
+    },
+    {
+        "titel": "Gefälschte Bewertungen im Onlinehandel",
+        "ziel": "Zur Abstimmung steht, ob Plattformen die Echtheit von Bewertungen überprüfen müssen.",
+        "begruendung": "Die Omnibus-Richtlinie verlangt Angaben dazu, ob und wie Bewertungen auf Echtheit geprüft werden; eine Prüfpflicht besteht nicht. Der Handel mit gekauften Bewertungen ist Gegenstand wettbewerbsrechtlicher Verfahren. Betroffen sind Kaufentscheidungen, Händler und Bewertungsdienste."
+    },
+    {
+        "titel": "Vertragswechsel und Preiserhöhungen in der Telekommunikation",
+        "ziel": "Entschieden wird, ob Preiserhöhungen in laufenden Verträgen nur mit ausdrücklicher Zustimmung wirksam werden.",
+        "begruendung": "Das Telekommunikationsgesetz gewährt ein Sonderkündigungsrecht bei einseitigen Vertragsänderungen; Erhöhungen aufgrund von Preisanpassungsklauseln sind umstritten und Gegenstand von Verfahren. Nach Ablauf der Mindestlaufzeit ist monatlich kündbar. Betroffen sind Anbieterwechsel, Bündelangebote und Vertragslaufzeiten."
+    },
+    {
+        "titel": "Preisanpassungen in Strom- und Gasverträgen",
+        "ziel": "Zur Abstimmung steht, ob Preisanpassungsklauseln in Energieverträgen gesetzlich geregelt werden.",
+        "begruendung": "Anbieter müssen Preisänderungen ankündigen und ein Sonderkündigungsrecht einräumen; Umfang und Berechnung der Anpassung sind häufig Streitgegenstand. Die europäische Strombinnenmarktrichtlinie verlangt Schutz vor Abschaltungen und Angebote mit Festpreis. Betroffen sind Haushalte, Grundversorger und Wechselwillige."
+    },
+    {
+        "titel": "Grund- und Ersatzversorgung mit Energie",
+        "ziel": "Gegenstand der Abstimmung ist, ob die Preise in der Ersatzversorgung an die Grundversorgung gekoppelt werden.",
+        "begruendung": "Fällt ein Lieferant aus, werden Haushalte automatisch ersatzversorgt; die Ersatzversorgung darf seit 2022 nicht teurer sein als die Grundversorgung für Neukunden. Die Grundversorgung übernimmt jeweils der Versorger mit den meisten Haushaltskunden im Netzgebiet. Betroffen sind Preisaufsicht, Insolvenzen von Anbietern und Verbraucher ohne Vertragswechsel."
+    },
+    {
+        "titel": "Kennzeichnung verringerter Füllmengen",
+        "ziel": "Zur Abstimmung steht, ob Hersteller verkleinerte Packungsinhalte bei gleichem Preis kennzeichnen müssen.",
+        "begruendung": "Die Preisangabenverordnung schreibt Grundpreise je Kilogramm oder Liter vor, eine Hinweispflicht auf Mengenänderungen besteht nicht; Frankreich hat eine befristete Kennzeichnungspflicht im Handel eingeführt. Verbraucherzentralen dokumentieren entsprechende Fälle. Betroffen sind Hersteller, Handel und Preisvergleiche."
+    },
+    {
+        "titel": "Mikroplastik in Kosmetik und Alltagsprodukten",
+        "ziel": "Entschieden wird, ob Deutschland eine schnellere Umsetzung der europäischen Beschränkungen unterstützt.",
+        "begruendung": "Die europäische Chemikalienverordnung untersagt seit 2023 den Zusatz synthetischer Polymermikropartikel mit gestaffelten Übergangsfristen bis in die 2030er Jahre; erfasst sind unter anderem Kosmetik, Reinigungsmittel und Kunstrasengranulat. Der Eintrag über Reifenabrieb und Textilien ist davon nicht erfasst. Betroffen sind Hersteller, Sportstätten und Gewässerschutz."
+    },
+    {
+        "titel": "Digitaler Produktpass für Waren im Handel",
+        "ziel": "Zur Abstimmung steht, ob der digitale Produktpass für weitere Warengruppen vorgezogen wird.",
+        "begruendung": "Die europäische Ökodesign-Verordnung sieht einen digitalen Produktpass mit Angaben zu Material, Reparierbarkeit und Recycling vor; Batterien sind als erste Gruppe erfasst, Textilien und Möbel folgen. Der Zugang erfolgt über einen Datenträger am Produkt. Betroffen sind Hersteller, Handel und Datenpflege entlang der Lieferkette."
+    },
+    {
+        "titel": "Sicherheitsupdates für vernetzte Geräte",
+        "ziel": "Gegenstand der Abstimmung ist, ob Hersteller Sicherheitsupdates über einen festen Mindestzeitraum bereitstellen müssen.",
+        "begruendung": "Das Bürgerliche Gesetzbuch verlangt Aktualisierungen für den Zeitraum, den Verbraucher erwarten können; der europäische Rechtsakt zur Cyberresilienz schreibt ab 2027 Mindestzeiträume für vernetzte Produkte vor. Bei Smartphones gelten bereits Vorgaben aus der Ökodesign-Verordnung. Betroffen sind Gerätelebensdauer, Elektroschrott und Hersteller außerhalb der Union."
+    },
+    {
+        "titel": "Kennzeichnung von KI-erzeugten Inhalten gegenüber Verbrauchern",
+        "ziel": "Zur Abstimmung steht, ob Unternehmen den Einsatz von KI-Systemen im Kundenkontakt offenlegen müssen.",
+        "begruendung": "Die KI-Verordnung verlangt Transparenz bei Systemen, die mit Menschen interagieren, sowie die Kennzeichnung erzeugter Inhalte; Ausnahmen und Übergangsfristen sind vorgesehen. Betroffen sind Chatbots im Kundendienst, automatisierte Beratung und erzeugte Produktbilder. Die Durchsetzung liegt bei den nationalen Marktüberwachungsbehörden."
+    },
+    {
+        "titel": "Datenverarbeitung in vernetzten Fahrzeugen",
+        "ziel": "Entschieden wird, ob Fahrzeughalter über die Weitergabe ihrer Fahrzeugdaten selbst bestimmen.",
+        "begruendung": "Moderne Fahrzeuge erzeugen umfangreiche Bewegungs-, Nutzungs- und Zustandsdaten, die überwiegend an Herstellerserver übertragen werden; der europäische Data Act begründet Zugangsrechte, ein sektorspezifischer Rechtsrahmen für Fahrzeugdaten wird beraten. Freie Werkstätten und Versicherer verlangen diskriminierungsfreien Zugang. Betroffen sind Reparaturmarkt, Datenschutz und Telematiktarife."
+    },
+    {
+        "titel": "Pflichtkosten im Preis von Mietwagenbuchungen",
+        "ziel": "Zur Abstimmung steht, ob bei Mietwagen alle Pflichtkosten von Beginn an im Preis auszuweisen sind.",
+        "begruendung": "Die Preisangabenverordnung verlangt Endpreise; bei Mietwagen werden Flughafenzuschläge, Versicherungen und Tankregelungen häufig erst spät im Buchungsprozess sichtbar. Beschwerden betreffen zudem Schadensabrechnungen nach Rückgabe. Betroffen sind Vermieter, Vermittlungsportale und Reisende."
+    },
+    {
+        "titel": "Preisobergrenzen bei Schlüssel- und Handwerkernotdiensten",
+        "ziel": "Gegenstand der Abstimmung ist, ob für Handwerker- und Schlüsseldienste im Notfall Preisobergrenzen gelten.",
+        "begruendung": "Überhöhte Rechnungen bei Türöffnungen und Rohrreinigungen sind ein wiederkehrendes Beschwerdethema; zivilrechtlich greifen Wucher- und Sittenwidrigkeitsvorschriften erst bei erheblichen Abweichungen. Vermittlungsportale erschweren die Erkennbarkeit ortsansässiger Betriebe. Betroffen sind Preisangaben, Widerrufsrechte bei Haustürgeschäften und Gewerbeaufsicht."
+    },
+    {
+        "titel": "Obergrenze der Vorfälligkeitsentschädigung bei Immobilienkrediten",
+        "ziel": "Zur Abstimmung steht, ob die Entschädigung bei vorzeitiger Kreditablösung begrenzt wird.",
+        "begruendung": "Kreditnehmer können Darlehen nach zehn Jahren kündigen; bei früherer Ablösung verlangen Banken eine Entschädigung für entgangene Zinsen, deren Berechnung uneinheitlich ist. In mehreren europäischen Staaten bestehen gesetzliche Obergrenzen. Betroffen sind Umschuldungen, Immobilienverkäufe und Kreditkonditionen."
+    },
+    {
+        "titel": "Vergleichsportale und ihre Provisionen",
+        "ziel": "Entschieden wird, ob Vergleichsportale Provisionen und Marktabdeckung offenlegen müssen.",
+        "begruendung": "Portale müssen die Hauptparameter ihrer Rangfolge angeben; Höhe der Provisionen und der Anteil der verglichenen Anbieter sind nicht offenzulegen. Das Bundeskartellamt hat in einer Sektoruntersuchung Transparenzmängel festgestellt. Betroffen sind Energie-, Versicherungs- und Reisevergleiche."
+    }
+]
