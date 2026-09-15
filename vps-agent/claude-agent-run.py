@@ -107,6 +107,12 @@ def main() -> int:
     out = sys.stdout.buffer
     buf = b""
     status = None
+    # Eine Eingabeaufforderung endet NICHT mit einem Zeilenumbruch ("Enable Remote
+    # Control? (y/n) "). Wer nur vollstaendige Zeilen ausgibt, haelt genau die
+    # Meldung zurueck, die einen haengenden Dienst verraten wuerde. Deshalb wird ein
+    # nicht leerer Puffer nach kurzem Leerlauf trotzdem ausgegeben.
+    PARTIAL_FLUSH_SEC = 2.0
+    last_data = time.monotonic()
 
     while True:
         # Kind einsammeln, sobald es weg ist.
@@ -134,6 +140,7 @@ def main() -> int:
                 chunk = b""      # PTY zu: das Kind hat sich verabschiedet
             if chunk:
                 buf += chunk
+                last_data = time.monotonic()
                 # Zeilenweise ausgeben, damit journald saubere Eintraege bekommt.
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
@@ -145,6 +152,17 @@ def main() -> int:
                 out.flush()
             elif status is not None:
                 break
+
+        # Angefangene Zeile nach Leerlauf ausgeben - so landet auch eine wartende
+        # Eingabeaufforderung im Journal und der Health-Check kann sie erkennen.
+        if buf and (time.monotonic() - last_data) > PARTIAL_FLUSH_SEC:
+            pending = ANSI_RE.sub(b"", buf) if not args.keep_ansi else buf
+            pending = pending.rstrip()
+            buf = b""
+            last_data = time.monotonic()
+            if pending:
+                out.write(pending + b"\n")
+                out.flush()
 
         if status is not None and not ready:
             break

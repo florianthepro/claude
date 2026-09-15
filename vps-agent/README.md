@@ -104,7 +104,7 @@ Der Installer prüft alle fünf im Preflight.
 | Remote Control gibt endgültig auf | systemd `Restart=always` + `StartLimitIntervalSec=0` |
 | SSH-Abbruch killt den Prozess | Betrieb als systemd-Dienst statt in der SSH-Sitzung |
 | Reboot | `WantedBy=multi-user.target` |
-| OOM-Killer auf kleinem VPS | Swap + `OOMScoreAdjust=-500` |
+| OOM-Killer auf kleinem VPS | Swap + `MemoryHigh=70%` (bewusst **kein** `OOMScoreAdjust` — der wird an jeden Kindprozess vererbt und lenkt den OOM-Killer auf Systemdienste, im schlimmsten Fall `sshd`) |
 | Zu alte Version wird abgewiesen | wöchentlicher `claude update` + Neustart |
 | Abgelaufenes Login (stiller Killer) | Health-Timer alle 15 min, meldet es ins Journal |
 | Refresh-Token läuft irgendwann ab | Health-Check warnt 14 Tage vorher |
@@ -170,8 +170,15 @@ PTY allokiert (/dev/pts/N), Fenstergröße 200x50   ✓
 Exit-Code-Weitergabe:            42 → 42, 0 → 0, exec-Fehler → 127
 Sauberer Stopp:                  Kind räumt auf, Supervisor endet mit 0
 Hängendes Kind:                  SIGKILL nach Gnadenfrist, Exit 137, keine Waisen
+Wartende Eingabeaufforderung:    erscheint nach 2 s im Journal
+Normale Ausgabe:                 jede Zeile genau einmal, keine Duplikate
 ANSI-Stripping:                  Journal bleibt lesbar
 ```
+
+Der vorletzte Punkt ist nicht kosmetisch: Eine Eingabeaufforderung endet **nicht**
+mit einem Zeilenumbruch. Ein Supervisor, der nur vollständige Zeilen ausgibt, hält
+genau die Meldung zurück, die einen hängenden Dienst verrät — der Health-Check liefe
+ins Leere. Deshalb wird ein angefangener Puffer nach 2 s Leerlauf trotzdem ausgegeben.
 
 ---
 
