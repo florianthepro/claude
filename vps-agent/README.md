@@ -154,13 +154,15 @@ ANSI-Stripping:                  Journal bleibt lesbar
 
 ## 4. Installation
 
-Drei Dateien auf den VPS bringen — der Installer trägt den Supervisor eingebettet,
-es genügt also `install-claude-agent.sh`:
+Der Installer trägt den Supervisor eingebettet — es genügen also zwei Dateien:
 
 ```bash
 scp install-claude-agent.sh harden-ssh.sh root@169.58.41.105:/root/
 ssh root@169.58.41.105
 ```
+
+Das Repository ist **privat**, ein `curl | bash`-Einzeiler vom Server aus funktioniert
+daher nicht. `scp` vom eigenen Rechner ist der Weg.
 
 ### Schritt 1 — Basis-Setup (automatisch)
 
@@ -181,11 +183,21 @@ SESSION_NAME=vps-prod CAPACITY=5 bash install-claude-agent.sh
 ### Schritt 2 — Login (einmalig, interaktiv)
 
 ```bash
-sudo -u claude -H /home/claude/.local/bin/claude auth login
+sudo -u claude -H /home/claude/.local/bin/claude auth login --claudeai
 ```
 
-Es erscheint eine URL. Diese am eigenen Rechner im Browser öffnen, anmelden, den Code
-zurück in die SSH-Sitzung kopieren.
+Ablauf: Das CLI meldet `Couldn't open your browser. Visit <URL>`. Diese URL am eigenen
+Rechner im Browser öffnen, anmelden, und die zurückgegebene Zeichenkette (Format
+`code#state`) bei `Paste code here if prompted >` einfügen.
+
+Es gibt **keinen** Localhost-Callback zum Weiterleiten: der OAuth-Listener bindet auf
+einem zufälligen Port, `ssh -L` funktioniert dafür nicht. Der Paste-Code-Weg ist der
+vorgesehene.
+
+Ergebnis ist `/home/claude/.claude/.credentials.json` (Modus 600, Klartext — auf Linux
+gibt es keinen Keyring-Backend, das ist der normale unterstützte Fall). Nur dieser Weg
+liefert den vollen Scope-Satz inklusive `user:profile`, den Remote Control verlangt,
+und die automatische Hintergrund-Erneuerung.
 
 ### Schritt 3 — Probelauf, dann Dauerbetrieb
 

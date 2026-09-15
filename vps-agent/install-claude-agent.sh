@@ -564,8 +564,12 @@ User=${AGENT_USER}
 Environment=HOME=${AGENT_HOME}
 Environment=PATH=${AGENT_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=${CLAUDE_BIN} update
-# Neustart als root, deshalb ueber systemctl mit +  (privilegiert ausgefuehrt).
-ExecStartPost=+/bin/systemctl try-restart ${SERVICE_NAME}.service
+# Neustart als root, deshalb das "+" (privilegiert ausgefuehrt).
+# --no-block ist wichtig: ohne das wartet diese Unit auf den Neustart-Job, was aus einer
+# laufenden Unit heraus im ungluecklichen Fall in einen Transaktions-Deadlock laeuft.
+ExecStartPost=+/bin/systemctl try-restart --no-block ${SERVICE_NAME}.service
+# Ein fehlgeschlagenes Update darf den Agenten nicht beeintraechtigen.
+SuccessExitStatus=0 1
 EOF
 
 cat > "/etc/systemd/system/${SERVICE_NAME}-update.timer" <<EOF
@@ -605,16 +609,37 @@ if ! systemctl is-active --quiet "${SERVICE}.service"; then
 fi
 
 # Auth-Status pruefen. Laeuft als Dienstbenutzer, damit dieselben Credentials gelesen werden.
+# Die drei Felder aus 'auth status --json' entscheiden, ob Remote Control ueberhaupt starten
+# kann: loggedIn, apiProvider (muss firstParty sein) und authMethod.
 auth_json="$(sudo -u "${AGENT_USER}" -H env HOME="${AGENT_HOME}" \
               "${CLAUDE_BIN}" auth status --json 2>/dev/null || true)"
 if [[ -z "${auth_json}" ]]; then
   echo "WARNUNG: 'claude auth status' lieferte keine Ausgabe."
   fail=1
-elif echo "${auth_json}" | grep -qiE '"(loggedIn|authenticated)"[[:space:]]*:[[:space:]]*false|not logged in|no credentials'; then
-  echo "KRITISCH: Claude-Login ist abgelaufen oder fehlt."
-  echo "  Beheben:  sudo -u ${AGENT_USER} -H ${CLAUDE_BIN} auth login"
-  echo "  danach:   systemctl restart ${SERVICE}.service"
-  fail=1
+else
+  logged_in="$(echo "${auth_json}" | jq -r '.loggedIn // false' 2>/dev/null || echo unknown)"
+  provider="$(echo "${auth_json}"  | jq -r '.apiProvider // ""' 2>/dev/null || echo '')"
+  method="$(echo "${auth_json}"    | jq -r '.authMethod // ""' 2>/dev/null || echo '')"
+
+  if [[ "${logged_in}" != "true" ]]; then
+    echo "KRITISCH: Claude-Login ist abgelaufen oder fehlt."
+    echo "  Beheben:  sudo -u ${AGENT_USER} -H ${CLAUDE_BIN} auth login --claudeai"
+    echo "  danach:   systemctl restart ${SERVICE}.service"
+    fail=1
+  elif [[ -n "${provider}" && "${provider}" != "firstParty" ]]; then
+    # Remote Control laeuft ausschliesslich gegen api.anthropic.com.
+    echo "KRITISCH: apiProvider ist '${provider}', Remote Control verlangt 'firstParty'."
+    echo "  Bedrock/Vertex/Gateway/ANTHROPIC_BASE_URL aus der Umgebung entfernen."
+    fail=1
+  elif [[ "${method}" == "oauth_token" ]]; then
+    # Ein Token aus CLAUDE_CODE_OAUTH_TOKEN ist auf 'inference-only' beschraenkt und
+    # ueberstimmt dabei das echte Login - Remote Control lehnt es ab.
+    echo "KRITISCH: Angemeldet ueber ein langlebiges Token (authMethod=oauth_token)."
+    echo "  Remote Control akzeptiert das nicht ('limited to inference-only')."
+    echo "  CLAUDE_CODE_OAUTH_TOKEN entfernen und neu anmelden:"
+    echo "            sudo -u ${AGENT_USER} -H ${CLAUDE_BIN} auth login --claudeai"
+    fail=1
+  fi
 fi
 
 # Das Refresh-Token hat ein eigenes Ablaufdatum. Das CLI warnt nur in der interaktiven
@@ -628,7 +653,7 @@ if [[ -r "${CRED}" ]] && command -v jq >/dev/null 2>&1; then
     days=$(( (exp_ms / 1000 - $(date +%s)) / 86400 ))
     if (( days < 0 )); then
       echo "KRITISCH: Das Refresh-Token ist seit $(( -days )) Tagen abgelaufen - neues Login noetig."
-      echo "  sudo -u ${AGENT_USER} -H ${CLAUDE_BIN} auth login"
+      echo "  sudo -u ${AGENT_USER} -H ${CLAUDE_BIN} auth login --claudeai"
       fail=1
     elif (( days < 14 )); then
       echo "WARNUNG: Das Refresh-Token laeuft in ${days} Tagen ab. Login rechtzeitig erneuern."
@@ -707,8 +732,10 @@ systemctl enable --quiet --now unattended-upgrades.service 2>/dev/null || true
 
 # ---------------------------------------------------------------- Abschluss
 AUTH_OK=0
-if sudo -u "${AGENT_USER}" -H env HOME="${AGENT_HOME}" "${CLAUDE_BIN}" auth status --json 2>/dev/null \
-     | grep -qiE '"(loggedIn|authenticated)"[[:space:]]*:[[:space:]]*true'; then
+AUTH_JSON="$(sudo -u "${AGENT_USER}" -H env HOME="${AGENT_HOME}" "${CLAUDE_BIN}" auth status --json 2>/dev/null || true)"
+if [[ -n "${AUTH_JSON}" ]] \
+   && [[ "$(echo "${AUTH_JSON}" | jq -r '.loggedIn // false' 2>/dev/null)" == "true" ]] \
+   && [[ "$(echo "${AUTH_JSON}" | jq -r '.authMethod // ""' 2>/dev/null)" != "oauth_token" ]]; then
   AUTH_OK=1
 fi
 
@@ -741,7 +768,7 @@ else
   CLI lehnt sie fuer Remote Control ausdruecklich ab ("Long-lived tokens
   ... are limited to inference-only for security reasons").
 
-      sudo -u ${AGENT_USER} -H ${CLAUDE_BIN} auth login
+      sudo -u ${AGENT_USER} -H ${CLAUDE_BIN} auth login --claudeai
 
   Es erscheint eine URL. Diese am eigenen Rechner im Browser oeffnen,
   anmelden, den Code zurueck in die SSH-Sitzung kopieren.
