@@ -26,6 +26,12 @@
 #
 set -euo pipefail
 
+# Hinweis zu 'curl | bash': bash liest das Skript dann selbst von stdin. Jeder
+# Unterbefehl, der stdin anfasst, wuerde Skript-Bytes verschlucken und den Lauf
+# mittendrin abschneiden. Alle betroffenen Aufrufe bekommen deshalb </dev/null.
+# Aus demselben Grund wird stdin NICHT global umgelenkt - das wuerde das noch
+# ungelesene Skript abschneiden.
+
 INSTALLER_VERSION="1.0"
 
 # ---------------------------------------------------------------- Optionen
@@ -248,17 +254,17 @@ done
 log "Installiere Basispakete"
 export DEBIAN_FRONTEND=noninteractive
 # Ein voruebergehend nicht erreichbarer Spiegel darf den Lauf nicht abbrechen.
-apt-get update -qq || warn "apt-get update meldete Fehler - versuche die Installation trotzdem"
+apt-get update -qq </dev/null || warn "apt-get update meldete Fehler - versuche die Installation trotzdem"
 
 # Pflicht: ohne diese Pakete funktioniert das Setup nicht.
 apt-get install -y -qq --no-install-recommends \
-  ca-certificates curl git jq python3 util-linux procps >/dev/null \
+  ca-certificates curl git jq python3 util-linux procps >/dev/null </dev/null \
   || die "Basispakete liessen sich nicht installieren."
 
 # Kuer: nuetzlich, aber kein Grund zum Abbruch (build-essential ist gross und fehlt
 # auf minimalen Images gelegentlich ganz).
 for pkg in file ripgrep unzip tmux unattended-upgrades build-essential; do
-  apt-get install -y -qq --no-install-recommends "${pkg}" >/dev/null 2>&1 \
+  apt-get install -y -qq --no-install-recommends "${pkg}" >/dev/null 2>&1 </dev/null \
     || warn "  optionales Paket '${pkg}' nicht installiert - weiter"
 done
 log "  ok"
@@ -335,8 +341,8 @@ log "  tcp_keepalive_time=$(cat /proc/sys/net/ipv4/tcp_keepalive_time)s"
 # ---------------------------------------------------------------- 4. Dienstbenutzer
 if ! id -u "${AGENT_USER}" >/dev/null 2>&1; then
   log "Lege Dienstbenutzer '${AGENT_USER}' an (der Agent laeuft NICHT als root)"
-  adduser --disabled-password --gecos "Claude Code Agent" "${AGENT_USER}" >/dev/null 2>&1 \
-    || useradd -m -s /bin/bash -c "Claude Code Agent" "${AGENT_USER}" \
+  adduser --disabled-password --gecos "Claude Code Agent" "${AGENT_USER}" >/dev/null 2>&1 </dev/null \
+    || useradd -m -s /bin/bash -c "Claude Code Agent" "${AGENT_USER}" </dev/null \
     || die "Dienstbenutzer '${AGENT_USER}' konnte nicht angelegt werden."
 else
   log "Benutzer '${AGENT_USER}' existiert bereits"
@@ -369,12 +375,12 @@ find_claude() {
   for p in "${AGENT_HOME}/.local/bin/claude" /usr/local/bin/claude /opt/claude-code/bin/claude; do
     [[ -x "$p" ]] && { echo "$p"; return 0; }
   done
-  sudo -u "${AGENT_USER}" -H bash -lc 'command -v claude' 2>/dev/null || true
+  sudo -u "${AGENT_USER}" -H bash -lc 'command -v claude' 2>/dev/null </dev/null || true
 }
 CLAUDE_BIN="$(find_claude)"
 if [[ -z "${CLAUDE_BIN}" ]]; then
   log "Installiere Claude Code (offizieller Installer https://claude.ai/install.sh)"
-  sudo -u "${AGENT_USER}" -H bash -lc 'curl -fsSL https://claude.ai/install.sh | bash' \
+  sudo -u "${AGENT_USER}" -H bash -lc 'curl -fsSL https://claude.ai/install.sh | bash' </dev/null \
     || die "Installation von Claude Code fehlgeschlagen."
   CLAUDE_BIN="$(find_claude)"
   [[ -n "${CLAUDE_BIN}" ]] || die "Claude Code wurde installiert, aber die Binary wurde nicht gefunden."
