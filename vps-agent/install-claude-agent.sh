@@ -379,13 +379,16 @@ def main() -> int:
             f"[supervisor] Signal {signum} empfangen, "
             f"leite SIGTERM an pid {pid} weiter (Gnadenfrist {args.grace:.0f}s)\n")
         sys.stdout.flush()
+        # SIGTERM bewusst NUR an das Kind, nicht an die ganze Gruppe: die Bridge fährt
+        # beim Beenden einen geordneten Drain (SIGTERM an jede Session, Aufraeumen von
+        # Worktrees, Schreiben des Resume-Zeigers). Ein Signal an die gesamte Gruppe
+        # wuerde die Kindsessions parallel treffen und diesen Ablauf abschneiden.
+        # Fuer den harten SIGKILL nach Ablauf der Gnadenfrist gilt das nicht - dort wird
+        # die ganze Gruppe beendet, damit keine Waisen zurueckbleiben.
         try:
-            os.killpg(pid, signal.SIGTERM)
-        except (ProcessLookupError, PermissionError):
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
 
     signal.signal(signal.SIGTERM, request_stop)
     signal.signal(signal.SIGINT, request_stop)

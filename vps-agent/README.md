@@ -56,9 +56,17 @@ Runner-Diagnose:
                       | Raise NAT/proxy idle timeouts |
 ```
 
+Das Budget ist knapp. Aus den Konstanten im Binary: **mehr als 3 Abbrüche in einer
+rollenden Stunde** (bzw. 72 in 24 h) und die Bridge hört dauerhaft auf, sich neu zu
+verbinden; eine störungsfreie Strecke von 10 Minuten setzt das Fenster zurück.
+
 Linux setzt TCP-Keepalives standardmäßig erst nach **7200 s** (2 h) ab. Typische
 NAT- und Firewall-Idle-Timeouts liegen bei 5–30 min. Die langlebige Poll-Verbindung
 fliegt also still aus der NAT-Tabelle, lange bevor der Kernel das erste Keepalive sendet.
+
+**Daraus folgt: Persistenz allein genügt nicht.** Ein reiner systemd-Neustart ohne
+Keepalive-Korrektur verbraucht das 3-pro-Stunde-Budget genauso schnell wie vorher.
+Deshalb adressiert das Setup beide Ebenen gleichzeitig.
 
 ### Der zweite, heimtückischere Kandidat: Token-Erneuerung
 
@@ -139,6 +147,21 @@ Lösungen wurden getestet und verworfen:
 | `tmux new-session -d` unter systemd | Der tmux-Server überlebt den Tod des inneren Prozesses; systemd merkt den Absturz nie und startet nicht neu |
 | `script -qfec CMD /dev/null` | Liefert zwar ein PTY und reicht mit `-e` den Exit-Code durch, **killt sein Kind bei SIGTERM aber hart** (`Session terminated, killing shell... ...killed`) — der Signal-Trap des Kindes feuerte im Test nie, und ein Prozess blieb zurück |
 | `claude-agent-run.py` (hier verwendet) | PTY + sauberes SIGTERM an die Prozessgruppe + Exit-Status ans systemd |
+
+Beim Stoppen greift eine gestaffelte Kette, damit die Bridge ihren eigenen
+geordneten Drain fahren kann (sie beendet ihre Sessions einzeln, räumt Worktrees
+auf und schreibt einen Resume-Zeiger):
+
+```
+1. systemd     --SIGTERM-->  Supervisor       KillMode=mixed: nur der Hauptprozess
+2. Supervisor  --SIGTERM-->  claude bridge    nur das Kind, nicht die Gruppe
+3. bridge      --SIGTERM-->  ihre Sessions    geordneter Drain
+4. nach 25 s:  Supervisor --SIGKILL--> Prozessgruppe
+5. nach 45 s:  systemd    --SIGKILL--> Rest der cgroup
+```
+
+Ein Signal an die gesamte Prozessgruppe in Schritt 2 würde die Kindsessions
+parallel treffen und Schritt 3 abschneiden — deshalb dort bewusst nur das Kind.
 
 Messwerte des Supervisors:
 
@@ -261,7 +284,7 @@ systemctl list-timers 'claude-agent*'  # Timer-Übersicht
 | Symptom | Ursache | Behebung |
 |---|---|---|
 | Dienst läuft, tut aber nichts | Erstlauf-Dialog wartet auf Eingabe | Schritt 3 von Hand ausführen |
-| Dienst startet und endet sofort mit 0 | Dialog las EOF | dito |
+| Dienst startet und endet sofort mit 0 | Dialog las EOF → `process.exit(0)` | dito |
 | `Couldn't verify Remote Control eligibility` | `cdn.growthbook.io` blockiert | Egress für diesen Host öffnen |
 | Startet gar nicht | `ANTHROPIC_BASE_URL` / `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` gesetzt | aus `/etc/environment` und Shell-Profilen entfernen |
 | `Workspace not trusted` | Trust fehlt oder Workspace **ist** das Home-Verzeichnis | Installer erneut ausführen; niemals `/home/claude` selbst nutzen |
