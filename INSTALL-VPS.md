@@ -75,7 +75,8 @@ Danach erscheint der Agent in `claude.ai/code` unter dem Hostnamen des Servers.
 --workspace PFAD        Arbeitsverzeichnis (Default: <home>/workspace)
 --session-name NAME     Anzeigename in claude.ai/code (Default: Hostname)
 --capacity N            Gleichzeitige Sessions (Default: 3)
---permission-mode MODE  default | acceptEdits | plan | dontAsk | bypassPermissions
+--permission-mode MODE  default | acceptEdits | plan | dontAsk | bypassPermissions | auto
+                        ('manual' wird als Anzeigename von 'default' akzeptiert)
 --swap GRÖSSE           Swap-Datei, z.B. 4G (Default: 4G)
 --skip-swap             Keinen Swap anlegen
 --service-name NAME     Name der systemd-Unit (Default: claude-agent)
@@ -141,7 +142,7 @@ genauso schnell wie vorher. Das Skript adressiert beide Ebenen.
 | Remote Control gibt endgültig auf | `Restart=always` + `StartLimitIntervalSec=0` |
 | SSH-Abbruch killt den Prozess | systemd statt SSH-Sitzung |
 | Reboot | `WantedBy=multi-user.target` |
-| OOM-Killer | Swap + `MemoryHigh=70%` |
+| OOM-Killer | Swap + `MemoryHigh=70%` + `OOMPolicy=continue` |
 | Zu alte Version wird abgewiesen | wöchentliches `claude update` |
 | Abgelaufenes Login (stiller Killer) | Health-Timer alle 15 min |
 | Refresh-Token läuft ab | Health-Check warnt 14 Tage vorher |

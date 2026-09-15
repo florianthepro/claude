@@ -67,7 +67,8 @@ install.sh - Claude-Agent 24/7 auf einem Ubuntu-VPS
                           Darf nicht das Home-Verzeichnis selbst sein.
   --session-name NAME     Anzeigename in claude.ai/code (Default: Hostname)
   --capacity N            Gleichzeitige Sessions (Default: 3)
-  --permission-mode MODE  default | acceptEdits | plan | dontAsk | bypassPermissions
+  --permission-mode MODE  default | acceptEdits | plan | dontAsk | bypassPermissions | auto
+                          ('manual' wird als Anzeigename von 'default' akzeptiert)
                           (Default: default - Rueckfragen erscheinen in claude.ai/code)
   --swap GROESSE          Swap-Datei, z.B. 4G oder 2048M (Default: 4G)
   --skip-swap             Keinen Swap anlegen
@@ -113,9 +114,19 @@ die()  { printf '\033[1;31m[x]\033[0m %s\n' "$*" >&2; exit 1; }
 # Eingaben pruefen, bevor irgendetwas angefasst wird.
 [[ "${CAPACITY}" =~ ^[0-9]+$ && "${CAPACITY}" -ge 1 ]] \
   || die "--capacity muss eine positive Zahl sein (war: ${CAPACITY})."
+# 'manual' ist nur ein ANZEIGE-Alias fuer 'default'. Die Pruefung im CLI lautet
+# PERMISSION_MODES.includes(wert), und dieses Array enthaelt 'default', nicht 'manual';
+# lediglich die Fehlermeldung mappt default -> manual. Wer der Fehlermeldung folgt und
+# 'manual' uebergibt, bekaeme "Invalid permission mode" und damit einen Dienst, den
+# systemd endlos neu startet. Deshalb hier uebersetzen statt durchreichen.
+if [[ "${PERMISSION_MODE}" == "manual" ]]; then
+  log "--permission-mode manual ist der Anzeigename von 'default' - verwende 'default'"
+  PERMISSION_MODE="default"
+fi
 case "${PERMISSION_MODE}" in
-  default|acceptEdits|plan|dontAsk|bypassPermissions|auto|manual) ;;
-  *) die "--permission-mode unbekannt: ${PERMISSION_MODE}" ;;
+  default|acceptEdits|plan|dontAsk|bypassPermissions|auto) ;;
+  *) die "--permission-mode unbekannt: ${PERMISSION_MODE}
+     Gueltig: default, acceptEdits, plan, dontAsk, bypassPermissions, auto" ;;
 esac
 [[ "${SWAP_SIZE}" =~ ^[0-9]+[GgMm]$ ]] \
   || die "--swap braucht eine Groesse wie 4G oder 2048M (war: ${SWAP_SIZE})."
@@ -746,6 +757,11 @@ KillSignal=SIGTERM
 # aus Schritt 2, und MemoryHigh bremst den Dienst, bevor es kritisch wird.
 MemoryHigh=70%
 MemoryAccounting=true
+# OOMPolicy steht per Default auf 'stop' (DefaultOOMPolicy in system.conf). Damit wuerde
+# ein kernelseitiger OOM-Kill eines KINDPROZESSES - ein Build oder Test, den der Agent
+# startet - die gesamte Unit stoppen und die laufende Session mitreissen. 'continue'
+# laesst den Dienst weiterlaufen und nur das Kind sterben.
+OOMPolicy=continue
 
 # Moderate Absicherung. Bewusst nicht strenger: der Agent soll normale Entwicklungsarbeit
 # im Workspace erledigen koennen.
