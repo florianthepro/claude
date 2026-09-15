@@ -81,7 +81,7 @@ Eine Entscheidung ist nach INV-14 ein Pflichtfeld oder eine Auswahl ohne möglic
 | 19 | DNS-Eintrag anlegen | Netz & Namen | 3 | Art, Name, Wert | Sicht, TTL, Domäne, Quelle (handeingegeben) | Ableitung (Domänenkontext), Richtlinie (TTL) |
 | 20 | Maildomäne einrichten | Netz & Namen | 2 | Domäne, Anbieterbindung | DKIM-Schlüssel, MX-, SPF-, DMARC-, MTA-STS-, TLS-RPT-Einträge, Richtlinienstufe | Ableitung (Konnektorbindung), Richtlinie |
 | 21 | Mail hinzufügen | Personen & Gruppen | 2 | Maildomäne, lokaler Teil | Postfachart, Ablageort, Primärkennzeichen, Berechtigte, Kontingent | Ableitung (Subjektart, Maildomäne → Bindung), Richtlinie |
-| 22 | Geteiltes Postfach anlegen | Personen & Gruppen | 3 | Anzeigename, Maildomäne + lokaler Teil, berechtigte Gruppe | Ablageort, Sendeberechtigung, Kontingent, Postfachart (geteilt) | Ableitung, Richtlinie |
+| 22 | Geteiltes Postfach anlegen | Personen & Gruppen | 3 | Anzeigename, Maildomäne, lokaler Teil | besitzende Gruppe (aus dem Anzeigenamen abgeleitet und mitangelegt), Ablageort, Sendeberechtigung, Kontingent, Postfachart (geteilt) | Ableitung (Anzeigename → Gruppe, R-14-14), Richtlinie |
 | 23 | Netzzone anlegen | Netz & Namen | 2 | Name, Art (Overlay/VLAN) | Adressbereich, Resolver-Sicht, Default-Deny, Mandant | Ableitung (Adressplan), INV-10 |
 | 24 | Knoten koppeln | Knoten & Speicher | 2 | Kopplungscode, Zweck (Redundanz / weiterer Verwaltungsknoten / Dienste verteilen) | Knotenname, Rollen, Fehlerzone, Abbildversion, Netzzone, Zertifikat | Ableitung (Zweck → Rollen; Netztopologie → Fehlerzonenvorschlag) |
 | 25 | Knoten räumen | Knoten & Speicher | 1 | Knoten | Zielknoten je Dienst, Reihenfolge, erwartete Unterbrechungen | Ableitung (Platzierung) |
@@ -101,7 +101,7 @@ Eine Entscheidung ist nach INV-14 ein Pflichtfeld oder eine Auswahl ohne möglic
 
 Auswertung des Katalogs. Summe der Entscheidungen 72 bei 38 Aufgaben, arithmetisches Mittel 72 / 38 = 1,89 Entscheidungen je Aufgabe. Maximum 3, erreicht bei 9 Aufgaben (Nummern 6, 8, 12, 13, 18, 19, 22, 29, 36), Minimum 0 bei einer reinen Ansicht. Damit ist INV-14 über den gesamten Katalog eingehalten und K-03 mit Reserve unterschritten. Die Zahlen sind Entwurfsfestlegungen, keine Messung; ihre Einhaltung wird im Bau gegen die maschinenlesbaren Aufgabendefinitionen geprüft, und ein zusätzliches Pflichtfeld bricht den Bau.
 
-Bekannte Schwäche des Katalogs: die Aufgaben 12, 13, 18, 19, 22, 29 und 36 liegen am Maximum. Jede spätere Erweiterung dieser Formulare um ein Pflichtfeld verletzt INV-14. Die Erweiterung ist dann nicht abzulehnen, sondern zwingt zur Neuaufteilung der Aufgabe oder zur Einführung einer Richtlinie, aus der das Feld vorbelegt wird. Dass dieser Druck besteht, ist beabsichtigt; dass er an sieben Stellen sofort besteht, ist eine Enge, die im Betrieb spürbar wird.
+Bekannte Schwäche des Katalogs: die Aufgaben 6, 8, 12, 13, 18, 19, 22, 29 und 36 liegen am Maximum. Jede spätere Erweiterung dieser Formulare um ein Pflichtfeld verletzt INV-14. Die Erweiterung ist dann nicht abzulehnen, sondern zwingt zur Neuaufteilung der Aufgabe oder zur Einführung einer Richtlinie, aus der das Feld vorbelegt wird. Dass dieser Druck besteht, ist beabsichtigt; dass er an neun Stellen sofort besteht, ist eine Enge, die im Betrieb spürbar wird.
 
 ## 18.3 Die Methode der Fragenbeseitigung
 
@@ -203,9 +203,9 @@ Aufgabe: einen Server aufsetzen, auf dem ein Ticketsystem intern und extern erre
 | 34 | Überwachung und Empfänger | B2 | Gesundheitsproben folgen aus dem Katalogeintrag; Empfänger folgt aus der Rolle |
 | 35 | Protokollrotation und Aufbewahrung | B1 | Richtlinie; Fristen aus K-25 |
 
-Auswertung. Von 35 Fragen bleiben 2 als Ersteinrichtungsentscheidungen (1, 11), 2 entfallen ersatzlos (10, 18), 18 werden abgeleitet (B2), 6 durch Richtlinie vorbelegt (B1), 2 verschoben (B3) und 7 zusammengelegt (B4). Zusammen mit den beiden übrigen Ersteinrichtungsentscheidungen aus K-01 (Mandantenname, Basisdomäne) und den Entscheidungen der beiden beteiligten Standardaufgaben (Dienst hinzufügen 3, Dienst veröffentlichen 3) ergeben sich 4 + 6 = 10 Entscheidungen gegenüber 35 Fragen, also eine Reduktion um 1 − 10/35 = 71,4 %.
+Auswertung. Von 35 Fragen bleiben 2 als Ersteinrichtungsentscheidungen (1, 11), 2 entfallen ersatzlos (10, 18), 16 werden abgeleitet (B2), 6 durch Richtlinie vorbelegt (B1), 2 verschoben (B3) und 7 zusammengelegt (B4); die Posten summieren sich auf 2 + 2 + 16 + 6 + 2 + 7 = 35. Zusammen mit den beiden übrigen Ersteinrichtungsentscheidungen aus K-01 (Mandantenname, Basisdomäne) und den Entscheidungen der beiden beteiligten Standardaufgaben (Dienst hinzufügen 3, Dienst veröffentlichen 3) ergeben sich 4 + 6 = 10 Entscheidungen gegenüber 35 Fragen, also eine Reduktion um 1 − 10/35 = 71,4 %.
 
-Deutung und ehrliche Einschränkung. Die Zahl 35 ist eine Zerlegung, keine Messung an einem konkreten Produkt; ein anderer Ablauf ergibt eine andere Zahl. Belastbar ist nicht der Prozentwert, sondern die Verteilung: 18 der 35 Fragen sind reine Ableitungen, die nur deshalb gestellt werden, weil das klassische System kein Objektmodell hat, in dem die Antwort schon steht. Die zwei bleibenden Fragen sind genau die, die Information tragen, welche nirgends im System existiert: die Sprache des Menschen und seine Identität. Das ist die Grenze der Methode: sie beseitigt keine Frage, deren Antwort außerhalb des Systems liegt.
+Deutung und ehrliche Einschränkung. Die Zahl 35 ist eine Zerlegung, keine Messung an einem konkreten Produkt; ein anderer Ablauf ergibt eine andere Zahl. Belastbar ist nicht der Prozentwert, sondern die Verteilung: 16 der 35 Fragen sind reine Ableitungen, die nur deshalb gestellt werden, weil das klassische System kein Objektmodell hat, in dem die Antwort schon steht. Die zwei bleibenden Fragen sind genau die, die Information tragen, welche nirgends im System existiert: die Sprache des Menschen und seine Identität. Das ist die Grenze der Methode: sie beseitigt keine Frage, deren Antwort außerhalb des Systems liegt.
 
 ## 18.4 Auswahlzeit und Zielgrößen
 
@@ -350,6 +350,18 @@ Eine Massenaktion zeigt vor der Ausführung die vollständige Einzelaufstellung 
 Eine Bestätigung wird genau dann verlangt, wenn mindestens eine der drei Bedingungen zutrifft: die Aktion ist nicht rücknehmbar, sie hat eine Kostenwirkung in einem Fremdsystem (INV-29), oder sie betrifft mehr als eine Schwellenzahl von Objekten. Zielwert der Schwelle: 10 Objekte oder jede Aktion, die eine Mandantengrenze berührt.
 
 Rechnung zur Wirkung der Regel. Annahme: eine mittlere Installation führt 100 Vorgänge im Monat aus; Annahme: 8 % davon sind nicht rücknehmbar, kostenwirksam oder überschreiten die Schwelle. Ohne Regel entstehen 100 Bestätigungsdialoge im Monat, mit Regel 8. Deutung: nur im zweiten Fall trägt ein Bestätigungsdialog Information. Bestätigt ein Bediener 100-mal im Monat folgenlos, ist die 101. Bestätigung eine Handbewegung und keine Entscheidung; die Regel schützt nicht vor Klicks, sondern vor Gewöhnung. Die Zahlen sind Annahmen zur Verdeutlichung der Größenordnung, keine Messung.
+
+### Informationsdichte einer Ansicht
+
+Die Navigationsgrenzen aus 18.1 begrenzen die Breite des Menüs, nicht die Textmenge einer einzelnen Ansicht. Ohne eine zweite Grenze bleibt die Zusage "keine Textwüsten" eine Absichtserklärung, die im Bau nichts bricht. Deshalb gelten drei Obergrenzen, die an der Ansichtsdefinition statisch prüfbar sind:
+
+| Gegenstand | Obergrenze | Begründung und Ausweg bei Überschreitung |
+|---|---|---|
+| Spalten je Listenansicht in der Grundeinstellung | Zielwert ≤ 7 | Dieselbe Alternativenzahl wie bei den Unterpunkten je Bereich (K-26); darüber hinaus wird die Liste zur Tabelle, die man liest statt überfliegt. Ausweg ist nicht eine achte Spalte, sondern die Objektansicht hinter der Zeile. |
+| Erklärungstext an einem Formularfeld | Zielwert ≤ 200 Zeichen | Ein Feld, dessen Erklärung länger ist, ist nicht erklärungsbedürftig, sondern falsch geschnitten oder gehört vorbelegt (B1 oder B2 aus 18.3). |
+| Erklärender Fließtext je Ansicht außerhalb der Felderklärungen | Zielwert ≤ 400 Zeichen | Die Ansicht soll den Zustand zeigen, nicht ihn beschreiben. Längere Erläuterungen gehören in die Dokumentation, auf die die Ansicht verweist, nicht in die Ansicht selbst. |
+
+Die Grenzen sind Zielwerte des Entwurfs und keine Messung an Bedienern; belegbar ist an ihnen nur, dass sie eingehalten werden, nicht dass genau diese Werte die richtigen sind. Ihr Zweck ist, dass eine Überschreitung im Bau sichtbar wird und eine benannte Entscheidung erzwingt, statt sich über Jahre als Zuwachs einzuschleichen. Die Prüfung läuft gegen die Ansichtsdefinitionen und nicht gegen das gerenderte Ergebnis, damit sie ohne Bildvergleich auskommt; sie tritt damit neben die Prüfungen aus K-27.
 
 ## 18.7 Fehlerbehandlung
 
@@ -656,6 +668,7 @@ Schwäche, die der Entwurf nicht auflöst: Export und Import laden zu genau der 
 | R-18-46 | Die Konsole benutzt 0 Endpunkte außerhalb der öffentlich dokumentierten API; der Bau testet sie gegen eine Fassade, die nicht dokumentierte Endpunkte sperrt. | INV-01 |
 | R-18-47 | Ein Formularfeld, dessen Wirkung von der Stellung eines anderen Feldes abhängt, ist entweder als abgeleitet gekennzeichnet oder nicht vorhanden. Ein wirkungsloser Schalter wird nicht angezeigt. | INV-15 |
 | R-18-48 | Jeder Vorgang endet innerhalb der harten Obergrenze von 15 min in einem benannten Zustand. Eine Fortschrittsanzeige ohne Endzustand existiert nicht. | K-15, INV-12 |
+| R-18-49 | Eine Listenansicht führt in der Grundeinstellung höchstens 7 Spalten, ein Erklärungstext an einem Formularfeld höchstens 200 Zeichen und der erklärende Fließtext je Ansicht außerhalb der Felderklärungen höchstens 400 Zeichen. Die Prüfung läuft gegen die Ansichtsdefinitionen; eine Überschreitung bricht den Bau. | F-04, K-26, K-27 |
 
 ## Akzeptanzkriterien
 
@@ -697,10 +710,11 @@ Schwäche, die der Entwurf nicht auflöst: Export und Import laden zu genau der 
 | Die Konsole erreicht gegen die API-Fassade 0 nicht dokumentierte Endpunkte | R-18-46 | Fassadentest im Bau |
 | In keiner Formularkombination existiert ein Schalter ohne Wirkung | R-18-47 | Zustandsmatrixtest über alle Feldkombinationen |
 | Jeder Testvorgang endet innerhalb von 15 min in einem benannten Zustand | R-18-48 | Zeitschranktest je Vorgangsart |
+| Über alle Ansichtsdefinitionen gibt es 0 Listenansichten mit mehr als 7 Spalten in der Grundeinstellung, 0 Felderklärungen über 200 Zeichen und 0 Ansichten mit mehr als 400 Zeichen erklärendem Fließtext | R-18-49 | Statische Auszählung der Ansichtsdefinitionen im Bau |
 
 ## Offene Punkte
 
-1. **Sieben Aufgaben liegen am Maximum von drei Entscheidungen, ohne dass eine Reserve besteht.** Die Aufgaben 12, 13, 18, 19, 22, 29 und 36 des Katalogs schöpfen INV-14 vollständig aus. Jede fachlich begründete Erweiterung — etwa eine zweite Anbieterbindung je Maildomäne, ein zweiter Hostname je Veröffentlichung oder ein Pflichtfeld aus einer neuen Rechtsanforderung — erzwingt entweder eine neue Richtlinie, aus der vorbelegt wird, oder die Teilung der Aufgabe in zwei. Beides ist teuer und beides ist ungeplant. Offen ist, ob der Entwurf eine Reserve einführt, indem er für diese sieben Aufgaben ausdrücklich zwei Entscheidungen als Zielwert setzt, oder ob die Enge als Steuerungsmittel bewusst bestehen bleibt.
+1. **Neun Aufgaben liegen am Maximum von drei Entscheidungen, ohne dass eine Reserve besteht.** Die Aufgaben 6, 8, 12, 13, 18, 19, 22, 29 und 36 des Katalogs schöpfen INV-14 vollständig aus. Jede fachlich begründete Erweiterung — etwa eine zweite Anbieterbindung je Maildomäne, ein zweiter Hostname je Veröffentlichung oder ein Pflichtfeld aus einer neuen Rechtsanforderung — erzwingt entweder eine neue Richtlinie, aus der vorbelegt wird, oder die Teilung der Aufgabe in zwei. Beides ist teuer und beides ist ungeplant. Offen ist, ob der Entwurf eine Reserve einführt, indem er für diese neun Aufgaben ausdrücklich zwei Entscheidungen als Zielwert setzt, oder ob die Enge als Steuerungsmittel bewusst bestehen bleibt.
 
 2. **Die Menge der genannten Nichtwirkungen in der Wirkungsvorschau ist deklariert, nicht berechnet.** Der Abschnitt "Was sich nicht ändert" wirkt auf den Bediener wie eine Zusicherung, beruht aber auf einer je Vorgangsart handgepflegten Liste. Eine unvollständige Liste erzeugt Vertrauen, das der Entwurf nicht einlöst. Eine berechnete Liste wäre die Menge aller Objekte im Wirkungskegel, die der Vorgang nicht berührt, und damit praktisch unbegrenzt. Offen ist, ob die Deklaration an eine Prüfung gebunden wird, die für jede genannte Nichtwirkung nachweist, dass der Vorgang das genannte Objekt tatsächlich nicht verändert, und ob eine nicht genannte, aber vom Bediener erwartete Nichtwirkung als Fehler gilt.
 

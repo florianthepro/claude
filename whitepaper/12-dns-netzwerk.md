@@ -40,7 +40,7 @@ Beide Indizes sind Zähler im Sollzustand, keine Hashwerte. **Entwurfsentscheidu
 |---|---|---|---|---|
 | **Loopback** | nur der Knoten selbst | keine | ja, außer Loopback | Gesundheitsendpunkt 8409/tcp, Konnektorsockets, lokale Steuerschnittstelle des autoritativen DNS |
 | **Unterlagerung** | physische Schnittstellen der Knoten | keine | ja | trägt ausschließlich WireGuard auf 51820/udp, Zeitsynchronisation und, wo vorhanden, das Speichernetz |
-| **Knoten-Overlay** | alle gekoppelten Knoten | intern, vollständig | ja | Kontrollebenenverkehr: 8400–8404, 8408/tcp; DRBD ab 7789/tcp |
+| **Knoten-Overlay** | alle gekoppelten Knoten | intern, vollständig | ja | Kontrollebenenverkehr: 8400–8402, 8404, 8406, 8408/tcp; DRBD ab 7789/tcp. 8403/tcp gehört nicht hierher: der Kopplungsendpunkt liegt im lokalen Netzsegment und nur im Wartemodus (INV-27) |
 | **Speichernetz** | Speicherträger | keine | ja | optional, nur ab 8 Knoten mit dedizierten Speicherknoten; sonst über das Overlay gekapselt |
 | **Mandanten-Overlay** | Dienste eines Mandanten ab M1 | intern, auf den Mandanten beschränkt | ja | eigenes Schlüsselmaterial, eigener Eingangs-Listener, eigene Ausgangsadresse |
 | **Verwaltete Geräte** | Geräte mit gültigem Gerätezertifikat | intern, nach Geltungsbereich der Domänen | ja | Zuordnung über EAP-TLS nach IEEE 802.1X oder über Overlay-Mitgliedschaft |
@@ -365,7 +365,7 @@ Die Signierung folgt RFC 4033, RFC 4034 und RFC 4035; die Betriebsführung folgt
 
 **Verfahren: Ed25519 (RFC 8032).** Der Grund ist die Antwortgröße und damit die Fragmentierungsfreiheit.
 
-**Rechnung zur Größe des Schlüsseldatensatzes.** Ein Schlüsseleintrag besteht aus 4 Byte festen Feldern und dem öffentlichen Schlüssel. Bei fünf Verwaltungsknoten (also fünf ZSK) und zwei KSK während eines Wechsels ergeben sich sieben Einträge:
+**Rechnung zur Größe des Schlüsseldatensatzes.** Ein Schlüsseleintrag besteht aus 4 Byte festen Feldern und dem öffentlichen Schlüssel. Maßgeblich für ihre Zahl sind die autoritativ antwortenden Knoten und nicht die Stimmzahl: jeder Mitleser, der ebenfalls autoritativ antwortet, führt einen eigenen ZSK und vergrößert den Datensatz um einen Eintrag (Offener Punkt 3). Bei fünf Stimmknoten (also fünf ZSK, INV-05) und zwei KSK während eines Wechsels ergeben sich sieben Einträge:
 
 ```
   Ed25519:        7 * (4 + 32)  =  252 Byte Schluesselmaterial
@@ -636,6 +636,7 @@ table inet atrium {
     tcp dport 8401 accept                          # Raft-Peer,     Rolle Stimmknoten
     tcp dport 8402 accept                          # Agentenkanal,  Rolle Dienstträger
     tcp dport 8404 accept                          # xDS,           Rolle Eingangsträger
+    tcp dport 8406 accept                          # ACME intern
     tcp dport 8408 accept                          # Telemetrie
     tcp dport 7789-7820 accept                     # Blockreplikation, je Ressource
     udp dport 123 accept                           # Zeit nach innen
@@ -979,7 +980,7 @@ Die erste Zeile ist die einzige, die das Problem tatsächlich beseitigt statt es
 
 2. **Durchsetzbarkeit des Geltungsbereichs in Bestandsnetzen.** Der Ableitungsalgorithmus aus Abschnitt 12.4 liefert für Geräte in einer fremdverwalteten Zone kein durchsetzbares Ergebnis und zeigt das an. Offen ist, wie die Konsole damit umgeht, wenn das für die überwiegende Zahl der Geräte einer Installation gilt — was in einer Bestandsumgebung ohne 802.1X der Normalfall ist. Drei Wege sind denkbar: den Geltungsbereich Gerät und Person in solchen Installationen gar nicht anbieten (ehrlich, aber die Oberfläche unterscheidet sich dann je Installation), ihn anbieten und flächendeckend als nicht durchsetzbar markieren (die Markierung wird zur Tapete), oder die Registrierung eines Geräts an die Aufnahme in eine durchsetzbare Zone koppeln (setzt Eingriffe in die Netzinfrastruktur des Kunden voraus, die Atrium nicht vornehmen darf). Keiner der drei Wege ist entschieden.
 
-3. **Zahl der Zonensignaturschlüssel gegenüber der Knotenzahl.** Die Lösung "ein ZSK je Verwaltungsknoten" hält INV-20 ein und macht die Signaturerneuerung quorumunabhängig, koppelt aber die Größe des Schlüsseldatensatzes an die Zahl der Verwaltungsknoten. Bei fünf Stimmknoten und Ed25519 ist das unkritisch (516 Byte gegenüber 1232 Byte Grenze). Nicht entschieden ist, was gilt, wenn zusätzlich Mitleser autoritativ antworten sollen: bei zwölf Verwaltungsknoten und laufendem KSK-Rollover ergibt die Rechnung aus Abschnitt 12.5 14 Schlüssel zu je 36 Byte = 504 Byte plus Signaturen und Kopf, also rund 770 Byte — noch unterhalb der Grenze, aber mit ECDSA über P-256 bereits 1.180 Byte und damit an der Grenze. Entweder wird die Zahl autoritativ antwortender Knoten begrenzt, oder der Schlüsseldatensatz wird von der Knotenzahl entkoppelt, was ein anderes Verfahren für die Signaturerneuerung erfordert.
+3. **Zahl der Zonensignaturschlüssel gegenüber der Knotenzahl.** Die Lösung "ein ZSK je Verwaltungsknoten" hält INV-20 ein und macht die Signaturerneuerung quorumunabhängig, koppelt aber die Größe des Schlüsseldatensatzes an die Zahl der Verwaltungsknoten. Bei fünf Stimmknoten und Ed25519 ist das unkritisch (516 Byte gegenüber 1232 Byte Grenze). Nicht entschieden ist, was gilt, wenn zusätzlich Mitleser autoritativ antworten sollen: bei zwölf Verwaltungsknoten und laufendem KSK-Rollover ergibt die Rechnung aus Abschnitt 12.5 14 Schlüssel zu je 36 Byte = 504 Byte plus 2 × (18 + 64 + 20) = 204 Byte Signaturen und rund 60 Byte Fragenteil und Kopf, also rund 768 Byte — noch unterhalb der Grenze. Mit ECDSA über P-256 sind es 14 × (4 + 64) = 952 Byte Schlüsselmaterial, 2 × (18 + 72 + 20) = 220 Byte Signaturen und rund 60 Byte Fragenteil und Kopf, zusammen 1.232 Byte: genau die angekündigte EDNS-Puffergröße. Der Wert erreicht die Grenze also nicht annähernd, sondern exakt, und lässt keine Reserve für einen weiteren Schlüsseleintrag oder eine zusätzliche Kopfoption; jedes weitere Oktett erzwingt den Wechsel auf TCP. Entweder wird die Zahl autoritativ antwortender Knoten begrenzt, oder der Schlüsseldatensatz wird von der Knotenzahl entkoppelt, was ein anderes Verfahren für die Signaturerneuerung erfordert.
 
 4. **Reaktion auf einen abgelaufenen Vertrauensanker ohne Verbindung.** Abschnitt 12.6 macht das Alter des Wurzelankers sichtbar, löst den Fall aber nicht. Eine Installation ohne ausgehende Verbindung kann nach einem Schlüsselwechsel der Wurzel fremde Namen nicht mehr validieren. Offen ist, ob die Validierung dann für fremde Namen automatisch abgeschaltet wird (eine stille Sicherheitsminderung, die genau das tut, was der Entwurf sonst verbietet), ob fremde Namen unauflösbar werden (korrekt, aber für den Nutzer ein Totalausfall der Internetnutzung), oder ob der Anker als signiertes Artefakt mit dem Systemabbild verteilt wird und damit an die Ausrollkadenz aus K-23 gebunden ist.
 

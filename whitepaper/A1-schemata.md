@@ -16,7 +16,7 @@ Dieser Anhang führt die formalen Schemata, gegen die die öffentliche API, der 
 
 Die Kombination `allOf: [{"$ref": objektrumpf}]` mit `additionalProperties: false`, wie sie [Kapitel 07](07-objektmodell.md) in zwei Schemata verwendet, ist fehlerhaft und wird hier korrigiert. `additionalProperties` bewertet ausschließlich die Eigenschaften desselben Schemaobjekts und kennt die über `$ref` eingebundenen Rumpfeigenschaften nicht; ein solches Schema lehnt jedes gültige Objekt ab, weil `kennung`, `mandant` und alle weiteren Rumpffelder als zusätzliche Eigenschaften gelten. Der Anhang verwendet deshalb durchgehend `unevaluatedProperties: false`, das die Ergebnisse der eingebundenen Teilschemata berücksichtigt. Das zweite Schema in [Kapitel 07](07-objektmodell.md), der DNS-Eintrag, trägt zusätzlich zwei Mitglieder mit dem Namen `allOf` in demselben Objekt und ist damit nicht eindeutig lesbares JSON; A1.2.9 führt die zusammengeführte Fassung.
 
-Elf Formatbezeichner werden als Zusicherung und nicht als Annotation ausgewertet. Ein Validator, der Formate nur annotiert, erfüllt diese Spezifikation nicht.
+Sechs Formatbezeichner werden als Zusicherung und nicht als Annotation ausgewertet. Ein Validator, der Formate nur annotiert, erfüllt diese Spezifikation nicht.
 
 ```
 date-time   ipv4   ipv6   idn-hostname   uri   duration
@@ -1554,7 +1554,7 @@ Eine Prüfung, die auf einer höheren Stufe liegt als nötig, ist ein Fehler: si
 - **R-A1-01** — Jedes Entitätsschema trägt `unevaluatedProperties: false` auf der äußersten Ebene und jedes eingebettete Objekt ohne `allOf` trägt `additionalProperties: false`. Prüfbar: statische Prüfung aller Schemadateien; ein Schema ohne diese Angabe bricht den Bau. Folgt aus INV-01.
 - **R-A1-02** — Ein Objekt mit einer Eigenschaft, die in keinem Teilschema bewertet wird, wird von der API-Fassade mit Nennung des Eigenschaftsnamens abgelehnt. Prüfbar: Sendeversuch mit einer zusätzlichen Eigenschaft je Entitätstyp.
 - **R-A1-03** — Jede `if`-Klausel in einem Schema dieses Anhangs führt `required` für die von ihr geprüften Felder. Prüfbar: statische Prüfung; eine `if`-Klausel ohne `required` bricht den Bau. Folgt aus der Eigenschaft, dass eine `if`-Klausel ohne diese Angabe bei fehlendem Feld zutrifft.
-- **R-A1-04** — Die elf in A1.1 genannten Formatbezeichner werden als Zusicherung ausgewertet. Prüfbar: Sendeversuch mit `art: A` und einem `wert`, der keine IPv4-Adresse ist; die Ablehnung erfolgt in Stufe 1.
+- **R-A1-04** — Die sechs in A1.1 genannten Formatbezeichner werden als Zusicherung ausgewertet. Prüfbar: Sendeversuch mit `art: A` und einem `wert`, der keine IPv4-Adresse ist; die Ablehnung erfolgt in Stufe 1.
 - **R-A1-05** — Ein Konnektormanifest ohne vollständige Eigentumsangabe je deklariertem Feld wird beim Import abgelehnt. Prüfbar: Importversuch mit einem Feld ohne `eigentum`. Folgt aus INV-13.
 - **R-A1-06** — Ein Konnektormanifest ohne Abschnitt `produktgrenze` mit je mindestens einem Eintrag in `atrium_besitzt` und `fremd_behaelt` wird abgelehnt. Prüfbar: Importversuch mit leerem Abschnitt. Folgt aus INV-30.
 - **R-A1-07** — Ein Manifesteintrag unter `kostenwirksame_aktionen` mit `wirkung` ungleich `keine` und ohne `messgroesse` und `anzeige` wird abgelehnt. Prüfbar: Importversuch. Folgt aus INV-29.

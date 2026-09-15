@@ -142,7 +142,7 @@ Die Rolle "Wiederherstellung freigeben" ist von der Rolle "Personen verwalten" g
 
 ## 10.4 Notfallzugang zur Plattform
 
-Die Wiederherstellung einer Person löst nicht den Fall, dass niemand mehr die Plattform selbst verwalten kann. Dafür existiert der **Notzugang** mit dem bei der Erstinstallation erzeugten **Wiederherstellungscode** (256 Bit Entropie, zum Ausdrucken, im System nur als Verifikationswert vorhanden). Dieser Abschnitt legt fest, wie der Code verwahrt, ausgelöst und nachbereitet wird.
+Die Wiederherstellung einer Person löst nicht den Fall, dass niemand mehr die Plattform selbst verwalten kann. Dafür existiert der **Notzugang** mit dem bei der Erstinstallation erzeugten **Wiederherstellungscode** (256 Bit Entropie, zum Ausdrucken, im System nur als Verifikationswert vorhanden).
 
 ### Verwahrung als geteiltes Geheimnis
 
@@ -171,7 +171,7 @@ k=3, n=5 : 10 * q^3 * (1-q)^2 + 5 * q^4 * (1-q) + q^5
          = 9,801e-6 + 4,95e-8 + 1e-10 = 9,85e-6
 ```
 
-**Deutung.** 3-von-5 ist der 2-von-3-Aufteilung in beiden Kriterien überlegen: um den Faktor 1,032 bei der Verfügbarkeit (0,99144 gegen 0,972, also 8,6 statt 28 Ausfälle je 1.000 Notfälle) und um den Faktor 30 beim Missbrauch (9,85 · 10⁻⁶ gegen 2,98 · 10⁻⁴). Der Preis ist organisatorisch, nicht technisch: es müssen fünf Personen benannt, geschult und bei Personalwechsel nachgeführt werden. **Zielwert:** 3-von-5, Rückfall 2-von-3, wenn der Mandant keine fünf Träger benennen kann. Ein ungeteilter Code ist zulässig, wird aber in der Konsole dauerhaft als degradierter Zustand geführt (INV-18). Das ist ein Modell mit gesetzten Annahmen; p und q sind nicht gemessen, und die Unabhängigkeitsannahme ist bei Anteilen im selben Gebäude falsch, weshalb die Konsole beim Anlegen nach getrennten Verwahrorten fragt.
+**Deutung.** 3-von-5 ist der 2-von-3-Aufteilung in beiden Kriterien überlegen: um den Faktor 1,020 bei der Verfügbarkeit (0,99144 gegen 0,972, also 8,6 statt 28 Ausfälle je 1.000 Notfälle) und um den Faktor 30 beim Missbrauch (9,85 · 10⁻⁶ gegen 2,98 · 10⁻⁴). Der Preis ist organisatorisch, nicht technisch: es müssen fünf Personen benannt, geschult und bei Personalwechsel nachgeführt werden. **Zielwert:** 3-von-5, Rückfall 2-von-3, wenn der Mandant keine fünf Träger benennen kann. Ein ungeteilter Code ist zulässig, wird aber in der Konsole dauerhaft als degradierter Zustand geführt (INV-18). Das ist ein Modell mit gesetzten Annahmen; p und q sind nicht gemessen, und die Unabhängigkeitsannahme ist bei Anteilen im selben Gebäude falsch, weshalb die Konsole beim Anlegen nach getrennten Verwahrorten fragt.
 
 ### Auslösung, Alarmierung, Nachbereitung
 
@@ -240,7 +240,7 @@ Das Ableitungsverfahren ist Argon2id nach RFC 9106. Die Parameter folgen aus dre
 Kandidatenraum                          Versuche       Zeit bei 46.500/s
 --------------------------------------  -------------  -----------------
 Nutzergewaehltes Kennwort, 28 bit        2,68e8         5.773 s  = 1,6 h
-Zufaellig 12 Zeichen aus 95, 78,8 bit    4,73e23        1,02e19 s
+Zufaellig 12 Zeichen aus 95, 78,8 bit    5,40e23        1,16e19 s
 Passphrase 5 Woerter aus 7.776, 64,6 bit 2,86e19        6,14e14 s = 1,95e7 a
 Passphrase 6 Woerter aus 7.776, 77,6 bit 2,21e23        4,76e18 s
 ```
@@ -429,9 +429,9 @@ funktion wirksame_rechte(person P, zeitpunkt T) -> Menge von (Recht, Quellenlist
                                 und mandant(z) = mandant(P)          // INV-19
                                 und gueltig_von(z) <= T <= gueltig_bis(z) }
   3  E := leere Abbildung Recht -> Quellenliste
-  4  fuer z in Z mit art(z) = gewaehren:
+  4  fuer z in Z mit wirkung(z) = gewaehrung:
          fuer r in rechte(rolle(z)): E[r] := E[r] vereinigt {z}
-  5  fuer z in Z mit art(z) = verweigern:
+  5  fuer z in Z mit wirkung(z) = ausschluss:
          fuer r in rechte(rolle(z)): E[r] := VERWEIGERT mit Quelle z
   6  gib E zurueck
 ```
@@ -485,7 +485,7 @@ In F3 entstehen zwei Schreiber auf dasselbe Objekt. Der Entwurf löst das nicht 
 | Gruppenmitgliedschaft | eigener Anspruch | `groups` | Verschachtelung geht verloren; siehe Verlustliste |
 | Rolle einer Zuweisung | eigener Anspruch | — | SCIM kennt kein Rollenmodell; Abbildung auf Gruppen |
 | Gültigkeit von/bis | — | `active` (nur wahr/falsch) | Der Zeitraum geht verloren; siehe Verlustliste |
-| Primäre Mailadresse | `email` | `emails[primary]` | Nie als Verknüpfungsschlüssel; siehe oben |
+| Primäre Mailadresse | `email` | `emails[primary]` | Nie als Verknüpfungsschlüssel, weil eine Adresse bei Heirat, Umfirmierung und Domänenwechsel wechselt; verknüpft wird über den unveränderlichen Kennzeichner des fremden Anbieters (R-10-38) |
 | Authentikatorklasse | — | — | Nicht abbildbar; siehe Verlustliste |
 
 ### Was an der Grenze verloren geht

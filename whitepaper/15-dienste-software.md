@@ -12,7 +12,7 @@ Der Bereich **Dienste** aus KANON 5 arbeitet mit genau drei Objekten aus KANON 3
 
 Ein Dienst ohne Veröffentlichung läuft und ist nicht erreichbar. Eine Veröffentlichung ohne Dienst existiert nicht, weil sie einen Dienstverweis als Pflichtfeld trägt. Dieselbe Trennung erlaubt es, einen Dienst zu verschieben, ohne den Namen zu ändern, und den Namen zu ändern, ohne den Dienst anzufassen.
 
-Die Zuständigkeit dieses Kapitels endet an vier Stellen. Die Konnektorseite — Vertrag, Manifest, Feldeigentum, Einstufung, Sandkasten — steht in [Kapitel 09](09-konnektoren.md) und wird hier nur benutzt. Die Ableitung von Erreichbarkeit aus einer Veröffentlichung steht in [Kapitel 12](12-dns-netzwerk.md), die Zertifikatsausstellung in [Kapitel 11](11-pki.md), die Speichertechnik und die Sicherungsablage in [Kapitel 17](17-speicher-backup.md). Dieses Kapitel beschreibt, was ein Katalogeintrag mitbringen muss, wie aus ihm eine Dienstinstanz wird, wo sie läuft, wie sie betrieben, aktualisiert und wieder entfernt wird.
+Die Zuständigkeit dieses Kapitels endet an vier Stellen. Die Konnektorseite — Vertrag, Manifest, Feldeigentum, Einstufung, Sandkasten — steht in [Kapitel 09](09-konnektoren.md) und wird hier nur benutzt. Die Ableitung von Erreichbarkeit aus einer Veröffentlichung steht in [Kapitel 12](12-dns-netzwerk.md), die Zertifikatsausstellung in [Kapitel 11](11-pki.md), die Speichertechnik und die Sicherungsablage in [Kapitel 17](17-speicher-backup.md).
 
 ## 15.2 Der Katalogeintrag
 

@@ -11,7 +11,7 @@ Die vier Stufen M0 bis M3 sind in KANON Abschnitt 4, Eintrag 6 festgelegt. Diese
 | Datenraum im Sollzustand (Mandantenprädikat, INV-19) | ja | ja | ja | ja |
 | Rechteprüfung, eigener Regelsatz | ja | ja | ja | ja |
 | Hauptschlüssel und Speicherbereichsverschlüsselung | ja | ja | ja | ja |
-| Zwischen-CA (KANON 6a) | ja | ja | ja | ja |
+| Zwischen-CA (KANON 4.6a) | ja | ja | ja | ja |
 | Auditsicht und Auditexport | ja | ja | ja | ja |
 | Overlay-Segment mit eigenem Schlüsselmaterial | nein | ja | ja | ja |
 | Firewallzone und eigene Ausgangsadresse | nein | ja | ja | ja |
@@ -97,7 +97,7 @@ Die erste Entwurfsentscheidung dieses Abschnitts betrifft den Dienstleisterfall 
 
 Der Betreiber sieht je Mandant: Kennung und Anzeigename, Isolationsstufe, Zustand, Anzahl der Objekte je Typ, Gesundheits- und Kapazitätsdaten, Vorgangsköpfe, Auditereignisköpfe, offene Freigaben, Sicherungs- und Prüfstatus. Er sieht nicht: Anhänge von Auditereignissen fremder Mandanten, Personendaten über Kennung und Anzeigename hinaus, Nutzdaten in Diensten (die liegen ohnehin nie in Atrium) und Geheimnisse (INV-20 gilt ohne Ausnahme für jede Rolle).
 
-Diese Trennung hat eine harte Grenze, die benannt gehört: der Betreiber besitzt die Maschinen. Wer physischen Zugriff auf einen Knoten hat, auf dem ein Mandant der Stufe M0 bis M2 läuft, kann an dessen Daten gelangen, und der Hauptschlüssel des Mandanten liegt im TPM eines Knotens, den der Betreiber besitzt. Die Sichtbarkeitsregel ist eine Regel der API, keine Aussage über physische Vertraulichkeit. Ein Mandant, der sicherstellen muss, dass sein Betreiber technisch nicht lesen kann, braucht Schlüsselverwahrung außerhalb der Installation; dafür existiert im Entwurf kein Weg, und das ist eine offene Frage, keine gelöste (19.11, Offene Punkte).
+Diese Trennung hat eine harte Grenze, die benannt gehört: der Betreiber besitzt die Maschinen. Wer physischen Zugriff auf einen Knoten hat, auf dem ein Mandant der Stufe M0 bis M2 läuft, kann an dessen Daten gelangen, und der Hauptschlüssel des Mandanten liegt im TPM eines Knotens, den der Betreiber besitzt. Die Sichtbarkeitsregel ist eine Regel der API, keine Aussage über physische Vertraulichkeit. Ein Mandant, der sicherstellen muss, dass sein Betreiber technisch nicht lesen kann, braucht Schlüsselverwahrung außerhalb der Installation; dafür existiert im Entwurf kein Weg, und das ist eine offene Frage, keine gelöste (Kapitel 19, Offene Punkte, Punkt 1).
 
 Was der Entwurf leistet, ist etwas Schwächeres und trotzdem Wertvolles: **es gibt keinen stillen Zugriff.** Eine Plattformrolle enthält nicht das Recht, Mandanteninhalte zu lesen; sie enthält das Recht, sich dieses Recht zu geben. Genau dieser Schritt ist ein Vorgang, erzeugt ein Auditereignis im Strom des Zielmandanten und löst dort eine Benachrichtigung aus. Die Zusage lautet damit nicht "der Betreiber kann nicht", sondern "der Betreiber kann nicht unbemerkt".
 
@@ -294,7 +294,7 @@ Eine Rechteprüfung je Objekt ist für Einzelzugriffe billig und für Listen unb
 
 **Folge als Entwurfsentscheidung.** Die Selektorsprache ist auf Ausdrücke beschränkt, die sich in ein Abfrageprädikat übersetzen lassen: Gleichheit, Ungleichheit, Mengenzugehörigkeit und Präfixvergleich über indizierte Felder, verknüpft mit Und. Kein Oder über Felder verschiedener Tabellen, keine Unterabfragen, keine Funktionsaufrufe, keine rekursive Traversierung. Die Prüfung wird dadurch nicht auf Zeilen angewandt, sondern in die Abfrage hineingezogen; die Datenzugriffsschicht erhält aus der Regelauswertung ein zusätzliches Prädikat und lehnt jede Abfrage ohne dieses Prädikat ab. Die verworfene Alternative, eine mächtigere Ausdruckssprache mit nachträglicher Filterung, kostet die Listenzusage und erzeugt zusätzlich eine Leckstelle: die Gesamtzahl der Treffer vor der Filterung verrät die Existenz nicht sichtbarer Objekte.
 
-Sichere Praxis an dieser Schnittstelle: das Prädikat wird als parametrisierte Abfrage gebunden, nie als Zeichenkette zusammengesetzt; Selektorwerte werden am Rand gegen das Schema validiert (Typ, Länge, erlaubte Operatoren) und niemals in eine Kommandozeile, eine Vorlage oder einen dynamisch ausgewerteten Ausdruck übernommen. Die Regelsprache ist ausdrücklich keine Programmiersprache: sie kennt keine Schleifen, keine Funktionsdefinition und keinen Aufruf externen Codes, weil ein Skriptinterpreter im Freigabeweg ein Rechteausweitungspfad in der Kontrollebene wäre ([Kapitel 5](05-systemarchitektur.md)).
+Sichere Praxis an dieser Schnittstelle: das Prädikat wird als parametrisierte Abfrage gebunden, nie als Zeichenkette zusammengesetzt; Selektorwerte werden am Rand gegen das Schema validiert (Typ, Länge, erlaubte Operatoren) und niemals in eine Kommandozeile, eine Vorlage oder einen dynamisch ausgewerteten Ausdruck übernommen. Die Regelsprache ist ausdrücklich keine Programmiersprache: sie kennt keine Schleifen, keine Funktionsdefinition und keinen Aufruf externen Codes, weil ein Skriptinterpreter im Freigabeweg ein Rechteausweitungspfad in der Kontrollebene wäre ([Kapitel 5](05-systemarchitektur.md)). Dieselbe Vorgabe steht als Auflage an der Selektorsyntax in [Anhang A](A1-schemata.md), A1.5; dort ist sie an das Schema der Rechteregel gebunden, hier an die Begrenzung der Regelsprache.
 
 ### Regelkonflikte sichtbar machen
 
@@ -551,7 +551,7 @@ Die Selbstbedienungsoberfläche des Kundenbereichs ist an eine Veröffentlichung
 
 ## 19.8 Audit
 
-[Kapitel 8](08-kontrollebene.md) begründet, weshalb der Auditstrom außerhalb des replizierten Kernzustands liegt, ohne Quorum schreibbar ist und keine globale Totalordnung besitzt. Dieser Abschnitt legt Schema, Siegelung, Auslagerung, Export, Aufbewahrung, Prüfwerkzeug und das Verhalten bei Kettenbruch fest.
+[Kapitel 8](08-kontrollebene.md) begründet, weshalb der Auditstrom außerhalb des replizierten Kernzustands liegt, ohne Quorum schreibbar ist und keine globale Totalordnung besitzt.
 
 ### Ereignisschema
 
@@ -708,7 +708,7 @@ Ein Auditstrom ist notwendigerweise eine Sammlung personenbezogener Daten: er ve
 
 **Trennung in den Anhang.** Alles, was über die Kennung hinausgeht, liegt im Anhang und ist löschbar (19.8). Die Klasse `betrieb_90d` enthält Herkunftsdetails wie Quelladressen und wird ohne Zutun nach 90 Tagen gelöscht; damit verschwindet die Bewegungsspur automatisch, während der Nachweis der Handlung bleibt.
 
-**Pseudonymisierung im Export.** Für die Ausleitung an ein Fremdsystem wird die Akteurkennung durch HMAC mit einem Schlüssel des Mandanten über die Kennung ersetzt, gekürzt auf 128 bit. Das Fremdsystem kann korrelieren, ohne rückschließen zu können; die Rückauflösung verlangt den Schlüssel und damit die Mitwirkung des Mandanten. **Rechnung Kollision:** bei 500 Akteuren ist die Kollisionswahrscheinlichkeit nach dem Geburtstagsmodell 500² / (2 · 2¹²⁸) ≈ 3,7 · 10⁻⁴⁰, also ohne praktische Bedeutung. Der Schlüssel liegt beim Mandanten; wechselt er, brechen die Korrelationen über den Wechselzeitpunkt hinweg, und das ist gewollt.
+**Pseudonymisierung im Export.** Für die Ausleitung an ein Fremdsystem wird die Akteurkennung durch HMAC mit einem Schlüssel des Mandanten über die Kennung ersetzt, gekürzt auf 128 bit. Das Fremdsystem kann korrelieren, ohne rückschließen zu können; die Rückauflösung verlangt den Schlüssel und damit die Mitwirkung des Mandanten. **Rechnung Kollision:** bei 500 Akteuren ist die Kollisionswahrscheinlichkeit nach dem Geburtstagsmodell 500² / (2 · 2¹²⁸) = 250.000 / 6,81 · 10³⁸ ≈ 3,7 · 10⁻³⁴, also ohne praktische Bedeutung. Der Schlüssel liegt beim Mandanten; wechselt er, brechen die Korrelationen über den Wechselzeitpunkt hinweg, und das ist gewollt.
 
 **Auskunft.** Eine Person hat Anspruch darauf zu erfahren, welche Ereignisse sie betreffen. Der eigene Auditauszug ([Kapitel 10](10-identitaet.md)) deckt Ereignisse, in denen die Person Akteur ist. Ereignisse, in denen sie Gegenstand einer Untersuchung ist, sind darin nicht enthalten; diese Trennung ist eine Entwurfsentscheidung mit erkennbarer Spannung, weil eine Auskunft, die den Untersuchungsteil auslässt, unvollständig ist. Der Entwurf löst das nicht technisch: er kennzeichnet untersuchungsbezogene Ereignisse als solche und legt die Entscheidung über deren Herausgabe als Vorgang mit Freigabeweg vor, statt sie in der Oberfläche vorwegzunehmen.
 

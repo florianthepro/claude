@@ -1,6 +1,6 @@
 # 07 Objektmodell und Datenhaltung
 
-## Modellschichten und Feldklassen
+## 7.1 Modellschichten und Feldklassen
 
 Das Objektmodell zerfällt in vier Schichten mit getrennter Speicherung, getrenntem Schreibweg und getrennter Aufbewahrung. Die Trennung ist die Voraussetzung dafür, dass INV-02, INV-09, INV-23 und INV-28 gleichzeitig gelten können.
 
@@ -23,7 +23,7 @@ Jedes Feld eines Objekts trägt genau eine Feldklasse. Die Klasse entscheidet, w
 
 Ein Schreibversuch eines Bedieners auf ein Feld der Klasse A oder I wird von der API abgelehnt, nicht stillschweigend verworfen. Das ist die Durchsetzung von INV-09 auf Feldebene: abgeleitete Artefakte sind nicht editierbar, und abgeleitete Felder sind es ebenso wenig.
 
-## Gemeinsamer Objektrumpf
+## 7.2 Gemeinsamer Objektrumpf
 
 Jedes Objekt jeder Entität trägt denselben Rumpf. Der Rumpf ist der Ort, an dem Mandantenpflicht (INV-19), Schemaversion, Vorgangsherkunft und Grabsteinfähigkeit einheitlich verankert sind, statt je Entität wiederholt zu werden.
 
@@ -52,7 +52,6 @@ Jedes Objekt jeder Entität trägt denselben Rumpf. Der Rumpf ist der Ort, an de
   "required": ["kennung", "typ", "mandant", "schema_version", "anzeige_name",
                "technischer_name", "zustand", "erzeugt_am", "erzeugt_durch_vorgang",
                "geaendert_am", "geaendert_durch_vorgang", "sollzustand_version"],
-  "additionalProperties": false,
   "properties": {
     "kennung":        { "type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$" },
     "typ":            { "type": "string", "pattern": "^[a-z]{3,32}$" },
@@ -77,9 +76,11 @@ Jedes Objekt jeder Entität trägt denselben Rumpf. Der Rumpf ist der Ort, an de
 }
 ```
 
+Das Rumpfschema trägt selbst keine Abschlussangabe. `additionalProperties: false` bewertet die vollständige Instanz und nicht nur die Felder des Teilschemas, in dem es steht; in `objektrumpf:1.0` notiert, würde es jede entitätseigene Eigenschaft der einbindenden Entität als zusätzliche Eigenschaft verwerfen und damit jedes gültige Objekt ablehnen. Der Abschluss gehört deshalb ausschließlich auf die äußerste Ebene des jeweiligen Entitätsschemas, und zwar als `unevaluatedProperties: false`, weil nur dieses Schlüsselwort die Ergebnisse der über `$ref` eingebundenen Teilschemata berücksichtigt (R-A1-01).
+
 Regeln, die das Schema nicht ausdrückt und die die Datenzugriffsschicht prüft: `anzeige_name` wird vor dem Eindeutigkeitsvergleich nach NFC normalisiert und auf Groß-/Kleinschreibung reduziert; `geaendert_am` ist niemals kleiner als `erzeugt_am`; `mandant` ist bei jedem Lesen Teil des Abfrageprädikats, sonst lehnt die Datenzugriffsschicht die Abfrage ab (INV-19); `zusatz` wird bei der kanonischen Serialisierung nach RFC 8785 mitsigniert, damit ein Knoten älterer MINOR-Version ein Objekt nicht durch bloßes Zurückschreiben verstümmelt.
 
-## Kernentitäten
+## 7.3 Kernentitäten
 
 Die Konsole nennt die Entität Person durchgehend "Nutzer" und die laufende Instanz eines Katalogeintrags "Dienst"; im Modell heißen sie Person und Dienst. Die folgenden Tabellen führen nur die Felder über den Rumpf hinaus. Spalte "Kl." ist die Feldklasse.
 
@@ -148,7 +149,7 @@ Eindeutigkeit: `hardwarebindung.wert_hash` je Mandant, wenn gesetzt; `anzeige_na
 
 ### Zuweisung
 
-Die Zuweisung erhält einen eigenen Abschnitt weiter unten. Die Attributtabelle steht dort, weil die Semantik ohne die Ableitungsregeln nicht vollständig beschreibbar ist.
+Die Attributtabelle der Zuweisung steht in 7.4, weil die Semantik ohne die Ableitungsregeln nicht vollständig beschreibbar ist.
 
 ### Dienst
 
@@ -228,12 +229,11 @@ Zweck: einzelner Name innerhalb einer Domäne mit ausdrücklicher Sichtzugehöri
 | `quelle` | Aufzählung | ja | `handeingegeben` oder `abgeleitet` | A |
 | `quell_objekt` | ULID | nur bei `abgeleitet` | Verweis auf Veröffentlichung, Maildomäne oder Knoten (INV-09) | A |
 
-Eindeutigkeit und Gültigkeit: das Tupel (`domaene`, `name`, `art`, `sicht`, `wert`) ist eindeutig; ein `CNAME` schließt jeden weiteren Eintrag desselben `name` in derselben `sicht` aus; an der Zonenspitze ist `CNAME` unzulässig; `DS` ist nur in der Elternzone zulässig. Ein handeingegebener Eintrag, der mit einem abgeleiteten kollidiert, wird beim Anlegen abgelehnt, mit Nennung des erzeugenden Objekts.
+Eindeutigkeit und Gültigkeit: das Tupel (`domaene`, `name`, `art`, `sicht`, `wert`) ist eindeutig; ein `CNAME` schließt jeden weiteren Eintrag desselben `name` in derselben `sicht` aus; an der Zonenspitze ist `CNAME` unzulässig; `DS` ist nur in der Elternzone zulässig. Ein handeingegebener Eintrag, der mit einem abgeleiteten kollidiert, wird beim Anlegen abgelehnt, mit Nennung des erzeugenden Objekts. Die maschinenprüfbare Fassung dieser Regeln steht in [Anhang A](A1-schemata.md), A1.2.9; dieses Kapitel ist die Quelle der fachlichen Festlegung, A1 die ihrer Prüfform.
 
 ```json
 {
   "$id": "urn:atrium:schema:dnseintrag:1.0",
-  "allOf": [{ "$ref": "urn:atrium:schema:objektrumpf:1.0" }],
   "type": "object",
   "required": ["domaene", "art", "name", "wert", "ttl", "sicht", "quelle"],
   "properties": {
@@ -249,6 +249,7 @@ Eindeutigkeit und Gültigkeit: das Tupel (`domaene`, `name`, `art`, `sicht`, `we
     "quell_objekt": { "type": "string", "pattern": "^urn:atrium:[a-z]{3,32}:[0-7][0-9A-HJKMNP-TV-Z]{25}$" }
   },
   "allOf": [
+    { "$ref": "urn:atrium:schema:objektrumpf:1.0" },
     { "if":   { "properties": { "quelle": { "const": "abgeleitet" } } },
       "then": { "required": ["quell_objekt"] } },
     { "if":   { "properties": { "art": { "const": "A" } } },
@@ -257,7 +258,8 @@ Eindeutigkeit und Gültigkeit: das Tupel (`domaene`, `name`, `art`, `sicht`, `we
       "then": { "properties": { "wert": { "format": "ipv6" } } } },
     { "if":   { "properties": { "art": { "const": "CNAME" } } },
       "then": { "properties": { "name": { "not": { "const": "@" } } } } }
-  ]
+  ],
+  "unevaluatedProperties": false
 }
 ```
 
@@ -325,7 +327,7 @@ Zweck: Vorgabe, die Vorbelegungen erzeugt und damit Entscheidungen einspart. Jed
 | `begruendungspflicht` | Wahrheitswert | ja | bei `weich` immer `true` | S |
 | `version` | Ganzzahl | ja | monoton; jede Änderung zeigt vorab die Menge betroffener Objekte | A |
 
-Auflösungsreihenfolge bei Konflikt: Mandantenrichtlinie schlägt Plattformrichtlinie, außer die Plattformrichtlinie ist `hart`; zwei harte Richtlinien desselben Gegenstands auf derselben Geltungsebene sind ein Fehler und werden beim Schreiben abgelehnt, nicht zur Laufzeit aufgelöst.
+Auflösungsreihenfolge bei Konflikt: Mandantenrichtlinie schlägt Plattformrichtlinie, außer die Plattformrichtlinie ist `hart`; zwei harte Richtlinien desselben Gegenstands auf derselben Geltungsebene sind ein Fehler und werden beim Schreiben abgelehnt, nicht zur Laufzeit aufgelöst. Die maschinenprüfbare Fassung steht in [Anhang A](A1-schemata.md), A1.2.13.
 
 ### Vorgang
 
@@ -361,7 +363,7 @@ Zweck: unveränderlicher Nachweis. Das Auditereignis ist das einzige Objekt, das
 
 Eindeutigkeit: (`strom_kennung`, `folgenummer`). Eine Lücke in der Folgenummer oder ein nicht passender Vorgängerhashwert ist ein Kettenbruch und wird beim Start und bei jedem Export gemeldet, nicht repariert.
 
-## Die Zuweisung als Absichtsentität
+## 7.4 Die Zuweisung als Absichtsentität
 
 Die Zuweisung verknüpft drei Dinge, die in gewachsenen Systemen üblicherweise verschmelzen: das Subjekt (wer), die Fähigkeit (in welcher Rolle) und das Ziel (wo). Aus dem Ziel folgen die Zielsysteme, weil ein Dienst seine Konnektorbindungen kennt; der Bediener wählt nie ein Zielsystem aus.
 
@@ -405,7 +407,7 @@ Eine Gruppenzuweisung auf eine Netzzone erzeugt je Gerät der Mitglieder einen Z
 
 ### Nichtmaterialisierung von Gruppenzuweisungen
 
-Eine Gruppenzuweisung wird nicht je Mitglied als eigenes Sollzustandsobjekt kopiert. Rechnung mit den Annahmen dieses Kapitels: 180 Gruppenzuweisungen bei durchschnittlich 25 Mitgliedern ergeben 4.500 wirksame Zuweisungen. Als eigene Objekte à 1 KB wären das 4,5 MB zusätzlich, und jede Mitgliedschaftsänderung schriebe 25 Objekte durch das Replikationsprotokoll. Stattdessen entsteht die wirksame Zuweisung im Lesemodell, und nur der Versorgungszustand je Paar aus wirksamer Zuweisung und Zielsystem wird knotenlokal geführt: 6.500 wirksame Zuweisungen × 1,4 Zielsysteme = 9.100 Sätze à 200 B = 1,82 MB im Istzustand. Das ist ein Modell, keine Messung.
+Eine Gruppenzuweisung wird nicht je Mitglied als eigenes Sollzustandsobjekt kopiert. Rechnung mit den Mengen aus 7.11: 2.000 Mitgliedschaften auf 60 Gruppen ergeben durchschnittlich 33,3 Mitglieder je Gruppe, und 180 Gruppenzuweisungen × 33,3 Mitglieder ergeben 6.000 wirksame Zuweisungen aus Gruppen. Als eigene Objekte à 1 KB wären das 6 MB zusätzlich, und jede Mitgliedschaftsänderung schriebe 33 Objekte durch das Replikationsprotokoll. Stattdessen entsteht die wirksame Zuweisung im Lesemodell, und nur der Versorgungszustand je Paar aus wirksamer Zuweisung und Zielsystem wird knotenlokal geführt: 6.000 wirksame Zuweisungen aus Gruppen und 2.000 direkte Zuweisungen ergeben 8.000 wirksame Zuweisungen, und 8.000 × 1,4 Zielsysteme = 11.200 Sätze à 200 B = 2,24 MB im Istzustand. Das ist ein Modell, keine Messung.
 
 ```json
 {
@@ -447,13 +449,14 @@ Eine Gruppenzuweisung wird nicht je Mitglied als eigenes Sollzustandsobjekt kopi
   "if":   { "properties": { "wirkung": { "const": "ausschluss" } } },
   "then": { "required": ["gueltig_bis", "begruendung"],
             "properties": { "subjekt_typ": { "const": "person" },
-                            "herkunft": { "const": "direkt" } } }
+                            "herkunft": { "const": "direkt" } } },
+  "unevaluatedProperties": false
 }
 ```
 
 Zusätzliche Regeln außerhalb des Schemas: `rolle` muss eine Geltung haben, die zu `ziel_typ` passt; `subjekt` und `ziel` müssen demselben Mandanten angehören oder durch eine gültige Freigabeverknüpfung verbunden sein; `versorgungszustand` ist ein Beobachtungsfeld und wird von der API für Bedienerschreibvorgänge zurückgewiesen.
 
-## Beziehungen und referenzielle Integrität
+## 7.5 Beziehungen und referenzielle Integrität
 
 Es existieren genau drei Verweisarten. Mehr Arten sind nicht nötig, und weniger führen dazu, dass Grabsteine und abgeleitete Artefakte gleich behandelt werden müssten.
 
@@ -486,7 +489,7 @@ Stattdessen läuft jede Löschung als Vorgang in vier Schritten ab. Erstens bere
 
 Kosten der Berechnung: bei 24.300 Objekten und durchschnittlich vier ausgehenden Verweisen umfasst der Verweisindex rund 97.200 Kanten. Eine Breitensuche im schlechtesten Fall über alle Kanten kostet bei angenommenen 1 µs je Kante 97 ms und bleibt damit innerhalb der Vorgabe von K-18 für die Wirkungsvorschau. Das ist eine Abschätzung aus der Kantenzahl, keine Messung.
 
-## Lebenszyklen als Zustandsautomaten
+## 7.6 Lebenszyklen als Zustandsautomaten
 
 Jeder Übergang hat genau einen Auslöser, und jeder Auslöser ist entweder ein Vorgang oder eine Fristüberschreitung. Beobachtungen lösen keine Zustandsübergänge im Sollzustand aus; sie erzeugen Anzeigen und Aufgaben.
 
@@ -575,7 +578,7 @@ Vorgang
 
 Die Rücknahme ist selbst ein Vorgang mit eigener Kennung und eigener Wirkungsvorschau; der ursprüngliche Vorgang wechselt erst nach deren erfolgreichem Abschluss nach `zurueckgenommen`. Scheitert die Rücknahme teilweise, bleibt der ursprüngliche Vorgang in `teilweise_fehlgeschlagen` mit benannten Resten, statt einen aufgeräumten Zustand vorzutäuschen.
 
-## Weiche Löschung, Grabsteine, Aufbewahrung, Vernichtung
+## 7.7 Weiche Löschung, Grabsteine, Aufbewahrung, Vernichtung
 
 Es gibt drei Abstufungen, und die Konsole benennt sie unterschiedlich, weil sie unterschiedlich umkehrbar sind.
 
@@ -634,7 +637,7 @@ Die Beschränkung `additionalProperties: false` ist hier keine Formalie, sondern
 
 Vernichtung eines Speicherbereichs erfolgt als Schlüsselvernichtung, weil Replikate, Momentaufnahmen und ausgelagerte Sicherungen sich nicht einzeln überschreiben lassen. Der Beleg ist ein Auditereignis, das die Speicherbereichskennung, den bei der Anlage hinterlegten Hashwert des Schlüssels, den Vorgang und je Replikatstandort eine Bestätigung der Schlüssellöschung enthält. Solange ein Standort nicht bestätigt hat, zeigt die Konsole die Vernichtung als unvollständig an. Hier liegt eine Grenze des Entwurfs, die offen benannt gehört: Ein Replikat, das zum Zeitpunkt der Vernichtung nicht erreichbar war und später zurückkehrt, bringt eine noch entschlüsselbare Kopie mit, bis es die Löschung nachholt. Ebenso ist eine einzelne Speicherbereichsvernichtung innerhalb einer deduplizierenden Auslagerung erst mit dem Ablauf von deren Aufbewahrung endgültig, weil das Auslagerungsziel einen Schlüssel je Mandant führt und nicht je Speicherbereich. Beides ist nicht durch Softwaregestaltung auflösbar und wird deshalb angezeigt, statt zugesichert zu werden.
 
-## Identifikatoren
+## 7.8 Identifikatoren
 
 Die ULID-Form, die URN-Form und die Namenskonventionen stehen in KANON.md, Abschnitt 3. Drei Punkte ergänzen sie.
 
@@ -644,7 +647,7 @@ Trennung von Schlüssel und Name: `kennung` ist unveränderlich, `anzeige_name` 
 
 Kollisionsauflösung bei Namen: Der Ableitungsschritt erzeugt einen Kandidaten nach der Mandantenrichtlinie, prüft ihn gegen Bestand, Grabsteine und gesperrte Namen und hängt bei Belegung ein deterministisches Suffix an, beginnend bei `-2`. Zusätzlich wird der Kandidat gegen eine Verwechslungsprüfung geführt, die visuell ähnliche Zeichen zusammenfasst, damit `maier-2` und ein optisch gleicher Name nicht gleichzeitig existieren. Der Vorschlag ist im Formular sichtbar und als Vorbelegung mit Quelle gekennzeichnet (INV-15).
 
-## Schemaversionierung und Migration
+## 7.9 Schemaversionierung und Migration
 
 Die Regeln für `MAJOR.MINOR`, das Kompatibilitätsfenster `MAJOR` und `MAJOR-1` und die Trennung vom Konnektorvertrag stehen in KANON.md, Abschnitt 3. Daraus folgen vier Verhaltensregeln für die Laufzeit.
 
@@ -710,7 +713,7 @@ Das Lesemodell wird bei jeder Schemaänderung vollständig aus dem Änderungspro
 
 Prüfregeln beim Import: Die Signatur wird über die kanonische Form nach RFC 8785 geprüft, bevor ein einziges Objekt gelesen wird. Ein Export mit `schema_version` außerhalb des Kompatibilitätsfensters wird abgelehnt und nicht stillschweigend migriert. Der Export enthält keine Nutzdaten und keine Geheimnisse, nur Geheimnisreferenzen; die Konsole benennt das beim Erzeugen und beim Einspielen.
 
-## Mandantenzugehörigkeit und Freigabeverknüpfung
+## 7.10 Mandantenzugehörigkeit und Freigabeverknüpfung
 
 `mandant` ist ein Pflichtfeld ohne Leerwert. Plattformobjekte verweisen auf den bei der Erstinstallation angelegten Plattform-Mandanten mit fester Kennung. Die verworfene Alternative, das Feld nullbar zu machen, hätte in jeder Abfrage eine Oder-Verknüpfung erzwungen, und genau diese Verknüpfung ist die Stelle, an der die Isolation ausläuft. Die Datenzugriffsschicht nimmt den Mandanten nicht als Parameter entgegen, sondern aus dem Sitzungskontext, und lehnt jede Abfrage ohne Mandantenprädikat ab (INV-19); Einzelheiten der Rechteprüfung in [Kapitel 19](19-mandanten-rechte-audit.md).
 
@@ -727,7 +730,7 @@ Mandantenübergreifende Bezüge existieren ausschließlich als Freigabeverknüpf
 
 Ein Verweis über die Mandantengrenze, der nicht von einer gültigen Freigabeverknüpfung gedeckt ist, löst sich wie ein Grabstein auf und wird als "nicht sichtbar, kein Freigabeweg" angezeigt. Die Einrichtung, jede Änderung und der Ablauf erzeugen Auditereignisse. Die Auflösung im Lesepfad erzeugt je Vorgang genau ein Auditereignis, nicht je gelesener Zeile; die Begründung ist die Mengenrechnung: Ein Ereignis je Zeile würde bei 20 Bedienern und 50 Listenabrufen je Tag den Auditstrom um ein Vielfaches der 2.000 Ereignisse je Tag aus dem Schreibbetrieb aufblähen, ohne eine Frage zu beantworten, die nicht schon auf Vorgangsebene beantwortet ist.
 
-## Kardinalitäten, Zugriffsmuster, Indizes, Größe
+## 7.11 Kardinalitäten, Zugriffsmuster, Indizes, Größe
 
 Annahme für die folgende Rechnung: 500 Personen, 800 Geräte, 200 Dienstinstanzen, 5 Mandanten, 12 Knoten. Die abgeleiteten Mengen beruhen auf benannten Faktoren; sämtliche Zahlen sind ein Modell, keine Messung. K-12 rechnet mit 150 Diensten; die hier angesetzten 200 liegen darüber, und das Ergebnis bleibt trotzdem unter dem Zielwert.
 

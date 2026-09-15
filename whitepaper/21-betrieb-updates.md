@@ -66,7 +66,7 @@ Ablaufspuren:
   Aufbewahrung 7 d                                   = 81 MB
 ```
 
-Vorgänge werden vollständig abgetastet, weil sie selten und einzeln bedeutsam sind; Leseanfragen werden ratenbegrenzt abgetastet, weil sie häufig und einzeln bedeutungslos sind; fehlgeschlagene und ungewöhnlich langsame Anfragen werden vollständig abgetastet, weil genau sie gebraucht werden. Die verworfene Alternative einer festen Abtastrate über alle Anfragen verliert entweder die seltenen Vorgänge oder erzeugt die 415 MB je Tag, die eine vollständige Abtastung der Leseanfragen kostet.
+Vorgänge werden vollständig abgetastet, weil sie selten und einzeln bedeutsam sind; Leseanfragen werden ratenbegrenzt abgetastet, weil sie häufig und einzeln bedeutungslos sind; fehlgeschlagene und ungewöhnlich langsame Anfragen werden vollständig abgetastet, weil genau sie gebraucht werden. Die verworfene Alternative einer festen Abtastrate über alle Anfragen verliert entweder die seltenen Vorgänge oder erzeugt die rund 8,3 GB je Tag, die eine vollständige Abtastung der Leseanfragen kostet (1.728.000 Anfragen/d · 12 Spannen · 400 B = 8.294.400.000 B/d).
 
 ### Wer welches Signal sieht
 

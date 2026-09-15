@@ -345,7 +345,7 @@ Alle Werte sind **Zielwerte**, keine Messungen. Verfügbarkeitszahlen sind Reche
 | **K-09 RPO/RTO Datensicherheitsstufe "Gespiegelt"** | Zielwert RPO ≤ 15 min, RTO ≤ 30 min | Sendeintervall 5 min, Sicherheitsfaktor 3 gegen ausgelassene Läufe ergibt RPO 15 min. Annahme: Änderungsrate eines typischen Speicherbereichs unter 1 GB je Intervall, Übertragung bei 1 Gbit/s unter 10 s. RTO = Entscheidung über Übernahme + Einbinden des letzten gemeinsamen Standes + Dienststart. |
 | **K-10 RPO/RTO Datensicherheitsstufe "Lokal"** | Zielwert RPO ≤ 24 h (wählbar bis 1 h), RTO ≤ 4 h | RPO folgt dem Sicherungsintervall der externen Auslagerung; RTO folgt aus Rückholung und Rückspielen des ausgelagerten Standes. In der Konsole dauerhaft als "keine Redundanz" gekennzeichnet. |
 | **K-11 RPO/RTO des Kontrollebenenzustands** | Zielwert: RPO 0 ab 3 Stimmknoten; bei 1 Knoten RPO ≤ 15 min; RTO Vollwiederherstellung ≤ 30 min | Ab 3 Stimmknoten gilt eine Schreiboperation erst als bestätigt, wenn die Mehrheit sie protokolliert hat, also RPO 0. Bei 1 Knoten bestimmt das Exportintervall den RPO (15 min, zusätzlich Export vor jeder Änderungstransaktion). RTO = Neuinstallation eines Ankerknotens ≤ 10 min + Import des signierten Exports ≤ 5 min + Konvergenz ≤ 15 min. |
-| **K-12 Größe von Sollzustand und Export** | Zielwert: Sollzustand ≤ 50 MB serialisiert, Export mit Auditkette ≤ 100 MB, Erzeugung und Signatur ≤ 5 s, Momentaufnahme ≤ 2 GB, Momentaufnahmeerzeugung ≤ 30 s | Annahme einer mittleren Installation: 500 Personen, 800 Geräte, 150 Dienste, 20 Domänen, 5.000 DNS-Einträge, 2.000 Zuweisungen ≈ 15.000 Objekte à durchschnittlich 2 KB = rund 30 MB; der Zielwert 50 MB enthält Reserve. Der Istzustand wird knotenlokal gehalten und nur verdichtet repliziert (≤ 1 KB je Objekt). |
+| **K-12 Größe von Sollzustand und Export** | Zielwert: Sollzustand ≤ 50 MB serialisiert, Export mit Auditkette ≤ 100 MB, Erzeugung und Signatur ≤ 5 s, Momentaufnahme ≤ 2 GB, Momentaufnahmeerzeugung ≤ 30 s | Annahme einer mittleren Installation: 500 Personen, 800 Geräte, 150 Dienste, 20 Domänen, 5.000 DNS-Einträge, 2.000 Zuweisungen. Diese sechs Posten ergeben zusammen 500 + 800 + 150 + 20 + 5.000 + 2.000 = 8.470 Objekte und sind nicht der vollständige Bestand; nicht aufgeführt sind die abgeleiteten und betrieblichen Objektklassen (Gruppen, Mitgliedschaften, Veröffentlichungen, Speicherbereiche, Postfächer, Mailadressen, Zertifikate, Richtlinien, Knoten, Netzzonen, Wiederherstellungspunkte, Vorgänge). Annahme für diese zusammen rund 6.500, sodass die Rechengrundlage rund 8.470 + 6.500 ≈ 15.000 Objekte à durchschnittlich 2 KB = rund 30 MB beträgt; der Zielwert 50 MB enthält Reserve. Kapitel 07 rechnet denselben Referenzfall mit allen Objektklassen einzeln aus und kommt auf 24.289 Objekte bei im Mittel 787 B je Objekt, also 19,1 MB. Beide Rechnungen bleiben unter dem Zielwert; die hier angesetzten 2 KB je Objekt sind gegenüber Kapitel 07 die konservativere Annahme, und die abgeleiteten Rechnungen in den Kapiteln stützen sich auf die hier genannten 15.000 Objekte. Der Istzustand wird knotenlokal gehalten und nur verdichtet repliziert (≤ 1 KB je Objekt). |
 | **K-13 Zertifikatslaufzeiten und Erneuerungsfenster** | Zielwert: Dienstzertifikate 90 d, Erneuerung ab Tag 60, Warnung ab ≤ 15 d Restlaufzeit, Eskalation ab ≤ 7 d Restlaufzeit; Gerätezertifikate 365 d, Erneuerung ab 120 d Restlaufzeit; Ausgabe-CA 5 a, Nachfolger ab 2 a Restlaufzeit parallel verteilt; Wurzel-CA offline 15 a; Anteil Zertifikate näher als 7 d am Ablauf = 0 | Erneuerung bei zwei Dritteln der Laufzeit ergibt bei 90 d ein Fenster von 30 d; bei stündlichem Erneuerungsversuch sind das 30 × 24 = 720 Versuche vor Ablauf, womit eine zusammenhängende Störung von bis zu 30 Tagen ohne Dienstausfall überstanden wird. Bei 500 veröffentlichten Namen fallen im Mittel 500/90 = 5,6 Erneuerungen pro Tag an. Gerätefenster 120 d, weil Geräte annahmegemäß zeitweise offline sind. |
 | **K-14 Widerstand des Kopplungsvorgangs** | Zielwert: Erfolgswahrscheinlichkeit je Code 4,44 × 10⁻¹⁵; Erfolgswahrscheinlichkeit eines ununterbrochenen Angriffs über ein Jahr ≤ 2 × 10⁻¹⁰ | 10 Zufallszeichen Crockford-Base32 à log₂(32) = 5 bit = 50 bit, also 2⁵⁰ = 1,1259 × 10¹⁵ Möglichkeiten (2 Prüfzeichen tragen keine Entropie, sie fangen Tippfehler ab). Je Code 5 Fehlversuche: 5 / 2⁵⁰ = 4,44 × 10⁻¹⁵. Codegültigkeit 15 min ⇒ höchstens 4 × 24 × 365 = 35.040 Codes pro Jahr × 5 = 175.200 Versuche; 175.200 / 1,1259 × 10¹⁵ = 1,56 × 10⁻¹⁰. Hypothetisch ohne jede Begrenzung bei 1.000 vollständigen Protokollläufen je Sekunde: Erwartungswert 2⁴⁹ / 1.000 s = 5,63 × 10¹¹ s ≈ 17.800 Jahre. Offline-Wörterbuchangriff auf einen mitgeschnittenen Lauf ist nach RFC 9382 ausgeschlossen. |
 | **K-15 Versorgungslatenz einer Zuweisung über alle Zielsysteme** | Zielwert p50 ≤ 5 s, p95 ≤ 60 s, harte Obergrenze 15 min mit je Zielsystem sichtbarem Fortschritt und benanntem Grund bei Teilfehlern | Ereignisgetriebener Pfad; Kaltstart eines aktivierten Konnektors ≤ 300 ms, je Zielsystem ≤ 3 s, bei ≤ 10 gleichzeitig gebundenen Systemen und Parallelität 4 rechnerisch ≤ 10 s; die p95-Grenze ist von der langsamsten Fremd-API mit Ratenbegrenzung bestimmt. Die harte Obergrenze existiert, damit die Oberfläche nie unbegrenzt "in Arbeit" zeigt. |
@@ -506,6 +506,7 @@ Kapitel dürfen ausschließlich aus dieser Liste Nummern zitieren. Alles andere 
 
 | Nr. | Kapitel | Dateiname |
 |---|---|---|
+| 01 | Zusammenfassung | `01-zusammenfassung.md` |
 | 02 | Problemstellung | `02-problemstellung.md` |
 | 03 | Zielbild und Prinzipien | `03-zielbild-prinzipien.md` |
 | 04 | Marktabgrenzung | `04-marktabgrenzung.md` |
@@ -529,7 +530,18 @@ Kapitel dürfen ausschließlich aus dieser Liste Nummern zitieren. Alles andere 
 | 22 | Compliance | `22-compliance.md` |
 | 23 | Ökonomie und Roadmap | `23-oekonomie-roadmap.md` |
 
-**Anforderungs-IDs:** `R-<Kapitelnummer>-<zweistellig>`, fortlaufend je Kapitel, beginnend bei 01, Beispiel `R-12-03`. Eine einmal vergebene Nummer wird nie neu vergeben; entfallene Anforderungen bleiben mit dem Vermerk "entfallen" stehen. Jede Anforderung nennt die Invariante oder Kennzahl, aus der sie folgt, oder begründet, warum sie aus keiner folgt. Verweise zwischen Kapiteln zitieren ausschließlich Anforderungs-IDs, Invariantennummern (`INV-nn`) und Kennzahlennummern (`K-nn`), nie Seitenzahlen oder Überschriften.
+Die Anhänge tragen Buchstabenkennungen und werden von den Kapiteln mit derselben Verbindlichkeit zitiert wie Kapitel untereinander:
+
+| Kennung | Anhang | Dateiname | Eigene Anforderungs-IDs |
+|---|---|---|---|
+| A1 | Schemata | `A1-schemata.md` | ja, `R-A1-nn` |
+| A2 | API-Referenz | `A2-api-referenz.md` | ja, `R-A2-nn` |
+| A3 | Architekturentscheidungen | `A3-adr.md` | ja, `R-A3-nn` |
+| A4 | Bedrohungsmodell und Härtung | `A4-bedrohungsmodell-haertung.md` | ja, `R-A4-nn` |
+| A5 | Anforderungsmatrix | `A5-anforderungsmatrix.md` | nein, verweist ausschließlich auf fremde IDs |
+| A6 | Glossar und Standards | `A6-glossar-standards.md` | nein, verweist ausschließlich auf fremde IDs |
+
+**Anforderungs-IDs:** `R-<Kapitelnummer>-<zweistellig>` für die Kapitel 02 bis 23, Beispiel `R-12-03`, und `R-<Anhangkennung>-<zweistellig>` für die Anhänge A1 bis A4, Beispiel `R-A2-22`; fortlaufend je Kapitel beziehungsweise Anhang, beginnend bei 01. Kapitel 01 sowie die Anhänge A5 und A6 vergeben keine eigenen Anforderungs-IDs. Eine einmal vergebene Nummer wird in keinem der beiden Kennungsräume neu vergeben; entfallene Anforderungen bleiben mit dem Vermerk "entfallen" stehen. Jede Anforderung nennt die Invariante oder Kennzahl, aus der sie folgt, oder begründet, warum sie aus keiner folgt. Verweise zwischen Kapiteln zitieren ausschließlich Anforderungs-IDs, Invariantennummern (`INV-nn`) und Kennzahlennummern (`K-nn`), nie Seitenzahlen oder Überschriften.
 
 ---
 
@@ -542,7 +554,7 @@ Kapitel dürfen ausschließlich aus dieser Liste Nummern zitieren. Alles andere 
 5. Keine Versionsnummern von Fremdsoftware, keine Kernelversionen; stattdessen "GA-Kernel der LTS-Serie" bzw. "HWE-Kernel".
 6. Standards werden ausschließlich mit den Nummern aus Abschnitt 8 zitiert; alles andere nur mit Namen.
 7. Jede Entscheidung nennt die verworfene Alternative und den Grund; kein "sowohl als auch".
-8. Jedes Kapitel führt einen eigenen Abschnitt "Schwächen und offene Punkte" und benennt dort, was der Entwurf nicht löst.
+8. Jedes Kapitel und jeder Anhang führt einen eigenen Abschnitt "Offene Punkte" und benennt dort, was der Entwurf nicht löst, einschließlich der bekannten Schwächen der eigenen Festlegungen.
 9. Aktiv und im Indikativ; keine Werbesprache, keine Superlative, keine Zukunftsversprechen ohne Zielwert.
 10. Tabellen vor Fließtext, Listen vor Absätzen; ein Absatz hat höchstens fünf Sätze.
 11. Verweise nur als `INV-nn`, `K-nn`, `R-<kk>-<nn>` oder Kapitelnummer; nie "siehe oben", nie Seitenzahlen.

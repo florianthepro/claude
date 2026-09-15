@@ -102,13 +102,13 @@ Jede Leseantwort führt `sollzustand_version` im Objekt und denselben Wert als s
 
 ### Bedingungsprüfung beim Schreiben
 
-`PATCH` und `DELETE` verlangen `If-Match` mit dem zuletzt gelesenen Marker. Fehlt die Kopfzeile, wird die Anfrage mit der Klasse `vorbedingung_fehlt` abgelehnt. Das ist eine harte Pflicht und kein Vorschlag: ein blindes Überschreiben ist in einem System, dessen Wirkungen bis in Fremdsysteme reichen, nicht rücknehmbar genug, um es zuzulassen. `POST` auf eine Sammlung trägt kein `If-Match`, weil kein Vorgängerzustand existiert; es trägt stattdessen einen Idempotenzschlüssel.
+`PATCH` und `DELETE` verlangen `If-Match` mit dem zuletzt gelesenen Marker. Fehlt die Kopfzeile, wird die Anfrage mit der Klasse `vorbedingung_fehlt` abgelehnt; ist sie vorhanden, passt aber nicht zum aktuellen Marker, lautet die Klasse `vorbedingung_fehlgeschlagen`. Das ist eine harte Pflicht und kein Vorschlag: ein blindes Überschreiben ist in einem System, dessen Wirkungen bis in Fremdsysteme reichen, nicht rücknehmbar genug, um es zuzulassen. Die Trennung der beiden Klassen folgt RFC 9110: eine fehlgeschlagene Vorbedingung und eine verlangte, aber nicht mitgesendete Vorbedingung sind verschiedene Fälle mit verschiedenen Folgehandlungen. `POST` auf eine Sammlung trägt kein `If-Match`, weil kein Vorgängerzustand existiert; es trägt stattdessen einen Idempotenzschlüssel.
 
 ### Idempotenzschlüssel
 
 | Regel | Festlegung |
 |---|---|
-| Kopfzeile | `Atrium-Idempotenz-Schluessel`, 16 bis 64 Zeichen aus `[a-z0-9-]`, üblicherweise eine ULID. |
+| Kopfzeile | `Atrium-Idempotenz-Schluessel`, 16 bis 64 Zeichen aus `[0-9A-Za-z-]`, üblicherweise eine ULID in Crockford-Base32. |
 | Pflicht | Bei jedem `POST` auf eine Sammlung und bei jedem Aktionsendpunkt, der einen Vorgang ausführt. |
 | Ableitung | Der Kern leitet daraus und aus Vorgang und Schritt den internen `idempotenzschluessel` als Hashwert ab ([Anhang A](A1-schemata.md), A1.2.14). Der äußere Schlüssel des Aufrufers und der innere Schlüssel des Konnektoraufrufs sind verschiedene Werte mit verschiedener Lebensdauer; sie werden nicht vermengt. |
 | Aufbewahrung | 24 h ab erstem Eingang. |
@@ -143,7 +143,7 @@ Die Zeigerblätterung liefert keine Momentaufnahme über Seitengrenzen hinweg. E
 |---|---|---|
 | Filtersyntax | `filter=<feld><operator><wert>`, mehrfach angebbar, ausschließlich UND-verknüpft. Operatoren: `=`, `!=`, `<`, `>`, `~` (Präfix, nur auf `anzeige_name` und `technischer_name`). | Feldnamen werden gegen eine Positivliste je Ressource geprüft und auf einen festen Spaltenbezeichner abgebildet; der Wert geht als gebundener Parameter in die Abfrage. Es findet keine Zeichenkettenverkettung statt und keine Auswertung eines Ausdrucks. |
 | Keine Ausdruckssprache | Es gibt kein ODER, keine Klammern, keine regulären Ausdrücke, keine Pfadausdrücke über verschachtelte Felder. | Eine vom Aufrufer gelieferte Ausdruckssprache ist eine dynamische Auswertung fremder Eingabe und zugleich ein unkalkulierbarer Abfrageplan; beides ist ausgeschlossen. |
-| Sortierung | `sortierung=<feld>` und `richtung=auf|ab`, Feld aus derselben Positivliste. Vorgabe `kennung` absteigend, also neueste zuerst. | Ein nicht gelistetes Sortierfeld wird abgelehnt und nicht ignoriert. |
+| Sortierung | `sortierung=<feld>` und `richtung=auf` bzw. `richtung=ab`, Feld aus derselben Positivliste. Vorgabe `kennung` absteigend, also neueste zuerst. | Ein nicht gelistetes Sortierfeld wird abgelehnt und nicht ignoriert. |
 | Feldauswahl | `felder=<liste>`. Die Antwort führt immer `kennung`, `typ`, `mandant`, `zustand` und `sollzustand_version`, unabhängig von der Auswahl. | Die Feldauswahl verengt nie die Rechteprüfung: ein nicht sichtbares Feld ist auch dann nicht enthalten, wenn es genannt wird, und die Antwort nennt es nicht als abgelehnt. |
 | Istzustandsfelder | Felder mit beobachtetem Ursprung tragen `beobachtet_am` (INV-28) und sind nicht filterbar, weil sie nicht im Konsens liegen. | Ein Filter auf ein Istzustandsfeld wird mit `schemafehler` und der Angabe des Feldes abgelehnt. |
 
@@ -201,8 +201,9 @@ Die Zeigerblätterung liefert keine Momentaufnahme über Seitengrenzen hinweg. E
 | `nicht_gefunden` | 404 | Objekt existiert nicht, oder es liegt außerhalb des Mandantenbezugs des Tokens | nein | Objekt im richtigen Mandanten suchen |
 | `nicht_erlaubt` | 405 | Verb auf dieser Ressource nicht vorhanden, etwa Schreiben auf ein abgeleitetes Artefakt (INV-09) | nein | Quellobjekt ändern; Ziel ist die Quelle des Artefakts |
 | `konflikt` | 409 | Versionskonflikt, veraltete Wirkungsvorschau, Eindeutigkeitsverletzung, abweichende Wiederholung | nach Neuladen | neu laden und wiederholen |
-| `vorbedingung_fehlt` | 412 | `If-Match` fehlt oder passt nicht | nach Neuladen | Objekt neu laden |
+| `vorbedingung_fehlgeschlagen` | 412 | `If-Match` ist vorhanden, passt aber nicht zum aktuellen Marker | nach Neuladen | Objekt neu laden |
 | `invariante_verletzt` | 422 | Anfrage ist schemagültig, verletzt aber eine Invariante: gerade Stimmzahl (INV-05), Kaskadenlöschung (INV-11), Zyklus in Gruppen, Absenkung der Isolationsstufe ohne Bestätigung | nein | benannte Bedingung herstellen |
+| `vorbedingung_fehlt` | 428 | `If-Match` fehlt, ist auf dieser Ressource aber Pflicht | nach Neuladen | Objekt lesen und den gelesenen Marker mitsenden |
 | `kontingent` | 429 | Ratengrenze der API oder Kontingentgrenze eines Zielsystems | ja, ab `naechster_versuch_nach_ms` | warten; bei Lizenzgrenze Kontingent erhöhen (INV-29) |
 | `intern` | 500 | Fehler in atrium-core, der keiner anderen Klasse zugeordnet werden kann | ja, einmalig | Störung ist im Überblick sichtbar; Korrelationskennung mitgeben |
 | `zielsystem_fehler` | 502 | Konnektor meldet `dauerhaft`, `rechte` oder `schema` | abhängig von der Konnektorklasse | Bindung, Fremdrecht oder Manifest berichtigen |
@@ -523,7 +524,8 @@ Drei Entscheidungen (K-03, Aufgabe 18): Name, Sichtbarkeit, Geltungsbereich. Der
    If-Match: "41210"
    { "ttl": 600 }
    -> 202
-   Ohne If-Match: 412 vorbedingung_fehlt.
+   Ohne If-Match: 428 vorbedingung_fehlt.
+   Mit veraltetem If-Match: 412 vorbedingung_fehlgeschlagen.
 
 4  GET /v1/artefakte?quell_objekt=urn:atrium:domaene:01JBE6F7G8H9J0KMNPQRSTVWXY
    -> 200 { "objekte": [ { "art": "dnseintrag", "name": "ticket",
@@ -567,7 +569,7 @@ Ratenbegrenzung schützt vor zu vielen Anfragen, Rückstau vor zu langer Arbeit.
 |---|---|---|
 | Lesender Aufruf | 5 s | K-18 fordert p95 ≤ 300 ms; die Frist liegt um den Faktor 16 darüber und fängt Ausreißer ab, statt sie zu verdecken. |
 | Schreibender Aufruf bis `202` | 10 s | Der Aufruf wartet nur auf die Protokollbestätigung des Sollzustands, nicht auf die Versorgung; K-05 nennt für den Führungswechsel ≤ 5 s. |
-| Wirkungsvorschau | 20 s | K-18 nennt p95 ≤ 2 s; die Frist deckt sieben parallele Bindungen mit je ≤ 2 s Trockenlaufantwort (K-22) und Reserve. |
+| Wirkungsvorschau | 20 s | K-18 nennt p95 ≤ 2 s und setzt Parallelausführung voraus, bei der die langsamste Bindung die Zeit bestimmt; die Frist ist so bemessen, dass auch eine serielle Abarbeitung von sieben Bindungen zu je ≤ 2 s Trockenlaufantwort (K-22) mit Sammlung, Darstellung und Reserve darunter bleibt. |
 | Ausführung eines Vorgangs | harte Obergrenze 15 min | K-15; die Oberfläche zeigt nie unbegrenzt "in Arbeit". |
 | Ereignisstrom im Leerlauf | unbegrenzt, Lebenszeichen alle 15 s | Ein Strom ohne Ereignisse ist der Normalzustand. |
 
@@ -578,7 +580,7 @@ Ratenbegrenzung schützt vor zu vielen Anfragen, Rückstau vor zu langer Arbeit.
 | `zeitueberschreitung`, `rueckstau`, `intern` | ja | exponentiell, Basis 500 ms, Faktor 2, Höchstwert 60 s, Streuung 20 %, höchstens 6 Versuche |
 | `kontingent` | ja | frühestens ab `naechster_versuch_nach_ms`, nie früher; die Rate kommt vom Zielsystem und wird nie selbst gewählt |
 | `eingefroren` | ja | mit 30 s Abstand, ohne Verkürzung; die Ursache ist fehlendes Quorum und nicht Last |
-| `konflikt`, `vorbedingung_fehlt` | nur nach Neuladen | die identische Anfrage scheitert erneut |
+| `konflikt`, `vorbedingung_fehlgeschlagen`, `vorbedingung_fehlt` | nur nach Neuladen | die identische Anfrage scheitert erneut |
 | `schemafehler`, `nicht_berechtigt`, `nicht_gefunden`, `nicht_erlaubt`, `invariante_verletzt` | nein | die Anfrage ist falsch, nicht unglücklich |
 | `zielsystem_fehler` | abhängig | die Konnektorklasse entscheidet ([Kapitel 09](09-konnektoren.md)) |
 
@@ -613,7 +615,7 @@ Die Ankündigungsliste der benutzenden Dienstkonten ist der Punkt, an dem die Ab
 - **R-A2-03** — Jeder schreibende Aufruf antwortet mit `202` und einem Vorgangsverweis; es existiert kein Endpunkt, der eine Änderung ohne Vorgang ausführt. Prüfbar: Endpunktabzählung; jede `200`- oder `201`-Antwort auf ein schreibendes Verb bricht den Bau (INV-03).
 - **R-A2-04** — Für abgeleitete Artefakte existiert keine Schreiboperation; `PATCH`, `POST` und `DELETE` auf `/v1/artefakte` antworten `405` mit Verweis auf die Quelle. Prüfbar: Schreibversuch je Artefaktart (INV-09).
 - **R-A2-05** — Es existiert kein Endpunkt, der ein Geheimnis im Klartext zurückgibt, und kein Gültigkeitsbereich mit lesender Geheimnissemantik. Prüfbar: Endpunktabzählung plus Ausgabeprüfung gegen Geheimnismuster über alle Antworten (INV-20).
-- **R-A2-06** — `PATCH` und `DELETE` ohne `If-Match` werden mit `vorbedingung_fehlt` abgelehnt. Prüfbar: Aufruf ohne Kopfzeile je schreibbarer Ressource.
+- **R-A2-06** — `PATCH` und `DELETE` ohne `If-Match` werden mit `vorbedingung_fehlt` und Status 428 abgelehnt, mit nicht passendem `If-Match` mit `vorbedingung_fehlgeschlagen` und Status 412. Prüfbar: Aufruf ohne Kopfzeile und Aufruf mit veraltetem Marker je schreibbarer Ressource.
 - **R-A2-07** — Zwei identische Aufrufe mit demselben Idempotenzschlüssel erzeugen genau ein Objekt, genau einen Vorgang und 0 Auditereignisse vom Typ "geändert" beim zweiten Aufruf. Prüfbar: Doppellauftest im Bau (INV-07).
 - **R-A2-08** — Ein Aufruf mit bekanntem Idempotenzschlüssel und abweichendem Inhalt wird mit `konflikt` abgelehnt; der Vergleich erfolgt über die kanonische Form nach RFC 8785. Prüfbar: Wiederholung mit geändertem Feld und mit ausschließlich geänderter Schlüsselreihenfolge; die erste wird abgelehnt, die zweite als Wiederholung erkannt.
 - **R-A2-09** — Jede Fehlerantwort trägt `klasse`, `schluessel`, `text`, `handlung` und `korrelationskennung`; die Zahl der Fehlerantworten ohne Handlungsangabe ist 0. Prüfbar: Fehlerinjektion über alle Klassen und Musterprüfung (INV-17).
@@ -640,7 +642,7 @@ Die Ankündigungsliste der benutzenden Dienstkonten ist der Punkt, an dem die Ab
 | Kriterium | Anforderung | Nachweis |
 |---|---|---|
 | Die Konsole läuft vollständig gegen die Fassade, die nicht dokumentierte Endpunkte sperrt; Zugriffe darauf: 0 | R-A2-01 | Bauprüfung mit gesperrter Fassade über den vollständigen Aufgabenkatalog |
-| Über alle Endpunkte und alle 15 Fehlerklassen: 100 % der Antworten mit `Atrium-Schema-Version` und `Atrium-Korrelation` | R-A2-02 | Kopfzeilenprüfung mit Fehlerinjektion je Klasse |
+| Über alle Endpunkte und alle 16 Fehlerklassen: 100 % der Antworten mit `Atrium-Schema-Version` und `Atrium-Korrelation` | R-A2-02 | Kopfzeilenprüfung mit Fehlerinjektion je Klasse |
 | Schreibende Verben mit Antwort ungleich `202`: 0 | R-A2-03 | Endpunktabzählung im Bau |
 | Schreibversuche auf abgeleitete Artefakte: 100 % `405` mit Quellverweis | R-A2-04 | Schreibversuch je Artefaktart (Firewallregel, Proxyroute, DNS-Eintrag, Zertifikatsantrag, Fremdkonto) |
 | Endpunkte mit Klartextrückgabe eines Geheimnisses: 0; Gültigkeitsbereiche mit lesender Geheimnissemantik: 0 | R-A2-05 | Endpunktabzählung plus Ausgabeprüfung über alle Antworten und den Ereignisstrom |

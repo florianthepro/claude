@@ -50,7 +50,7 @@ Bereich "Geraete" -> "Geraet aufnehmen"
   -> Konsole: Zustandswechsel "erfasst" -> "registriert"
 ```
 
-Alles Übrige ist abgeleitet und trägt nach INV-15 eine benannte Quelle: der Mandant folgt aus dem Eigentümer, die Netzzone aus der Richtlinie des Mandanten für diese Geräteklasse, das Zertifikatsprofil aus der Klasse (KANON 11.4), der technische Name aus der Kennung, die Konformitätsvorgaben aus der Richtlinie. Die Wirkungsvorschau nennt vor der Bestätigung, in welche Netzzone das Gerät fällt, welche Domänen dadurch für es auflösbar werden und welche Konformitätsmerkmale es erfüllen muss.
+Alles Übrige ist abgeleitet und trägt nach INV-15 eine benannte Quelle: der Mandant folgt aus dem Eigentümer, die Netzzone aus der Richtlinie des Mandanten für diese Geräteklasse, das Zertifikatsprofil aus der Klasse ([Kapitel 11](11-pki.md), Abschnitt 11.4), der technische Name aus der Kennung, die Konformitätsvorgaben aus der Richtlinie. Die Wirkungsvorschau nennt vor der Bestätigung, in welche Netzzone das Gerät fällt, welche Domänen dadurch für es auflösbar werden und welche Konformitätsmerkmale es erfüllen muss.
 
 ### Was im Hintergrund geschieht
 
@@ -73,7 +73,7 @@ Alles Übrige ist abgeleitet und trägt nach INV-15 eine benannte Quelle: der Ma
 10. Aufnahmegeheimnis vernichtet; Geraetezustand "registriert"
 ```
 
-Die Reihenfolge ist nicht beliebig. Schritt 8 steht nach Schritt 5, weil das Gerät den Vertrauensanker zum Zeitpunkt des ersten Zertifikatsantrags noch nicht besitzt und die Verbindung deshalb nicht über die interne Kette prüfen kann. Gelöst wird das wie bei der Knotenkopplung (KANON 4a) über **Fingerabdruck-Pinning**: der Aufnahmecode wird zusammen mit dem Fingerabdruck der Ausgabe-CA angezeigt, der Aufnahmelink trägt ihn, und das Aufnahmeprogramm prüft die Kette gegen diesen Wert statt gegen einen Speicher. Ohne diesen Schritt wäre die Erstaufnahme gegen einen dazwischengeschalteten Angreifer ungeschützt, weil eine unvalidierte TLS-Verbindung das Aufnahmegeheimnis preisgäbe.
+Die Reihenfolge ist nicht beliebig. Schritt 8 steht nach Schritt 5, weil das Gerät den Vertrauensanker zum Zeitpunkt des ersten Zertifikatsantrags noch nicht besitzt und die Verbindung deshalb nicht über die interne Kette prüfen kann. Gelöst wird das wie bei der Knotenkopplung (KANON 4.4a) über **Fingerabdruck-Pinning**: der Aufnahmecode wird zusammen mit dem Fingerabdruck der Ausgabe-CA angezeigt, der Aufnahmelink trägt ihn, und das Aufnahmeprogramm prüft die Kette gegen diesen Wert statt gegen einen Speicher. Ohne diesen Schritt wäre die Erstaufnahme gegen einen dazwischengeschalteten Angreifer ungeschützt, weil eine unvalidierte TLS-Verbindung das Aufnahmegeheimnis preisgäbe.
 
 ### Aufnahmewege je Klasse
 
@@ -118,7 +118,9 @@ Massenaufnahme (V > 10)
                         = 1,45 · 10^-16
 ```
 
-Das ist ein Modell, keine Messung. Zwei Einsichten daraus sind für den Entwurf bestimmend. Erstens skaliert das Blindraten mit der Zahl gleichzeitig offener Codes; die Fünf-Fehlversuche-Grenze je Code schützt den einzelnen Code, nicht den Bestand. Zweitens liegt der Wert 1,56 · 10⁻⁹ um den Faktor 7,8 über dem Wert des Kopplungscodes aus K-14 (2 · 10⁻¹⁰), was unmittelbar aus der längeren Gültigkeit (24 h statt 15 min) und der größeren Zahl gleichzeitig offener Codes folgt. Die längere Gültigkeit wird beibehalten, weil ein Aufnahmecode einer Person zugestellt wird, die das Gerät möglicherweise erst am Folgetag in der Hand hält; ein 15-Minuten-Fenster erzwänge, dass eine Administratorin neben jedem Gerät steht. Der Preis ist die genannte Zahl, und sie steht hier, statt sie durch eine schmeichelhafte Rechnung zu ersetzen.
+Das ist ein Modell, keine Messung. Zwei Einsichten daraus sind für den Entwurf bestimmend. Erstens skaliert das Blindraten mit der Zahl gleichzeitig offener Codes; die Fünf-Fehlversuche-Grenze je Code schützt den einzelnen Code, nicht den Bestand. Zweitens liegt der Wert 1,56 · 10⁻⁹ um den Faktor 7,8 über dem Wert des Kopplungscodes aus K-14 (2 · 10⁻¹⁰), was unmittelbar aus der längeren Gültigkeit (24 h statt 15 min) und der größeren Zahl gleichzeitig offener Codes folgt.
+
+Die längere Gültigkeit wird beibehalten, weil ein Aufnahmecode einer Person zugestellt wird, die das Gerät möglicherweise erst am Folgetag in der Hand hält; ein 15-Minuten-Fenster erzwänge, dass eine Administratorin neben jedem Gerät steht. Der Preis ist die genannte Zahl, und sie steht hier, statt sie durch eine schmeichelhafte Rechnung zu ersetzen.
 
 Der **Aufnahmelink** ist keine zweite Sicherheitsstufe, sondern eine Eingabeerleichterung: er trägt dasselbe Geheimnis und denselben Fingerabdruck. Wird er über einen Kanal zugestellt, den Atrium nicht kontrolliert, ist seine Sicherheit die Sicherheit dieses Kanals. Die Konsole kennzeichnet deshalb jede über einen Link abgeschlossene Aufnahme im Auditereignis, und die Richtlinie eines Mandanten kann den Linkweg abschalten.
 
@@ -435,7 +437,7 @@ Zur Zuweisung: sie wirkt auf Personen und Dienstkonten, nie auf Geräte (13.1). 
 | R-13-07 | Der Aufnahmecode besteht aus 10 Zufallszeichen Crockford-Base32 (50 bit), ist ≤ 24 h gültig, nach 5 Fehlversuchen vernichtet und in der Darstellung `XXXXX-XXXXX-XX` vom Kopplungscode unterscheidbar. Je Mandant sind höchstens 10 Kurzcodes gleichzeitig gültig. | R-11-15, K-14 |
 | R-13-08 | Der Aufnahmeendpunkt lässt global höchstens 20 und je Quelladresse höchstens 10 fehlgeschlagene Versuche je Stunde zu. Der Vergleich des Aufnahmegeheimnisses läuft laufzeitkonstant. | INV-20 |
 | R-13-09 | Massenaufnahme (mehr als 10 gleichzeitig offene Aufnahmen) verwendet ausschließlich 16-stellige Codes (80 bit), die nicht zur Eingabe von Hand angezeigt werden. | K-14 |
-| R-13-10 | Aufnahmecode und Aufnahmelink tragen den Fingerabdruck der Ausgabe-CA; das aufnehmende Programm prüft die Kette gegen diesen Wert, bevor es das Aufnahmegeheimnis sendet. | KANON 4a |
+| R-13-10 | Aufnahmecode und Aufnahmelink tragen den Fingerabdruck der Ausgabe-CA; das aufnehmende Programm prüft die Kette gegen diesen Wert, bevor es das Aufnahmegeheimnis sendet. | KANON 4.4a |
 | R-13-11 | Jedes Geräteobjekt führt `hardwarebindung` mit genau einem der Werte `bescheinigt`, `behauptet`, `keine`. Der Wert `bescheinigt` wird nur bei erfolgreich geprüfter Bescheinigung gesetzt. | INV-18 |
 | R-13-12 | Der RADIUS-Dienst prüft ausschließlich Gerätezertifikate gegen die interne Ausgabe-CA und die verteilte Positivliste, mit Hard-Fail gegen den Listeninhalt. Kennwortbasierte EAP-Verfahren sind nicht konfigurierbar. | KANON 4.9b, R-11-18 |
 | R-13-13 | Die Netzzone eines Geräts folgt deterministisch aus Gerätezustand, Richtlinie und Geltungsbereichsgruppen; bei Gleichstand gewinnt die restriktivere Zone, und die entscheidende Regel wird angezeigt. Eine Zonenzuordnung von Hand am Netzgerät existiert nicht. | INV-02, INV-09 |

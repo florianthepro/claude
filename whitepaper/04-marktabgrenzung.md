@@ -73,7 +73,7 @@ D09 ist die einzige Dimension, deren Entscheidungsmerkmal negativ formuliert ist
 
 **Was es tut.** Eine Debian-basierte Distribution für den Eigenbetrieb, die einen Anwendungskatalog, ein eigenes Verzeichnis mit Anmeldeportal, einen eigenen Postfachdienst, automatische Reverse-Proxy-Einträge und automatischen Zertifikatsbezug für die verwalteten Namen zusammenführt.
 
-**Stärke bezogen auf die Aufgabe.** Für den Umfang einer Maschine ist die Ableitung konsequent: Wer eine Anwendung installiert und ihr einen Namen gibt, erhält Proxyeintrag und Zertifikat ohne eigenes Zutun. Das ist der Kern dessen, was D09 verlangt, und es ist der Beleg dafür, dass diese Ableitung praktisch funktioniert.
+**Stärke bezogen auf die Aufgabe.** Für den Umfang einer Maschine ist die Ableitung konsequent: Wer eine Anwendung installiert und ihr einen Namen gibt, erhält Proxyeintrag und Zertifikat ohne eigenes Zutun; das ist der Kern dessen, was D09 verlangt.
 
 **Grenze bezogen auf die Aufgabe.** Das System ist auf eine Maschine ausgelegt; D06 entfällt. Mail wird selbst betrieben statt in fremden Postfachsystemen angelegt, womit D05 nicht erfüllt ist. Es gibt keine Geräteobjekte, keine Ausgabestelle für Gerätezertifikate und keine Mandantengrenze; der Katalog besteht aus gemeinschaftlich gepflegten Paketen und deckt einen anderen Bedarf ab als die in der Aufgabe geforderte Breite an Geschäftsanwendungen und Datenbanken.
 
@@ -200,7 +200,7 @@ Die letzte Zeile ist keine gleichrangige Tabellenzeile. Sie beschreibt eine Spez
 | TrueNAS SCALE | D06 | Der Stand der knotenübergreifenden Verwaltung außerhalb dedizierter Hardwarepaare ist nicht belastbar bekannt. |
 | Einfache Heimserver-Oberflächen | D09, D10 | Die Klasse ist heterogen. Eine Klassenbewertung ist nur zulässig, wo die Klasse in der Dimension einheitlich ist; hier ist sie es nicht. |
 
-Jede dieser fünf Zellen ist ein offener Klärungsauftrag und keine Bewertung. Nach R-04-14 ist eine unsichere Zelle ohne benannten Klärungsauftrag ein Mangel des Dokuments.
+Jede der sechs Zellen in diesen fünf Zeilen ist ein offener Klärungsauftrag und keine Bewertung. Nach R-04-14 ist eine unsichere Zelle ohne benannten Klärungsauftrag ein Mangel des Dokuments.
 
 ## 4.6 Vertiefter Vergleich mit dem nächsten Verwandten
 
