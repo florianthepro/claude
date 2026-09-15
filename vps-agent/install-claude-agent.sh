@@ -113,7 +113,7 @@ apt-get install -y -qq --no-install-recommends \
 
 # Kuer: nuetzlich, aber kein Grund zum Abbruch (build-essential ist gross und fehlt
 # auf minimalen Images gelegentlich ganz).
-for pkg in ripgrep unzip tmux unattended-upgrades build-essential; do
+for pkg in file ripgrep unzip tmux unattended-upgrades build-essential; do
   apt-get install -y -qq --no-install-recommends "${pkg}" >/dev/null 2>&1 \
     || warn "  optionales Paket '${pkg}' nicht installiert - weiter"
 done
@@ -128,7 +128,11 @@ else
   log "Lege Swap an (${SWAP_SIZE}) - schuetzt den Agenten vor dem OOM-Killer"
   if ( set +e
        # Ein vorhandenes, aber unbrauchbares /swapfile nicht blind weiterverwenden.
-       if [[ -f /swapfile ]] && ! file /swapfile 2>/dev/null | grep -qi 'swap file'; then
+       # Nur loeschen, wenn 'file' vorhanden ist UND sicher sagt, dass es kein Swap ist.
+       # Ohne diese Bedingung wuerde ein fehlendes 'file' (minimale Cloud-Images) den
+       # Test immer scheitern lassen und /swapfile bedingungslos loeschen.
+       if [[ -f /swapfile ]] && command -v file >/dev/null 2>&1 \
+          && ! file /swapfile 2>/dev/null | grep -qi 'swap file'; then
          rm -f /swapfile
        fi
        if [[ ! -f /swapfile ]]; then
@@ -144,7 +148,12 @@ else
        fi
        chmod 600 /swapfile
        swapon /swapfile 2>/dev/null || exit 1
-       grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+       if ! grep -q '^/swapfile ' /etc/fstab; then
+         # Endet fstab nicht mit Zeilenumbruch, wuerde der neue Eintrag an die letzte
+         # Zeile geklebt - im schlimmsten Fall an den Root-Eintrag. Erst absichern.
+         [[ -s /etc/fstab && -n "$(tail -c 1 /etc/fstab)" ]] && printf '\n' >> /etc/fstab
+         printf '%s\n' '/swapfile none swap sw 0 0' >> /etc/fstab
+       fi
      ); then
     log "  Swap aktiv"
   else
@@ -168,7 +177,13 @@ net.ipv4.tcp_keepalive_probes = 8
 # Abgebrochene Verbindungen schneller erkennen statt minutenlang haengen.
 net.ipv4.tcp_retries2 = 8
 EOF
-sysctl -q --system >/dev/null
+sysctl -q --system >/dev/null 2>&1 \
+  || warn "sysctl --system meldete Fehler (auf VPS/Containern ueblich) - Keepalives werden einzeln gesetzt"
+# Die fuer uns wesentlichen Werte notfalls direkt setzen.
+for kv in net.ipv4.tcp_keepalive_time=120 net.ipv4.tcp_keepalive_intvl=30 \
+          net.ipv4.tcp_keepalive_probes=8; do
+  sysctl -qw "${kv}" 2>/dev/null || warn "  ${kv} nicht setzbar"
+done
 log "  tcp_keepalive_time=$(cat /proc/sys/net/ipv4/tcp_keepalive_time)s"
 
 # ---------------------------------------------------------------- 4. Dienstbenutzer
@@ -605,10 +620,24 @@ cat >> "/usr/local/bin/${SERVICE_NAME}-health" <<'EOF'
 
 fail=0
 
-if ! systemctl is-active --quiet "${SERVICE}.service"; then
-  echo "KRITISCH: ${SERVICE}.service ist nicht aktiv - starte neu"
+# Nur einen ABGESTUERZTEN Dienst neu starten, nicht jeden inaktiven.
+# 'failed' unterscheidet sauber zwischen den drei Zustaenden:
+#   failed   -> abgestuerzt, hier soll der Watchdog eingreifen
+#   inactive -> bewusst gestoppt ODER noch nie gestartet (vor dem Erst-Login!)
+# Ein bedingungsloses restart wuerde ein 'systemctl stop' stillschweigend aufheben
+# und den Dienst vor dem dokumentierten interaktiven Erstlauf in eine Absturzschleife
+# schicken.
+if systemctl is-failed --quiet "${SERVICE}.service"; then
+  echo "KRITISCH: ${SERVICE}.service ist abgestuerzt - starte neu"
   systemctl restart "${SERVICE}.service"
   fail=1
+elif ! systemctl is-active --quiet "${SERVICE}.service"; then
+  if [[ -z "$(systemctl show -p ExecMainStartTimestamp --value "${SERVICE}.service" 2>/dev/null)" ]]; then
+    echo "HINWEIS: ${SERVICE}.service wurde noch nie gestartet."
+    echo "  Erst anmelden und den Probelauf machen, dann: systemctl start ${SERVICE}.service"
+  else
+    echo "HINWEIS: ${SERVICE}.service ist gestoppt (nicht abgestuerzt) - kein automatischer Start."
+  fi
 fi
 
 # Auth-Status pruefen. Laeuft als Dienstbenutzer, damit dieselben Credentials gelesen werden.

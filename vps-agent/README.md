@@ -246,9 +246,24 @@ bash /root/harden-ssh.sh --key "ssh-ed25519 AAAA... dein-key"
 bash /root/harden-ssh.sh --disable-passwords
 ```
 
-Das Skript **verweigert** das Abschalten des Passwort-Logins, solange kein gültiger
-Schlüssel hinterlegt ist, prüft jede Änderung mit `sshd -t` und nutzt `reload` statt
-`restart`, damit die laufende Sitzung offen bleibt.
+Der Aussperr-Schutz ist mehrstufig:
+
+- Schlüssel werden **einzeln mit `ssh-keygen -l` validiert**, nicht gezählt. Ein beim
+  Kopieren umgebrochener Schlüssel ergibt mehrere Zeilen — eine Zeilenzählung hätte
+  „3 Schlüssel vorhanden" gemeldet und den Passwort-Login abgeschaltet. Genau so
+  sperrt man sich aus.
+- Vor dem Anhängen an `authorized_keys` wird ein **fehlender Zeilenumbruch ergänzt**.
+  Ohne das verschmilzt der neue mit dem letzten Schlüssel und **beide** werden unbrauchbar.
+- Die Richtlinie wirkt global, deshalb wird auch **root** geprüft, nicht nur `--user`.
+  `PermitRootLogin prohibit-password` sperrt root aus, wenn root keinen Schlüssel hat.
+- Es wird geprüft, ob `sshd_config` das Verzeichnis `sshd_config.d` überhaupt
+  **einbindet** — sonst wäre das Drop-in wirkungslos und die Erfolgsmeldung falsch.
+- Nach `sshd -t` folgt eine **Gegenprobe am effektiven Ergebnis** (`sshd -T`), weil ein
+  vorrangiger Match-Block die Einstellung aushebeln kann.
+- Alle angefassten Dateien werden vorher gesichert; schlägt etwas fehl, wird
+  **vollständig zurückgerollt** und nichts neu geladen.
+- `reload` statt `restart`: die laufende Sitzung bleibt offen.
+- Fehlt `ssh-keygen`, bricht das Skript ab, statt ungeprüft abzuschalten.
 
 ---
 
