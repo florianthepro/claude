@@ -132,22 +132,41 @@ if [[ ${PW_ALREADY_DISABLED} -eq 1 && ${DISABLE_PASSWORDS} -eq 0 ]]; then
 fi
 
 # Sicherungen aller Dateien, die wir anfassen koennten - fuer einen echten Rollback.
+# Die Zuordnung Sicherung -> Originalpfad steht in einem Manifest. Den Pfad in den
+# Dateinamen zu kodieren waere fehleranfaellig: '/' durch '_' zu ersetzen ist nicht
+# umkehrbar, sobald der Pfad selbst Unterstriche enthaelt - und genau das tut
+# 'sshd_config'. Ein naiver Rueckweg ergaebe '/etc/ssh/sshd/config'.
 BACKUP_DIR="$(mktemp -d /root/.ssh-hardening-backup.XXXXXX)"
-for f in /etc/ssh/sshd_config "${DROPIN}"; do
-  [[ -f "$f" ]] && cp -a "$f" "${BACKUP_DIR}/$(echo "$f" | tr / _)"
-done
-for f in /etc/ssh/sshd_config.d/*.conf; do
-  [[ -f "$f" ]] && cp -a "$f" "${BACKUP_DIR}/$(echo "$f" | tr / _)"
-done
+chmod 700 "${BACKUP_DIR}"
+MANIFEST="${BACKUP_DIR}/manifest.tsv"
+: > "${MANIFEST}"
+DROPIN_EXISTED=0
+[[ -f "${DROPIN}" ]] && DROPIN_EXISTED=1
+
+backup_n=0
+backup_file() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  # Schon gesichert? Dann nicht ueberschreiben.
+  cut -f2 "${MANIFEST}" | grep -qxF "$f" && return 0
+  backup_n=$((backup_n + 1))
+  cp -a "$f" "${BACKUP_DIR}/${backup_n}.bak"
+  printf '%s\t%s\n' "${backup_n}.bak" "$f" >> "${MANIFEST}"
+}
+
+backup_file /etc/ssh/sshd_config
+backup_file "${DROPIN}"
+for f in /etc/ssh/sshd_config.d/*.conf; do backup_file "$f"; done
 
 rollback() {
-  for b in "${BACKUP_DIR}"/*; do
-    [[ -f "$b" ]] || continue
-    orig="$(basename "$b" | tr _ /)"
-    cp -a "$b" "${orig}"
-  done
-  # Ein in diesem Lauf NEU erzeugtes Drop-in gab es vorher nicht - entfernen.
-  [[ -f "${BACKUP_DIR}/$(echo "${DROPIN}" | tr / _)" ]] || rm -f "${DROPIN}"
+  local bak orig
+  while IFS=$'\t' read -r bak orig; do
+    [[ -n "${bak}" && -n "${orig}" && -f "${BACKUP_DIR}/${bak}" ]] || continue
+    cp -a "${BACKUP_DIR}/${bak}" "${orig}" 2>/dev/null \
+      || warn "  Rollback von ${orig} fehlgeschlagen"
+  done < "${MANIFEST}"
+  # Ein in DIESEM Lauf neu erzeugtes Drop-in gab es vorher nicht - entfernen.
+  [[ ${DROPIN_EXISTED} -eq 1 ]] || rm -f "${DROPIN}"
 }
 
 # ClientAliveInterval haelt die SSH-Sitzung durch NAT-Timeouts am Leben - das SSH-Pendant

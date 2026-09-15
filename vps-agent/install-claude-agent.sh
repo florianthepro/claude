@@ -29,8 +29,11 @@ set -euo pipefail
 
 # ---------------------------------------------------------------- Konfiguration
 AGENT_USER="${AGENT_USER:-claude}"
-AGENT_HOME="/home/${AGENT_USER}"
-WORKSPACE="${WORKSPACE:-${AGENT_HOME}/workspace}"
+# AGENT_HOME wird nach dem Anlegen des Benutzers aus /etc/passwd gelesen (Abschnitt 4).
+# Ein bereits vorhandenes Konto kann ein abweichendes Home haben; jedes 'sudo -u ... -H'
+# benutzt ohnehin das echte Home, waehrend geratene Pfade in den Units landen wuerden.
+AGENT_HOME=""
+WORKSPACE_OVERRIDE="${WORKSPACE:-}"
 SERVICE_NAME="${SERVICE_NAME:-claude-agent}"
 SESSION_NAME="${SESSION_NAME:-$(hostname -s)}"
 CAPACITY="${CAPACITY:-3}"
@@ -195,6 +198,24 @@ if ! id -u "${AGENT_USER}" >/dev/null 2>&1; then
 else
   log "Benutzer '${AGENT_USER}' existiert bereits"
 fi
+# Echtes Home aus passwd, nicht geraten.
+AGENT_HOME="$(getent passwd "${AGENT_USER}" 2>/dev/null | cut -d: -f6 || true)"
+[[ -n "${AGENT_HOME}" ]] || die "Home-Verzeichnis von '${AGENT_USER}' nicht ermittelbar."
+[[ -d "${AGENT_HOME}" ]] || install -d -o "${AGENT_USER}" -g "${AGENT_USER}" -m 0750 "${AGENT_HOME}"
+WORKSPACE="${WORKSPACE_OVERRIDE:-${AGENT_HOME}/workspace}"
+log "  Home: ${AGENT_HOME}"
+
+# Das Arbeitsverzeichnis darf NICHT das Home-Verzeichnis sein: fuer $HOME speichert
+# Claude Code den Workspace-Trust grundsaetzlich nicht ("home-directory trust is never
+# saved"). Der Dienst wuerde dann bei jedem Start am Trust-Fehler scheitern.
+WORKSPACE="${WORKSPACE%/}"
+if [[ "${WORKSPACE}" == "${AGENT_HOME%/}" ]]; then
+  die "WORKSPACE darf nicht das Home-Verzeichnis sein (${AGENT_HOME}).
+     Fuer Home-Verzeichnisse wird Workspace-Trust nie gespeichert; der Dienst
+     wuerde bei jedem Start scheitern. Nimm ein Unterverzeichnis, z.B.
+     WORKSPACE=${AGENT_HOME}/workspace"
+fi
+
 install -d -o "${AGENT_USER}" -g "${AGENT_USER}" -m 0755 "${WORKSPACE}"
 # Lingering: erlaubt Benutzerprozesse ohne aktive Login-Sitzung (relevant fuer tmux-Debugging).
 loginctl enable-linger "${AGENT_USER}" >/dev/null 2>&1 || true
@@ -217,6 +238,12 @@ if [[ -z "${CLAUDE_BIN}" ]]; then
 else
   log "Claude Code bereits vorhanden: ${CLAUDE_BIN}"
 fi
+# Das Verzeichnis der tatsaechlich gefundenen Binary gehoert in den Unit-PATH.
+# find_claude kann sie ausserhalb der Standardpfade liefern (z.B. unter nvm), und ein
+# Dienst mit unpassendem PATH endet mit Status 127, ohne sich je zu erholen.
+CLAUDE_DIR="$(dirname "${CLAUDE_BIN}")"
+SERVICE_PATH="${CLAUDE_DIR}:${AGENT_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin"
+
 CLAUDE_VERSION="$(sudo -u "${AGENT_USER}" -H "${CLAUDE_BIN}" --version 2>/dev/null | head -1 || echo 'unbekannt')"
 log "  Version: ${CLAUDE_VERSION}"
 # Bequemer Aufruf als 'claude' fuer root. Wichtig: NICHT verlinken, wenn die Binary
@@ -545,7 +572,7 @@ WorkingDirectory=${WORKSPACE}
 Environment=HOME=${AGENT_HOME}
 Environment=TERM=xterm-256color
 Environment=LANG=C.UTF-8
-Environment=PATH=${AGENT_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=${SERVICE_PATH}
 
 ExecStart=/usr/bin/python3 ${SUPERVISOR} --grace 25 -- \
     ${CLAUDE_BIN} remote-control \
@@ -604,7 +631,7 @@ Description=Claude Code aktualisieren und Agent neu starten
 Type=oneshot
 User=${AGENT_USER}
 Environment=HOME=${AGENT_HOME}
-Environment=PATH=${AGENT_HOME}/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=${SERVICE_PATH}
 ExecStart=${CLAUDE_BIN} update
 # Neustart als root, deshalb das "+" (privilegiert ausgefuehrt).
 # --no-block ist wichtig: ohne das wartet diese Unit auf den Neustart-Job, was aus einer
@@ -651,9 +678,18 @@ fail=0
 # Ein bedingungsloses restart wuerde ein 'systemctl stop' stillschweigend aufheben
 # und den Dienst vor dem dokumentierten interaktiven Erstlauf in eine Absturzschleife
 # schicken.
+# Hinweis zur Arbeitsteilung: Abstuerze faengt systemd selbst ab (Restart=always,
+# StartLimitIntervalSec=0). Der Dienst landet dadurch praktisch nie im Zustand
+# 'failed' - er pendelt zwischen active und auto-restart. Dieser Check ist deshalb
+# vor allem MELDEND; er startet nur den Sonderfall 'failed' neu und laesst einen
+# bewusst gestoppten Dienst in Ruhe.
 if systemctl is-failed --quiet "${SERVICE}.service"; then
-  echo "KRITISCH: ${SERVICE}.service ist abgestuerzt - starte neu"
+  echo "KRITISCH: ${SERVICE}.service steht auf 'failed' - starte neu"
   systemctl restart "${SERVICE}.service"
+  fail=1
+elif [[ "$(systemctl show -p SubState --value "${SERVICE}.service" 2>/dev/null)" == "auto-restart" ]]; then
+  echo "WARNUNG: ${SERVICE}.service startet gerade neu (Absturzschleife?)."
+  echo "  Pruefen: journalctl -u ${SERVICE}.service -n 50"
   fail=1
 elif ! systemctl is-active --quiet "${SERVICE}.service"; then
   if [[ -z "$(systemctl show -p ExecMainStartTimestamp --value "${SERVICE}.service" 2>/dev/null)" ]]; then
